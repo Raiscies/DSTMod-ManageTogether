@@ -1,7 +1,6 @@
 GLOBAL.setmetatable(env,{__index=function(t,k) return GLOBAL.rawget(GLOBAL,k) end})
 
 -- string constants
-
 STRINGS.UI.MANAGE_TOGETHER = {
     
     -- announcement
@@ -52,9 +51,13 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = '是否回档到%s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },
+        ROLLBACK_TO = {
+            FMT_ANNOUNCE = '是否回档到%s',
+            TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
+        },
         REGENERATE_WORLD = {
             FMT_ANNOUNCE = '是否重新生成世界',
-            TITLE = STRINGS.UI.BUILTINCOMMANDS.REGENERATE.VOTETITLEFMT    
+            TITLE = STRINGS.UI.BUILTINCOMMANDS.REGENERATE.VOTETITLEFMT
         },
         ADD_MODERATOR = {
             FMT_ANNOUNCE = '是否提升%s为监督员',

@@ -6,58 +6,45 @@ local M = manage_together
 local dbg, chain_get = M.dbg, M.chain_get
 
 
-local ServerInfoRecord = Class(
-    function(self, world)
-        self.world = world
+local ShardServerInfoRecord = Class(
+    function(self, inst)
+        self.inst = inst -- inst is shard_network
+        self.world = TheWorld
         self.player_record = {}
         self.snapshot_info = {slots = {}}
 
+        self:InitNetVars()
         self:RegisterShardRPCs()
 
         -- register event listeners
-        world:ListenForEvent('ms_playerjoined', function(src, player)
+        self.world:ListenForEvent('ms_playerjoined', function(src, player)
             dbg('ms_playerjoined:', player.userid)
             self:RecordPlayer(player.userid)
         end)
-        world:ListenForEvent('ms_playerdespawn', function(src, player)
+        self.world:ListenForEvent('ms_playerdespawn', function(src, player)
             dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
         end)
 
-        world:ListenForEvent('cycleschanged', function(src, data)
+        self.world:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
         end)
 
         -- OnLoad will not be called if mod is firstly loaded 
         -- in this case, we should handle it properly
-        world:DoTaskInTime(3, function()
+        self.world:DoTaskInTime(3, function()
             if #self.snapshot_info.slots ~= 0 then
                 return
             end
             
-            M.log('loading ServerInfoRecord the first time')
+            M.log('loading ShardServerInfoRecord the first time')
             self:LoadSaveInfo()
-
-            -- try to load moderator list data
-            -- proberly this is a regenerated world
-            if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
-                local moderator_userid_list = M.ReadModeratorDataFromPersistentFile()
-                if not moderator_userid_list or #moderator_userid_list == 0 then
-                    M.log('moderator file does not found or is empty, proberly this is really a new world :)')
-                    return
-                end
-                
-                for _, userid in moderator_userid_list do
-                    self:ShardRecordPlayer(userid)
-                    self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
-                end
-                M.log('successfully re-record moderator data from persistent file')
-            end
+            self:LoadModeratorFile()
         
         end)
     end
 )
 
-function ServerInfoRecord:ShardSetPermission(userid, permission_level)
+function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
     local record = self.player_record[userid]
     if not record then return end
 
@@ -79,7 +66,7 @@ function ServerInfoRecord:ShardSetPermission(userid, permission_level)
     self.player_record[userid].permission_level = permission_level or M.PERMISSION.USER
 end
 
-function ServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
+function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
     local record = self.player_record[userid]
     if not record then return end
 
@@ -89,7 +76,7 @@ function ServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
     self.player_record[userid].in_this_shard = in_this_shard
 end
 
-function ServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
+function ShardServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
     --[[
         recorded history player data:
         [userid]:
@@ -101,7 +88,7 @@ function ServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
         in_this_shard                                                      (boolean)
         no_elevate_in_age                                                  (boolean/nil)
 
-        -- does not record, this is already recorded by base_skin
+        -- does not record, this is already indirectly recorded by base_skin
         -- character             client.prefab                              (string/number)
     ]]--
 
@@ -124,7 +111,7 @@ function ServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
     self:ShardSetShardLocation(userid, in_this_shard)
 end
 
-function ServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
+function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     local online_clients = GetPlayerClientTable()
     if do_permission_elevate then
         for _, client in ipairs(online_clients) do
@@ -138,7 +125,7 @@ function ServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     end
 end
 
-function ServerInfoRecord:ShardTryElevateUserPermissionByAge(userid, newage)
+function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid, newage)
 
     local record = self.player_record[userid]
     if not record or not M.USER_PERMISSION_ELEVATE_IN_AGE then return end
@@ -152,7 +139,7 @@ function ServerInfoRecord:ShardTryElevateUserPermissionByAge(userid, newage)
 end
  
 
-function ServerInfoRecord:SetPermission(userid, permission_level)
+function ShardServerInfoRecord:SetPermission(userid, permission_level)
     SendModRPCToShard(
         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION), 
         nil, 
@@ -161,7 +148,7 @@ function ServerInfoRecord:SetPermission(userid, permission_level)
     )
 end
 
-function ServerInfoRecord:RecordPlayer(userid)
+function ShardServerInfoRecord:RecordPlayer(userid)
     SendModRPCToShard(
         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER), 
         nil, 
@@ -169,7 +156,7 @@ function ServerInfoRecord:RecordPlayer(userid)
     )
 end
 
-function ServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
+function ShardServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
     SendModRPCToShard(
         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS), 
         nil, 
@@ -177,60 +164,21 @@ function ServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
     ) 
 end
 
--- function ServerInfoRecord:RecordClient(client, online, permission_level, in_this_shard)
-    
+function ShardServerInfoRecord:SetNetVar(name, value)
+    -- must be set on master
+    if TheShard:IsMaster() then
+        self.netvar[name]:set(value)
+    else
+        SendModRPCToShard(
+            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR),
+            SHARDID.MASTER, 
+            name, value
+        )
+    end
+end
 
---     if client == nil then
---         dbg('failed record client: client is nil')
---         return
---     end
-
---     if self.player_record[client.userid] == nil then
---         self.player_record[client.userid] = {
---             name = client.name or '',
---             netid = client.netid
---         }
---     end
-    
---     self.player_record[client.userid].age = client.playerage
---     self.player_record[client.userid].skin = client.base_skin
-
---     local current_permission_level = self.player_record[client.userid].permission_level
---     self.player_record[client.userid].permission_level = 
---         (client.admin and M.PERMISSION.ADMIN) or 
---         (permission_level or current_permission_level or M.PERMISSION.USER)
-
---     if in_this_shard ~= nil then
---     -- this is different between each shards
---         self.player_record[client.userid].in_this_shard = in_this_shard 
---     end
-    
--- end
-
--- function ServerInfoRecord:RecordByUserid(userid, in_this_shard)
---     local client = TheNet:GetClientTableForUser(userid)
---     dbg('RecordByUserid: client == nil: ', client == nil)
---     if client ~= nil then
---         self:RecordClient(client, true, self:TryElevateUserPermissionByAge(client.userid, client.playerage), in_this_shard)
---         return
---     end
-
---     -- handle offline players
-
---     if self.player_record[userid] == nil then
---         self.player_record[userid] = {
---         }
---     end
---     -- self.player_record[userid].online = false
---     if in_this_shard ~= nil then
---         self.player_record[userid].in_this_shard = in_this_shard
---     end
-
--- end
-
-
-function ServerInfoRecord:OnSave()
-    dbg('ServerInfoRecord OnSave')
+function ShardServerInfoRecord:OnSave()
+    dbg('ShardServerInfoRecord OnSave')
 
     -- OnSave will be call everytime while world is saved
     -- not just while server is shutting down
@@ -241,15 +189,15 @@ function ServerInfoRecord:OnSave()
 
     if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
         M.WriteModeratorDataToPersistentFile(self:MakeModeratorUseridList())
-    else
-        M.WriteModeratorDataToPersistentFile({})
+    -- else
+    --     M.WriteModeratorDataToPersistentFile({})
     end
 
     return {player_record = self.player_record, snapshot_info = self.snapshot_info}
 end
 
-function ServerInfoRecord:OnLoad(data)
-    dbg('ServerInfoRecord OnLoad')
+function ShardServerInfoRecord:OnLoad(data)
+    dbg('ShardServerInfoRecord OnLoad')
     if data ~= nil then 
         if data.player_record ~= nil then
             for userid, player in pairs(data.player_record) do
@@ -281,37 +229,9 @@ function ServerInfoRecord:OnLoad(data)
     
 end
 
--- function ServerInfoRecord:NotifyUpdateToShards(player_userid)
---     if player_userid then
---         dbg('notifying update to shards, player', player_userid, ' is ', M.IsPlayerOnline(player_userid) and 'online' or 'offline')
---     else
---         dbg('notifying update to shards for all online players')
---     end
---     SendModRPCToShard(
---         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_HISTORY_PLAYER_LIST_SYNC), 
---         nil, 
---         player_userid -- nil means notify other shards to update all of the online clients
---     )
-
--- end
 
 
-
-function ServerInfoRecord:RegisterShardRPCs()
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_HISTORY_PLAYER_LIST_SYNC, function(sender_shard_id, userid)
-    --     if tostring(sender_shard_id) == TheShard:GetShardId() then return end
-
-        
-    --     if userid == nil then
-    --         -- re-record all of the online clients
-    --         dbg('received shard rpc(update all of the online records) from the shard: '.. sender_shard_id)
-    --         self:RecordOnlinePlayers(true)
-    --     else
-    --         dbg('received shard rpc(update player record) from the shard: '.. sender_shard_id .. ', userid: ' .. userid)
-    --         self:RecordByUserid(userid, false)
-    --     end
-    -- end)
-
+function ShardServerInfoRecord:RegisterShardRPCs()
     AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
         self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
     end)
@@ -324,12 +244,29 @@ function ServerInfoRecord:RegisterShardRPCs()
         self:ShardSetPermission(userid, permission_level)
     end)
 
+    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, var)
+        self.netvar[name]:set(var)
+    end)
 end
 
-
+function ShardServerInfoRecord:InitNetVars()
+    self.netvar = {
+        is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back')
+    }
+end
+function ShardServerInfoRecord:SetIsRollingBack(b)
+    if b == nil then
+        self:SetNetVar('is_rolling_back', true) 
+    else
+        self:SetNetVar('is_rolling_back', b)   
+    end
+end
+function ShardServerInfoRecord:GetIsRollingBack()
+    return self.netvar.is_rolling_back:value()
+end
 
 -- this function is expensive
-function ServerInfoRecord:LoadSaveInfo()
+function ShardServerInfoRecord:LoadSaveInfo()
     -- 不得不说饥荒的存档设计真的是很抽象, 每个用于回档的快照就是一个巨大的lua文件, 
     -- 要加载的时候扔沙盒里跑一遍就拿到存档数据 
     -- 有一种简单粗暴的美
@@ -401,6 +338,25 @@ function ServerInfoRecord:LoadSaveInfo()
             end
         end
     end
+
+    
+end
+
+function ShardServerInfoRecord:LoadModeratorFile()
+    -- try to load moderator list data
+    if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
+        local moderator_userid_list = M.ReadModeratorDataFromPersistentFile()
+        if not moderator_userid_list or #moderator_userid_list == 0 then
+            M.log('moderator file does not found or is empty, proberly this is really a new world :)')
+            return
+        end
+        
+        for _, userid in ipairs(moderator_userid_list) do
+            self:ShardRecordPlayer(userid)
+            self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
+        end
+        M.log('successfully re-record moderator data from persistent file')
+    end
 end
 
 -- this should be call only after snapshot_info changed
@@ -408,7 +364,7 @@ end
 -- 2. after game started, OnSave may not be called before game started, 
 --    eg. rollback, or game first generated
 
-function ServerInfoRecord:UpadateSaveInfo()
+function ShardServerInfoRecord:UpadateSaveInfo()
     dbg('UpadateSaveInfo')
     local index = ShardGameIndex
     local snapshot_info = TheNet:ListSnapshots(index.session_id, index.server.online_mode, 10)
@@ -452,13 +408,13 @@ function ServerInfoRecord:UpadateSaveInfo()
 
 end
 
-function ServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
+function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
     index = index or 1
     return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
 end
-function ServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
+function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
-    for _, v in self.snapshot_info.slots do
+    for _, v in ipairs(self.snapshot_info.slots) do
         if v.snapshot_id == snapshot_id then
             return M.BuildDaySeasonString(v.day, v.season)
         end
@@ -467,7 +423,7 @@ function ServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
 end
 
 
-function ServerInfoRecord:MakeModeratorUseridList()
+function ShardServerInfoRecord:MakeModeratorUseridList()
     local result = {}
     for userid, player in pairs(self.player_record) do
         if player.permission_level == M.PERMISSION.MODERATOR then
@@ -477,4 +433,4 @@ function ServerInfoRecord:MakeModeratorUseridList()
     return result
 end
 
-return ServerInfoRecord
+return ShardServerInfoRecord

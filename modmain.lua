@@ -20,11 +20,33 @@ M.PERMISSION = table.invert({
     'USER',
     'USER_BANNED'
 })
-M.PERMISSION_VOTE_POSTFIX = '_VOTE'
+-- use this to order the permission level, cuz M.PERMISSION's map relation shouldn't be change
+-- currently the order is same as M.PERMISSION, but who knows in the future?
+M.PERMISSION_ORDER = table.invert({
+    -- the highest level
+    M.PERMISSION.ADMIN,             -- = 1
+    M.PERMISSION.MODERATOR_VOTE,    -- = 2
+    M.PERMISSION.MODERATOR,         -- = ...
+    M.PERMISSION.USER, 
+    M.PERMISSION.USER_BANNED
 
+    -- the lowest level
+})
+
+M.PERMISSION_VOTE_POSTFIX = '_VOTE'
+function M.LevelHigherThen(a_lvl, b_lvl)
+    -- a higher then b if:
+    -- order(a_lvl) < order(b_lvl)                   (this is reversed)
+
+    return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
+end
+function M.LevelHigherOrEqualThen(a_lvl, b_lvl)
+    return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
+end
 
 -- configs
 -- this should be sync with modinfo.lua
+
 local CONFIG_ENUM = {
     NO = 0, 
     YES = 1, 
@@ -39,16 +61,20 @@ local moderator_config_map = {
 }
 local function is_config_enabled(config) return config == true or config == CONFIG_ENUM.YES end
 
--- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
--- nil means disable elevation 
-local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
-M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
-M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled(GetModConfigData('minimap_tips_for_killed_player'))
-M.DEBUG                                    = is_config_enabled(GetModConfigData('debug'))
-M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled(GetModConfigData('reserve_moderator_data_while_world_regen'))
-M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
-M.MODERATOR_FILE_NAME = 'manage_together_moderators'
-M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
+local function InitConfigs()
+    
+    -- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
+    -- nil means disable elevation 
+    local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
+    M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
+    M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled(GetModConfigData('minimap_tips_for_killed_player'))
+    M.DEBUG                                    = is_config_enabled(GetModConfigData('debug'))
+    M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled(GetModConfigData('reserve_moderator_data_while_world_regen'))
+    M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
+    M.MODERATOR_FILE_NAME = 'manage_together_moderators'
+    M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
+end
+InitConfigs()
 
 modimport('utils')
 
@@ -96,10 +122,10 @@ GenerateCommandRPCName({
     'SEND_COMMAND', 
     'SEND_VOTE_COMMAND', 
     'SHARD_SEND_COMMAND', 
-    -- 'SHARD_HISTORY_PLAYER_LIST_SYNC',
     'SHARD_RECORD_PLAYER', 
     'SHARD_RECORD_ONLINE_PLAYERS',
     'SHARD_SET_PLAYER_PERMISSION',
+    'SHARD_SET_NET_VAR',
 
     'RESULT_QUERY_PERMISSION', 
     'RESULT_SEND_COMMAND', 
@@ -136,30 +162,23 @@ function M.ResetVoteEnv()
     M.VOTE_ENVIRONMENT.valid = false
 end
 
--- simple get functions
+-- simple get functions, only available at server side
 local function GetServerInfoComponent()
-    if GLOBAL.TheNet:GetIsServer() then
-        return GLOBAL.TheWorld.components.serverinforecord
+    if not M.the_component then
+        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord    
     end
-    return nil
+    return M.the_component
 end
-
 local function GetPlayerRecords()
-    if GLOBAL.TheNet:GetIsServer() and GLOBAL.TheWorld.components.serverinforecord then
-        return GLOBAL.TheWorld.components.serverinforecord.player_record
-    end
-    return {}
+    local comp = GetServerInfoComponent()
+    return comp and comp.player_record or {}
 end
-
+local function GetSnapshotInfo()
+    local comp = GetServerInfoComponent()
+    return comp and comp.snapshot_info or {}
+end
 local function GetPlayerRecord(userid)
     return GetPlayerRecords()[userid]
-end
-
-local function GetSnapshotInfo()
-    if GLOBAL.TheNet:GetIsServer() and GLOBAL.TheWorld.components.serverinforecord then
-        return GLOBAL.TheWorld.components.serverinforecord.snapshot_info
-    end
-    return {}
 end
 
 local function SpawnMiniflareOnPlayerPosition(player)
@@ -367,15 +386,6 @@ local function FiltUnvotableCommands(permission_mask)
     return bitand(permission_mask, M.PERMISSION_MASK.VOTE)
 end
 
-function M.LevelHigherThen(a_lvl, b_lvl)
-    -- a higher then b if:
-    -- a_lvl < b_lvl                   (this is reverted)
-
-    return a_lvl < b_lvl
-end
-function M.LevelHigherOrEqualThen(a_lvl, b_lvl)
-    return a_lvl <= b_lvl
-end
 
 function M.ErrorCodeToName(code)
     for name, errc in pairs(M.ERROR_CODE) do
@@ -469,15 +479,6 @@ local function PermissionLevel(userid)
 end
 
 function M.HasPermission(cmd, permission_mask)
-    
-    -- if permission_mask == nil then
-    --     if GLOBAL.TheNet:GetIsClient() and M.self_permission_mask ~= nil then
-    --         permission_mask = M.self_permission_mask
-    --     else
-    --         return false
-    --     end
-    -- end
-
     return bitand(permission_mask, cmd) ~= 0
 end
 
@@ -550,12 +551,12 @@ M.AddCommands(
         fn = function(doer, _)
             local comp = GetServerInfoComponent()
             if comp then
-                dbg('refreshing player records')
+                M.log('refreshing player records')
                 comp:RecordOnlinePlayers()
-                dbg('refreshing snapshot infos')
                 comp:LoadSaveInfo()
+                comp:LoadModeratorFile()
             else
-                dbg('world not exists or historyplayerrecord component not exists')
+                M.log('world not exists or historyplayerrecord component not exists')
                 return M.ERROR_CODE.DATA_NOT_PRESENT
             end
         end
@@ -660,11 +661,11 @@ M.AddCommands(
             if not IsRollbackNumber(saving_point_index) then
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
-            
+            local comp = GetServerInfoComponent
             M.announce_fmt(S.FMT_SENDED_ROLLBACK_REQUEST, 
                 doer.name, 
                 math.abs(saving_point_index), 
-                GetServerInfoComponent():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
+                comp():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
             )
 
             if saving_point_index < 0 then
@@ -682,15 +683,15 @@ M.AddCommands(
                     return
                 end
             end
-
-            if M.rollback_request_already_exists then
+            -- if M.rollback_request_already_exists then
+            if comp:GetIsRollingBack() then
                 M.announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
             GLOBAL.TheNet:SendWorldRollbackRequestToServer(saving_point_index)
             -- this flag will be automatically reset while world is reloading
-            M.rollback_request_already_exists = true
+            comp:SetIsRollingBack()
         end
     },
     {
@@ -701,20 +702,20 @@ M.AddCommands(
             return GetServerInfoComponent():BuildDaySeasonStringBySnapshotID(target_snapshot_id)
         end,
         fn = function(doer, target_snapshot_id)
-            M.ForwardToMasterShard(M.COMMAND_ENUM.ROLLBACK_TO, target_snapshot_id)
+            local comp = GetServerInfoComponent()
             if not IsSnapshotID(target_snapshot_id) then
                 return M.ERROR_CODE.BAD_ARGUMENT
-            elseif M.rollback_request_already_exists then
+            elseif comp:GetIsRollingBack() then
                 M.announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
             if M.RollbackBySnapshotID(target_snapshot_id) then
                 -- this flag will be automatically reset while world is reloading
-                M.rollback_request_already_exists = true
+                comp:SetIsRollingBack()
                 M.announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
                     doer.name, 
-                    GetServerInfoComponent():BuildDaySeasonStringBySnapshotID(target_snapshot_id)
+                    comp:BuildDaySeasonStringBySnapshotID(target_snapshot_id)
                 )
                 return M.ERROR_CODE.SUCCESS
             else
@@ -830,10 +831,6 @@ M.SHARD_COMMAND = {
                 dbg('error: failed to killban a offline player')
             end
         end
-    end,
-
-    [M.COMMAND_ENUM.ROLLBACK_TO] = function(sender_shard_id, target_snapshot_id)
-        
     end,
 
     -- just for internal use
@@ -959,7 +956,14 @@ local function RegisterRPCs()
 
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS, 
     function(userid, netid, name, age, skin, permission_level)
-        if not (IsUserid(userid) and type(name) == 'string' and type(age) == 'number' and (skin == nil or type(skin) == 'string') and IsPermissionLevel(permission_level)) then
+        if not (
+            IsUserid(userid) and 
+            (netid == nil or type(netid) == 'number') and
+            (name  == nil or type(name ) == 'string') and
+            (age   == nil or type(age  ) == 'number') and 
+            (skin  == nil or type(skin ) == 'string') and 
+            IsPermissionLevel(permission_level)
+        ) then
             dbg('received from server(query history players(offline)): server drunk')
             dbg('userid: ', userid, ', netid: ', netid, ', name: ', name, ', age: ', age, ', skin: ', skin, ', permission_level: ', permission_level)
             return
@@ -969,7 +973,7 @@ local function RegisterRPCs()
         M.player_record[userid] = {
             netid = netid,
             name = name or '',
-            age = age,
+            age = age or -1,
             permission_level = permission_level, 
             skin = skin, 
         }
@@ -1124,9 +1128,9 @@ end
 
 
 
-AddPrefabPostInit('world', function(inst)
-    if not inst.components.serverinforecord then
-        inst:AddComponent('serverinforecord')    
+AddPrefabPostInit('shard_network', function(inst)
+    if not inst.components.shard_serverinforecord then
+        inst:AddComponent('shard_serverinforecord')
     end
 end)
 

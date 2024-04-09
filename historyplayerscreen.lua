@@ -63,6 +63,10 @@ local function IsSelf(userid)
     return ThePlayer and (ThePlayer.userid == userid) or false
 end
 
+local function SelectCommandToExecute(vote_state, cmd, ...)
+    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(cmd, unpack(arg))
+end
+
 local function DumpToWebPage(userid)
     local record = M.player_record[userid]
     local encoded_data = M.EncodeToBase64(string.format(S.FMT_TEXT_WEB_PAGE, record.name or S.UNKNOWN, userid or S.UNKNOWN, record.netid or S.UNKNOWN))
@@ -441,10 +445,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
                     -- for command ROLLBACK
                     -- (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.ROLLBACK, screen.rollback_spinner:GetSelected().data)
                     -- for command ROLLBACK_TO
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(
-                        M.COMMAND_ENUM.ROLLBACK_TO, 
-                        M.rollback_info[screen.rollback_spinner:GetSelected().data].snapshot_id
-                    )
+                    M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
+                    M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', M.rollback_info[screen.rollback_spinner:GetSelected().data])
+
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.ROLLBACK_TO, M.rollback_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
             )
         end
@@ -461,7 +465,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                     S.REGENERATE_WORLD,
                     S.REGENERATE_WORLD_REQUIRE_SERVER_NAME,
                     function(text) return text == TheNet:GetServerName() end,  
-                    function() (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.REGENERATE_WORLD, nil) end
+                    function() SelectCommandToExecute(vote_state, M.COMMAND_ENUM.REGENERATE_WORLD, nil) end
                 )
             end
         )
@@ -475,7 +479,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
             end
         end
         screen.vote:EnableVote()
-        M.dbg('vote on clicked')
     end, function() 
             for _, btn in ipairs(screen.votable_buttons) do
                 local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
@@ -484,7 +487,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 end
             end
             screen.vote:DisableVote()
-            M.dbg('no vote on clicked')
     end)
     screen.vote:SetHoverTextAtVote(S.NO_VOTE)
     screen.vote:SetTexturesAtVote(M.ATLAS, 'no_vote_normal.tex', 'no_vote_hover.tex', 'no_vote_select.tex', 'no_vote_select.tex', nil, { .4, .4 }, { 0, 0 })
@@ -587,7 +589,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         else
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
             for i = 2, #M.rollback_info do
-                table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = (i - 1)})
+                table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command(ROLLBACK_TO)
             end
 
         -- old: for command ROLLBACK
@@ -947,7 +949,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.KICK, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.KICK, playerListing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -959,7 +961,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.KILL, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.KILL, playerListing.userid)
                     -- ^  v these two statement shell not swap places or it will cause lua syntex ambiguous 
                     TheFrontEnd:PopScreen()
                 end
@@ -971,7 +973,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.BAN, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.BAN, playerListing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -983,7 +985,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.KILLBAN, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.KILLBAN, playerListing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -995,7 +997,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.ADD_MODERATOR, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.ADD_MODERATOR, playerListing.userid)
                 
                     TheFrontEnd:PopScreen()
                 end
@@ -1007,7 +1009,7 @@ function HistoryPlayerScreen:DoInit()
             nil, 
             function(vote_state)
                 if playerListing.userid then
-                    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.REMOVE_MODERATOR, playerListing.userid)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.REMOVE_MODERATOR, playerListing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -1123,8 +1125,13 @@ function HistoryPlayerScreen:DoInit()
         HideAllButtonsOfPlayer(playerListing)
         if record.online then
             ShowButton('viewprofile')
-        else 
+        else
             ShowButton('viewsteamprofile')
+            if not record.netid then
+                playerListing.viewsteamprofile:Disable()
+            else
+                playerListing.viewsteamprofile:Enable()
+            end
         end
 
         local function HasAnyPermission(cmd)
@@ -1137,7 +1144,7 @@ function HistoryPlayerScreen:DoInit()
                 ShowButton('kick')
             end
 
-            if HasAnyPermission(M.COMMAND_ENUM.KILL)then 
+            if HasAnyPermission(M.COMMAND_ENUM.KILL) then 
                 ShowButton('kill')
             end
 

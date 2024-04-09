@@ -68,7 +68,9 @@
         "SpawnPrefab",
         "RunInSandbox",
         "ShardGameIndex",
-        "Shard_StartVote"
+        "Shard_StartVote",
+        "net_bool",
+        "SHARDID"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

@@ -6,8 +6,8 @@ local trans = ChooseTranslationTable({
 
 			通过GUI管理你的服务器.
 			在(默认)按住Tab打开的在线玩家信息窗口中, 管理员或者监督员的窗口左上角会出现一个打开历史玩家记录窗口的按钮,
-			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家.
-			大部分命令都可以作用于离线玩家.
+			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家;
+			大部分命令都可以作用于离线玩家;
 			部分设置如果没有你想要的选项, 请到存档的模组配置文件中修改.
 		]],
 		options = {
@@ -38,14 +38,14 @@ local trans = ChooseTranslationTable({
 			},
 			moderator_title = '监督员可用命令', 
 			moderator_save     = { label = '允许监督员存档' }, 
-			moderator_rollback = { label = '允许监督员回档', hover = '投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' },
-			moderator_kick     = { label = '允许监督员踢出玩家', hover = '只有权限低于监督员的玩家才能被踢出\n投票中的一致同意指没有投票反对的玩家, 弃权不包括在内'}, 
-			moderator_kill     = { label = '允许监督员杀死玩家', hover = '只有权限低于监督员的玩家才能被杀死\n投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' },
-			moderator_ban      = { label = '允许监督员封禁玩家', hover = '只有权限低于监督员的玩家才能被封禁\n投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' },
-			moderator_killban  = { label = '允许监督员杀死并封禁玩家', hover = '只有权限低于监督员的玩家才能被杀死并封禁\n投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' }, 
-			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员', hover = '投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' },
-			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限', hover = '投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' }, 
-			moderator_regenerate_world = {label = '允许监督员重新生成世界', hover = '投票中的一致同意指没有投票反对的玩家, 弃权不包括在内' },
+			moderator_rollback = { label = '允许监督员回档', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_kick     = { label = '允许监督员踢出玩家', hover = '只有权限低于监督员的玩家才能被踢出\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权'}, 
+			moderator_kill     = { label = '允许监督员杀死玩家', hover = '只有权限低于监督员的玩家才能被杀死\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_ban      = { label = '允许监督员封禁玩家', hover = '只有权限低于监督员的玩家才能被封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_killban  = { label = '允许监督员杀死并封禁玩家', hover = '只有权限低于监督员的玩家才能被杀死并封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_regenerate_world = {label = '允许监督员重新生成世界', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
 			others_title = '其它',
 			debug = {
 				label = '开启调试'
@@ -135,7 +135,7 @@ end
 name = trans.name
 description = trans.description
 author = 'Raiscies'
-version = '0.1.0'
+version = '0.2.0'
 
 forumthread = ''
 
