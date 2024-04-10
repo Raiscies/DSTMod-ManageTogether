@@ -34,32 +34,34 @@ M.PERMISSION_ORDER = table.invert({
 })
 
 M.PERMISSION_VOTE_POSTFIX = '_VOTE'
-function M.LevelHigherThen(a_lvl, b_lvl)
+function M.LevelHigherThan(a_lvl, b_lvl)
     -- a higher then b if:
     -- order(a_lvl) < order(b_lvl)                   (this is reversed)
 
     return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
 end
-function M.LevelHigherOrEqualThen(a_lvl, b_lvl)
+function M.LevelHigherOrEqualThan(a_lvl, b_lvl)
     return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
 end
 
 -- configs
 -- this should be sync with modinfo.lua
 
-local CONFIG_ENUM = {
+ M.EXECUTION_CATEGORY = {
     NO = 0, 
     YES = 1, 
-    VOTE_ONLY_AND_MAJORITY_YES = 2, 
-    VOTE_ONLY_AND_UNANIMOUS_YES = 3
+    VOTE_ONLY_AND_MAJORITY_YES = 2,   -- for config setting
+    VOTE_ONLY_AND_UNANIMOUS_YES = 3,  -- for config setting
+    VOTE_ONLY = 4,                    -- defaultly same as *_MAJORITY_YES
 }
 local moderator_config_map = {
-    [CONFIG_ENUM.YES] = {M.PERMISSION.MODERATOR, VoteUtil.YesNoMajorityVote},
-    [CONFIG_ENUM.NO]  = {M.PERMISSION.ADMIN, VoteUtil.YesNoMajorityVote},
-    [CONFIG_ENUM.VOTE_ONLY_AND_MAJORITY_YES] = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoMajorityVote}, 
-    [CONFIG_ENUM.VOTE_ONLY_AND_UNANIMOUS_YES] = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoUnanimousVote},
+    [M.EXECUTION_CATEGORY.NO]                          = {M.PERMISSION.ADMIN,          VoteUtil.YesNoMajorityVote},
+    [M.EXECUTION_CATEGORY.YES]                         = {M.PERMISSION.MODERATOR,      VoteUtil.YesNoMajorityVote},
+    [M.EXECUTION_CATEGORY.VOTE_ONLY]                   = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoMajorityVote},
+    [M.EXECUTION_CATEGORY.VOTE_ONLY_AND_MAJORITY_YES]  = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoMajorityVote}, 
+    [M.EXECUTION_CATEGORY.VOTE_ONLY_AND_UNANIMOUS_YES] = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoUnanimousVote},
 }
-local function is_config_enabled(config) return config == true or config == CONFIG_ENUM.YES end
+local function is_config_enabled(config) return config == true or config == M.EXECUTION_CATEGORY.YES end
 
 local function InitConfigs()
     
@@ -98,12 +100,12 @@ local function moderator_config(name)
     local conf GetModConfigData('moderator_' .. string.lower(name))
     -- forwarding compatible
     if conf == true then 
-        conf = CONFIG_ENUM.YES
+        conf = M.EXECUTION_CATEGORY.YES
     elseif conf == false or conf == nil then
-        conf = CONFIG_ENUM.NO
+        conf = M.EXECUTION_CATEGORY.NO
     end
 
-    return unpack(moderator_config_map[conf] or moderator_config_map[CONFIG_ENUM.NO])
+    return unpack(moderator_config_map[conf] or moderator_config_map[M.EXECUTION_CATEGORY.NO])
 end
 
 M.COMMAND_NUM = 0
@@ -354,7 +356,7 @@ function M.GeneratePermissionBitMasks()
     for cmd_name, cmd_enum in pairs(M.COMMAND_ENUM) do
 
         for perm_name, perm_lvl in pairs(M.PERMISSION) do
-            if M.LevelHigherOrEqualThen(perm_lvl, M.COMMAND[cmd_enum].permission) then
+            if M.LevelHigherOrEqualThan(perm_lvl, M.COMMAND[cmd_enum].permission) then
                 
                 if not M.IsVotePermissionLevel(perm_name) or M.COMMAND[cmd_enum].can_vote then
                     -- 1. permission level is not a vote permission level
@@ -573,9 +575,10 @@ M.AddCommands(
             local target_record = GetPlayerRecord(target_userid)
             if not target_record or doer.userid == target_userid or not M.IsPlayerOnline(target_userid) then
                 return M.ERROR_CODE.BAD_TARGET
-            elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-                return M.ERROR_CODE.PERMISSION_DENIED
-            end 
+            end
+            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
+            --     return M.ERROR_CODE.PERMISSION_DENIED
+            -- end 
 
             GLOBAL.TheNet:Kick(target_userid)
             M.announce_fmt(S.FMT_KICKED_PLAYER, target_record.name, target_userid)
@@ -586,17 +589,17 @@ M.AddCommands(
         user_targetted = true,
         can_vote = true,
         fn = function(doer, target_userid)
-              -- kill a player, and let it drop everything
-              local target_record = GetPlayerRecord(target_userid)
+            -- kill a player, and let it drop everything
+            local target_record = GetPlayerRecord(target_userid)
 
-              -- check if the target exists
-              if not target_record or doer.userid == target_userid then
-                  return M.ERROR_CODE.BAD_TARGET
-              elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-                  return M.ERROR_CODE.PERMISSION_DENIED
-              end
+            -- check if the target exists
+            if not target_record or doer.userid == target_userid then
+                return M.ERROR_CODE.BAD_TARGET
+            end
+            --   elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
+            --       return M.ERROR_CODE.PERMISSION_DENIED
   
-              BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
+            BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
         end
     },
     {
@@ -608,9 +611,9 @@ M.AddCommands(
             local record = GetPlayerRecord(target_userid)
             if not record or doer.userid == target_userid or record.permission_level == M.PERMISSION.USER_BANNED then
                 return M.ERROR_CODE.BAD_TARGET
-            elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
-                return M.ERROR_CODE.PERMISSION_DENIED
             end
+            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
+            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             GLOBAL.TheNet:Ban(target_userid)
@@ -628,9 +631,9 @@ M.AddCommands(
             -- check if the target exists
             if not record or doer.userid == target_userid and record.permission_level == M.PERMISSION.USER_BANNED then
                 return M.ERROR_CODE.BAD_TARGET
-            elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
-                return M.ERROR_CODE.PERMISSION_DENIED
             end
+            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
+            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             BroadcastShardCommand(M.COMMAND_ENUM.KILLBAN, target_userid)
@@ -748,9 +751,9 @@ M.AddCommands(
             if target_record.permission_level == M.PERMISSION.MODERATOR then
                 -- target is alreay a moderator
                 return M.ERROR_CODE.BAD_TARGET
-            elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-                return M.ERROR_CODE.PERMISSION_DENIED
             end
+            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
+            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
 
@@ -773,9 +776,9 @@ M.AddCommands(
             if target_record.permission_level ~= M.PERMISSION.MODERATOR then
                 -- target is not a moderator
                 return M.ERROR_CODE.BAD_TARGET
-            elseif not M.LevelHigherThen(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-                return M.ERROR_CODE.PERMISSION_DENIED
             end
+            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
+            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
@@ -958,7 +961,7 @@ local function RegisterRPCs()
     function(userid, netid, name, age, skin, permission_level)
         if not (
             IsUserid(userid) and 
-            (netid == nil or type(netid) == 'number') and
+            (netid == nil or type(netid) == 'string') and
             (name  == nil or type(name ) == 'string') and
             (age   == nil or type(age  ) == 'number') and 
             (skin  == nil or type(skin ) == 'string') and 
@@ -966,6 +969,7 @@ local function RegisterRPCs()
         ) then
             dbg('received from server(query history players(offline)): server drunk')
             dbg('userid: ', userid, ', netid: ', netid, ', name: ', name, ', age: ', age, ', skin: ', skin, ', permission_level: ', permission_level)
+            dbg('type of: userid: ', type(userid), ', netid: ', type(netid), ', name: ', type(name), ', age: ', type(age), ', skin: ', type(skin), ', permission_level: ', type(permission_level))
             return
         end
 
@@ -1088,20 +1092,30 @@ function M.ExecuteCommand(executor, cmd, is_vote, arg)
         permission_level = VotePermissionElevate(permission_level)
     end
 
-    if not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
-        return M.ERROR_CODE.PERMISSION_DENIED
-    end
+    
 
     -- check data validity: cmd, arg
     if not IsCommandEnum(cmd) then
         -- bad command type
         return M.ERROR_CODE.BAD_COMMAND
-    else
-        local result = M.COMMAND[cmd].fn(executor, arg)
-        M.dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', arg)
-        -- nil(by default) means success
-        return result == nil and M.ERROR_CODE.SUCCESS or result
+    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
+        return M.ERROR_CODE.PERMISSION_DENIED
+    elseif M.COMMAND[cmd].player_targeted then
+        -- arg will be target_userid if command is player targeted
+        local target_record = GetPlayerRecord(arg)
+        if not target_record then
+            return M.ERROR_CODE.BAD_TARGET
+        elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
+            -- permission is not allowed if theirs level are the same
+            return M.ERROR_CODE.PERMISSION_DENIED
+        end
     end
+    
+    local result = M.COMMAND[cmd].fn(executor, arg)
+    M.dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', arg)
+    -- nil(by default) means success
+    return result == nil and M.ERROR_CODE.SUCCESS or result
+    
 end
 function M.StartCommandVote(executor, cmd, arg)
     local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
@@ -1131,6 +1145,14 @@ end
 AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then
         inst:AddComponent('shard_serverinforecord')
+    end
+end)
+
+-- backward compatible, will be delete in the future
+-- probaly the next commitment
+AddPrefabPostInit('world', function(inst)
+    if not inst.components.serverinforecord then
+        inst:AddComponent('serverinforecord')
     end
 end)
 
@@ -1179,6 +1201,22 @@ function HasVotePermission(cmd)
     return M.HasPermission(cmd, M.self_vote_permission_mask)
 end
 
+function CommandApplyableForPlayerTarget(cmd, target_userid)
+    if not chain_get(M.COMMAND[cmd], 'user_targetted') then
+        return M.EXECUTION_CATEGORY.NO
+    end
+    
+    local target_lvl = chain_get(M.player_record[target_userid], 'permission_level')
+    if not target_lvl then return M.EXECUTION_CATEGORY.NO end
+    if HasPermission(cmd) and M.LevelHigherThan(M.self_permission_level, target_lvl) then
+        return M.EXECUTION_CATEGORY.YES
+    elseif HasVotePermission(cmd) and M.LevelHigherThan(VotePermissionElevate(M.self_permission_level), target_lvl) then
+        return M.EXECUTION_CATEGORY.VOTE_ONLY
+    else
+        return M.EXECUTION_CATEGORY.NO
+    end
+        
+end
 
 modimport('historyplayerscreen')
 

@@ -121,8 +121,7 @@ local function GenerateSortedKeyList()
             local a_age, b_age = M.player_record[a].age or 0, M.player_record[b].age or 0
             return a_age > b_age
         else
-            -- return M.player_record[a].permission_level < M.player_record[b].permission_level
-            return M.LevelHigherThen(M.player_record[a].permission_level, M.player_record[b].permission_level)
+            return M.LevelHigherThan(M.player_record[a].permission_level, M.player_record[b].permission_level)
         end
     end
 
@@ -876,10 +875,6 @@ function HistoryPlayerScreen:DoInit()
             button.name = name
             if VotableImageButton.is_instance(button) then
                 table.insert(self.votable_buttons, button)
-                local cmd = M.COMMAND_ENUM[string.upper(name)]
-                if cmd and not HasPermission(cmd) and HasVotePermission(cmd) then
-                    button:EnableVote()
-                end
 
                 button:SetHoverTextAtNormal(
                     S[string.upper(name)] or '',
@@ -1114,7 +1109,20 @@ function HistoryPlayerScreen:DoInit()
         local button_x = button_start
         local button_x_offset = 42
 
-        local function ShowButton(name)
+        local function ShowButtonIfAvailable(name)
+            
+            local cmd = M.COMMAND_ENUM[string.upper(name)]
+            if cmd then
+                local category = CommandApplyableForPlayerTarget(cmd, record.userid)
+                if category == M.EXECUTION_CATEGORY.YES then
+                    playerListing[name]:DisableVote()
+                elseif category == M.EXECUTION_CATEGORY.VOTE_ONLY then
+                    playerListing[name]:EnableVote()
+                else -- category == M.EXECUTION_CATEGORY.NO
+                    -- don't show the button
+                    return
+                end
+            end
             playerListing[name]:Show()
             playerListing[name]:SetPosition(button_x, 3, 0)
             button_x = button_x + button_x_offset
@@ -1124,45 +1132,31 @@ function HistoryPlayerScreen:DoInit()
 
         HideAllButtonsOfPlayer(playerListing)
         if record.online then
-            ShowButton('viewprofile')
-        else
-            ShowButton('viewsteamprofile')
-            if not record.netid then
-                playerListing.viewsteamprofile:Disable()
-            else
-                playerListing.viewsteamprofile:Enable()
-            end
-        end
-
-        local function HasAnyPermission(cmd)
-            return HasPermission(cmd) or HasVotePermission(cmd)
+            ShowButtonIfAvailable('viewprofile')
+        elseif record.netid then
+            ShowButtonIfAvailable('viewsteamprofile')
         end
 
         if not IsSelf(userid) or M.DEBUG then
             
-            if record.online and HasAnyPermission(M.COMMAND_ENUM.KICK) then
-                ShowButton('kick')
+            if record.online then
+                ShowButtonIfAvailable('kick')
             end
 
-            if HasAnyPermission(M.COMMAND_ENUM.KILL) then 
-                ShowButton('kill')
-            end
-
+            ShowButtonIfAvailable('kill')
+            
             if record.permission_level ~= M.PERMISSION.USER_BANNED then
             -- these commands are only for un-banned player
 
-                if HasAnyPermission(M.COMMAND_ENUM.BAN) then
-                    ShowButton('ban')
-                end
-                
-                if HasAnyPermission(M.COMMAND_ENUM.KILLBAN) then
-                    ShowButton('killban')
-                end
+                ShowButtonIfAvailable('ban')
+            
+                ShowButtonIfAvailable('killban')
+            
 
-                if HasAnyPermission(M.COMMAND_ENUM.ADD_MODERATOR) and not M.LevelHigherThen(record.permission_level, M.PERMISSION.USER) then
-                    ShowButton('add_moderator')
-                elseif HasAnyPermission(M.COMMAND_ENUM.REMOVE_MODERATOR) and record.permission_level == M.PERMISSION.MODERATOR then
-                    ShowButton('remove_moderator')
+                if not M.LevelHigherThan(record.permission_level, M.PERMISSION.USER) then
+                    ShowButtonIfAvailable('add_moderator')
+                elseif record.permission_level == M.PERMISSION.MODERATOR then
+                    ShowButtonIfAvailable('remove_moderator')
                 end
             end
         end
