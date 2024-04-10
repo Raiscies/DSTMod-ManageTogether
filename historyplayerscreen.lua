@@ -1113,7 +1113,7 @@ function HistoryPlayerScreen:DoInit()
             
             local cmd = M.COMMAND_ENUM[string.upper(name)]
             if cmd then
-                local category = CommandApplyableForPlayerTarget(cmd, record.userid)
+                local category = CommandApplyableForPlayerTarget(cmd, userid)
                 if category == M.EXECUTION_CATEGORY.YES then
                     playerListing[name]:DisableVote()
                 elseif category == M.EXECUTION_CATEGORY.VOTE_ONLY then
