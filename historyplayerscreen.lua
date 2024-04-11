@@ -293,11 +293,16 @@ function VotableImageButton:SetHoverTextAtNormal(text, params)
     end
 end
 
-function VotableImageButton:UpdateVoteState(state)
+function VotableImageButton:UpdateVoteState(state, force_update)
     if state == nil then
-        state = self.vote_state 
+        -- always update
+        state = self.vote_state
     else
-        self.vote_state = state
+        if self.vote_state ~= state then
+            self.vote_state = state
+        elseif not force_update then 
+            return
+        end
     end
 
     if state then
@@ -479,13 +484,13 @@ local function DoInitServerRelatedCommnadButtons(screen)
         end
         screen.vote:EnableVote()
     end, function() 
-            for _, btn in ipairs(screen.votable_buttons) do
-                local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
-                if cmd and HasPermission(cmd) then
-                   btn:DisableVote() 
-                end
+        for _, btn in ipairs(screen.votable_buttons) do
+            local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
+            if cmd and HasPermission(cmd) then
+                btn:DisableVote() 
             end
-            screen.vote:DisableVote()
+        end
+        screen.vote:DisableVote()
     end)
     screen.vote:SetHoverTextAtVote(S.NO_VOTE)
     screen.vote:SetTexturesAtVote(M.ATLAS, 'no_vote_normal.tex', 'no_vote_hover.tex', 'no_vote_select.tex', 'no_vote_select.tex', nil, { .4, .4 }, { 0, 0 })
@@ -1115,11 +1120,16 @@ function HistoryPlayerScreen:DoInit()
             if cmd then
                 local category = CommandApplyableForPlayerTarget(cmd, userid)
                 if category == M.EXECUTION_CATEGORY.YES then
-                    playerListing[name]:DisableVote()
+                    if self.vote.vote_state then
+                        playerListing[name]:EnableVote()
+                    else -- vote_state == false
+                        playerListing[name]:DisableVote()
+                    end
                 elseif category == M.EXECUTION_CATEGORY.VOTE_ONLY then
+                    -- always in vote state
                     playerListing[name]:EnableVote()
                 else -- category == M.EXECUTION_CATEGORY.NO
-                    -- don't show the button
+                    -- always don't show the button
                     return
                 end
             end
