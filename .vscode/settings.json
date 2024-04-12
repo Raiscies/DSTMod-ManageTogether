@@ -74,11 +74,10 @@
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
-        "undefined-field",
         "unused-local",
         "unused-function",
         "deprecated",
         "lowercase-global",
-        "param-type-mismatch"
+        "undefined-field"
     ]
 }

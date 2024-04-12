@@ -103,6 +103,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     NO_VOTE = '取消发起投票',
     START_A_VOTE = '发起投票: ',
     REFRESH_RECORDS = '更新数据',
+    REFRESH_RECORDS_DESC = '大多数时候你并不需要点击这个按钮, 但是如果发现有些显示数据有问题, 可以点一下试试', 
     -- player commands
     VIEWPROFILE = STRINGS.UI.PLAYERSTATUSSCREEN.VIEWPROFILE, 
     KICK = STRINGS.UI.PLAYERSTATUSSCREEN.KICK, 

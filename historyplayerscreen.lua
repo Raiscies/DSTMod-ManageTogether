@@ -496,9 +496,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
     screen.vote:SetTexturesAtVote(M.ATLAS, 'no_vote_normal.tex', 'no_vote_hover.tex', 'no_vote_select.tex', 'no_vote_select.tex', nil, { .4, .4 }, { 0, 0 })
     
     CreateButtonOfServer('refresh_records', nil, true, function()
-        RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS, nil)
+        PopupConfirmDialog(S.REFRESH_RECORDS, S.REFRESH_RECORDS_DESC, function()
+            RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS, nil)
+        end)
     end)
-    
 end
 
 local HistoryPlayerScreen = Class(Screen, function(self, owner)
@@ -553,7 +554,7 @@ function HistoryPlayerScreen:OnControl(control, down)
         if control == CONTROL_SHOW_PLAYER_STATUS
 			or (control == CONTROL_TOGGLE_PLAYER_STATUS and not TheInput:IsControlPressed(CONTROL_SHOW_PLAYER_STATUS))
 			or (self.click_to_close and (control == CONTROL_PAUSE or control == CONTROL_CANCEL))
-             then
+        then
             self:Close()
             return true
         elseif control == CONTROL_MENU_MISC_2 and self.server_group ~= '' then
