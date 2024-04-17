@@ -789,6 +789,31 @@ M.AddCommands(
                 end)
             end
         end
+    }, 
+    {
+        name = 'SET_PLAYER_JOINABLE', 
+        can_vote = true, 
+        fn = function(doer, flag)
+            -- flag representation:
+            -- 2 or true or nil: all of the player is joinable
+            -- 1               : only old player(not a new player) is joinable
+            -- 0 or false      : does not accept new incoming connections
+
+            if flag == nil or flag == true or flag == 2 then
+                TheNet:SetAllowIncomingConnections(true)
+                TheNet:SetAllowNewPlayersToConnect(true)
+                M.log('set player joinable: all of the player is allowed')
+            elseif flag == 1 then
+                TheNet:SetAllowIncomingConnections(true)
+                TheNet:SetAllowNewPlayersToConnect(false)
+                M.log('set player joinable: only old player is allowed')
+            elseif flag == 0 or flag == false then
+                TheNet:SetAllowIncomingConnections(false)
+                M.log('set player joinable: not allow incoming connections')
+            else
+                dbg('set player joinable: bad flag: ', flag)
+            end
+        end
     }
 )
 
@@ -1092,8 +1117,6 @@ function M.ExecuteCommand(executor, cmd, is_vote, arg)
         permission_level = VotePermissionElevate(permission_level)
     end
 
-    
-
     -- check data validity: cmd, arg
     if not IsCommandEnum(cmd) then
         -- bad command type
@@ -1192,6 +1215,11 @@ end
 
 function RequestToExecuteVoteCommand(cmd, arg)
     SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, arg)
+end
+
+-- just for quick typing in console
+function FromCmdName(name)
+    return M.COMMAND_ENUM[string.upper(name)]
 end
 
 function HasPermission(cmd)

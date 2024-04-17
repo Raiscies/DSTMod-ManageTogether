@@ -333,7 +333,8 @@ function M.ReadModeratorDataFromPersistentFile()
                 log('error: failed to decode moderator data from persistent file')
             end
         else
-            log('error: failed to read moderator data from persistent file')
+            -- this might not a error
+            dbg('failed to read moderator data from persistent file')
         end
     end)
     return result_list or {}

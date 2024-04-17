@@ -70,7 +70,9 @@
         "ShardGameIndex",
         "Shard_StartVote",
         "net_bool",
-        "SHARDID"
+        "SHARDID",
+        "VerifySpawnNewPlayerOnServerRequest",
+        "smallhash"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
