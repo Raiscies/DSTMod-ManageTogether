@@ -64,7 +64,7 @@ local function IsSelf(userid)
 end
 
 local function SelectCommandToExecute(vote_state, cmd, ...)
-    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(cmd, unpack(arg))
+    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(cmd, ...)
 end
 
 local function DumpToWebPage(userid)
@@ -184,7 +184,8 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
 end
 
 local function PopupConfirmDialog(action_name, action_desc, callback_on_confirmed, ...)
-    local button_ok_item     = {text=STRINGS.UI.PLAYERSTATUSSCREEN.OK, cb = function() TheFrontEnd:PopScreen() callback_on_confirmed(unpack(arg)) end}
+    local args = {...}
+    local button_ok_item     = {text=STRINGS.UI.PLAYERSTATUSSCREEN.OK, cb = function() TheFrontEnd:PopScreen() callback_on_confirmed(unpack(args)) end}
     local button_cancel_item = {text=STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
             
     TheFrontEnd:PushScreen(
@@ -326,6 +327,10 @@ function VotableImageButton:EnableVote()
 end 
 function VotableImageButton:DisableVote()
     self:UpdateVoteState(false)
+end
+
+function SetAutoDisable()
+    
 end
 
 local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)

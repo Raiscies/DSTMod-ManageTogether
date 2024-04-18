@@ -80,7 +80,7 @@ InitConfigs()
 
 modimport('utils')
 
-local dbg, chain_get = M.dbg, M.chain_get
+local varg_pairs, dbg, chain_get = M.varg_pairs, M.dbg, M.chain_get
 
 
 M.ERROR_CODE = table.invert({
@@ -272,13 +272,13 @@ end
     )
 ]]
 local function DefaultArgsDescription(...) 
-    return table.concat(arg, ', ')
+    return table.concat({...}, ', ')
 end
 local function DefaultUserTargettedArgsDescription(userid, ...)
     local user_desc = string.format('%s(%s)', GetPlayerRecord(userid).name, userid)
-    return #arg == 0 and 
+    return select('#', ...) == 0 and 
         user_desc or 
-        user_desc .. ', ' .. DefaultArgsDescription(arg)
+        user_desc .. ', ' .. DefaultArgsDescription(...)
 end
 function M.AddCommand(info_table, command_fn, regen_permission_mask)
     if M.COMMAND_NUM >= 64 then
@@ -335,7 +335,7 @@ end
     )
 ]]
 function M.AddCommands(...)
-    for _, v in ipairs(arg) do
+    for _, v in varg_pairs(...) do
         M.AddCommand(
             v,    -- info_table (actually .fn is redundent, but never mind it)
             v.fn, -- command_fn
@@ -1039,9 +1039,9 @@ local function RegisterRPCs()
 
     AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND, 
     function(sender_shard_id, cmd, ...)
-        dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', arg)
+        dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
         if M.SHARD_COMMAND[cmd] then
-            M.SHARD_COMMAND[cmd](sender_shard_id, unpack(arg))
+            M.SHARD_COMMAND[cmd](sender_shard_id, ...)
         else
             dbg('shard command not exists')
         end
@@ -1061,29 +1061,28 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, unpack(arg)) 
-            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', #arg, ', arg = ', arg)
+            M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
+            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
         else   
-            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', #arg, ', arg = ', arg)
+            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', arg = ', ...)
         end
     else
         SendModRPCToShard(
             GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND), 
             GLOBAL.SHARDID.MASTER, 
-            cmd, unpack(arg)
+            cmd, ...
         )
-        dbg('Forwarded Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', #arg, ', arg = ', arg)
+        dbg('Forwarded Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
     end
-   
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
     SendModRPCToShard(
         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND), 
         nil, 
-        cmd, unpack(arg)
+        cmd, ...
     )
-    dbg('Broadcasted Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', #arg, ', arg = ', arg)
+    dbg('Broadcasted Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
 end
 
 function M.ExecuteCommand(executor, cmd, is_vote, arg)
