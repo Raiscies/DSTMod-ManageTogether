@@ -18,7 +18,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
 
     UNKNOWN_PLAYER = 'Unknown Player',
     
-    FMT_DAY = 'Day(s) %d', 
+    FMT_DAY = 'Day %d', 
     DAY_UNKNOWN = STRINGS.UI.SERVERADMINSCREEN.DAY_UNKNOWN, 
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
@@ -101,7 +101,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = 'server name',
     VOTE = 'Start a Vote...',
     NO_VOTE = 'Cancel to Start a Vote',
-    START_A_VOTE = 'start a vote: ',
+    START_A_VOTE = 'Start a Vote: ',
     REFRESH_RECORDS = 'Update Data',
     REFRESH_RECORDS_DESC = 'most of the situation you don\'t need to click this button, but if you found something wrong about display, just try it', 
     -- player commands
@@ -111,7 +111,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     KILL = 'Kill', 
     BAN = STRINGS.UI.PLAYERSTATUSSCREEN.BAN,
     KILLBAN = 'Kill and Ban',
-    ADD_MODERATOR = 'Add to Moderator', 
+    ADD_MODERATOR = 'Add Moderator', 
     REMOVE_MODERATOR = 'Remove Moderator',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\nthe target player is offline currently, for some commands, server will temporarily load the player and execute the command',

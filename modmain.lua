@@ -2,11 +2,6 @@
 GLOBAL.manage_together = {}
 local M = GLOBAL.manage_together
 
--- TODO: i18n
-modimport('main_strings')
-
-local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
-
 local lshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.bor, GLOBAL.bit.band
 local UserCommands = require("usercommands")
 local VoteUtil = require("voteutil")
@@ -61,22 +56,35 @@ local moderator_config_map = {
     [M.EXECUTION_CATEGORY.VOTE_ONLY_AND_MAJORITY_YES]  = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoMajorityVote}, 
     [M.EXECUTION_CATEGORY.VOTE_ONLY_AND_UNANIMOUS_YES] = {M.PERMISSION.MODERATOR_VOTE, VoteUtil.YesNoUnanimousVote},
 }
-local function is_config_enabled(config) return config == true or config == M.EXECUTION_CATEGORY.YES end
+local function is_config_enabled(config) 
+    local conf = GetModConfigData(config)
+    return conf == true or conf == M.EXECUTION_CATEGORY.YES 
+end
 
 local function InitConfigs()
     
     -- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
     -- nil means disable elevation 
     local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
+                            
     M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
-    M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled(GetModConfigData('minimap_tips_for_killed_player'))
-    M.DEBUG                                    = is_config_enabled(GetModConfigData('debug'))
-    M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled(GetModConfigData('reserve_moderator_data_while_world_regen'))
+    M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled('minimap_tips_for_killed_player')
+    M.DEBUG                                    = is_config_enabled('debug')
+    M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled('reserve_moderator_data_while_world_regen')
     M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
+    M.LANGUAGE = GetModConfigData('language')
+    if M.LANGUAGE == 'en' then
+        modimport('main_strings_en')
+    else
+        modimport('main_strings')
+    end
 end
 InitConfigs()
+
+
+local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
 modimport('utils')
 
