@@ -12,7 +12,7 @@ function M.varg_iter(arr, i)
 end
 
 function M.varg_pairs(...)
-    return M.vararg_iter, {n = select('#', ...), ...}, 0
+    return M.varg_iter, {n = select('#', ...), ...}, 0
 end
 
 local varg_pairs = M.varg_pairs
