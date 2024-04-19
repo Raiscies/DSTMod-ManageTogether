@@ -768,7 +768,7 @@ M.AddCommands(
             if M.IsPlayerOnline(target_userid) then
                 GLOBAL.TheWorld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
-                    M.COMMAND.QUERY_PERMISSION.fn(doer, nil)
+                    M.COMMAND[M.COMMAND_ENUM['QUERY_PERMISSION']].fn(doer, nil)
                 end)
             end
 
@@ -793,7 +793,7 @@ M.AddCommands(
             if M.IsPlayerOnline(target_userid) then
                 GLOBAL.TheWOrld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
-                    M.COMMAND.QUERY_PERMISSION.fn(doer, nil)
+                    M.COMMAND[M.COMMAND_ENUM['QUERY_PERMISSION']].fn(doer, nil)
                 end)
             end
         end
