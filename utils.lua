@@ -4,19 +4,32 @@ GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, 
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
+function M.varg_iter(arr, i)
+    i = i + 1
+    if i <= arr.n then
+        return i, arr[i]
+    end
+end
+
+function M.varg_pairs(...)
+    return M.varg_iter, {n = select('#', ...), ...}, 0
+end
+
+local varg_pairs = M.varg_pairs
+
 function M.chain_get(root, ...) 
 
     if not root then return nil, root end
     local current = root
-    for i, node in ipairs(arg) do
+    for i, node in varg_pairs(...) do
         if type(node) == 'table' then
             -- node[1] is function name
             -- node[2...] are function args
-            current = current[node[1]](current, unpack(node, 2)) -- current:Fn(args...)
+            current = current[node[1]](current, select(2, ...)) -- current:Fn(args...)
         else
             current = current[node]                                    -- current.node
         end
-        if i < #arg and type(current) ~= 'table' then
+        if i < select('#', ...) and type(current) ~= 'table' then
             return nil, node 
         end
     end
@@ -43,7 +56,7 @@ end
 
 -- log print
 function M.log(...)
-    print('[ManageTogether]', unpack(arg))
+    print('[ManageTogether]', ...)
 end
 
 function M.GetPlayerByUserid(userid)
@@ -57,10 +70,9 @@ end
 
 -- debug print
 M.dbg = M.DEBUG and function(...)
-    local n = GetTableSize(arg) - 1
     local s = ''
-    for i = 1, n do
-        s = s .. M.moretostring(arg[i])
+    for _, v in varg_pairs(...) do
+        s = s .. M.moretostring(v)
     end
     print('[ManageTogether] ' .. s)
 end or function(...) end
@@ -70,18 +82,18 @@ local log = M.log
 
 
 function M.announce(s, ...)
-    GLOBAL.TheNet:Announce(S.ANNOUNCE_PREFIX .. s, unpack(arg))
+    GLOBAL.TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
 end
 
 function M.announce_fmt(pattern, ...)
-    M.announce(string.format(pattern, unpack(arg)))
+    M.announce(string.format(pattern, ...))
 end
 
 function M.announce_vote(s)
     M.announce(s, nil, nil, 'vote')
 end
 function M.announce_vote_fmt(pattern, ...)
-    M.announce(string.format(pattern, unpack(arg)), nil, nil, 'vote')
+    M.announce(string.format(pattern, ...), nil, nil, 'vote')
 end
 
 function M.IsPlayerOnline(userid)
@@ -208,7 +220,7 @@ function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     RestoreSnapshotUserSession(TheNet:GetSessionIdentifier(), userid)
     for _, v in ipairs(AllPlayers) do
         if v.userid == userid then
-            local delay_serialize_time = fn(v, unpack(arg)) or 0
+            local delay_serialize_time = fn(v, ...) or 0
             TheWorld:DoTaskInTime(delay_serialize_time, function()
                 v:OnDespawn()
                 SerializeUserSession(v)

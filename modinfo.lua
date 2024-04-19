@@ -2,8 +2,6 @@ local trans = ChooseTranslationTable({
 	{
 		name = '共同管理-历史玩家信息(GUI)',
 		description = [[
-			开发中.
-
 			通过GUI管理你的服务器.
 			在(默认)按住Tab打开的在线玩家信息窗口中, 管理员或者监督员的窗口左上角会出现一个打开历史玩家记录窗口的按钮,
 			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家;
@@ -17,6 +15,9 @@ local trans = ChooseTranslationTable({
 			vote_only_and_unanimous_yes = '仅允许发起投票(一致同意)',
 			vote_only_detail = '',
 			head_title = '通用选项',
+			language = {
+				label = '语言/Language',  	
+			},
 			user_elevate_in_age = {
 				label = '老玩家自动添加为监督员',
 				hover = '存活天数大于等于指定天数的玩家被添加为监督员, 0天表示任何加入的新玩家都会自动添加为监督员',
@@ -49,6 +50,63 @@ local trans = ChooseTranslationTable({
 			others_title = '其它',
 			debug = {
 				label = '开启调试'
+			}
+		}
+	},
+	en = {
+		name = 'Manage Together-History Player Information(GUI)',
+		description = [[
+Manage your server by GUI screen.
+press scoreboard key(Tab by default) to open scoreboard, if you're a admin or moderator, 
+there will be a button on the left top side of scoreboard screen, click it to open the history player record screen.
+you can manage server and online/offline player in this screen by using command buttons.
+most of the commands are available applying to offline player.
+
+'Vote' options of the moderator config means moderator can start a vote, but is not allowed to execute command directly. 
+		]],
+		options = {
+			yes = 'Yes', 
+			no = 'No',
+			vote_only_and_majority_yes = 'Vote(Majority Yes)',
+			vote_only_and_unanimous_yes = 'Vote(Unanimous Yes)',
+			vote_only_detail = '',
+			head_title = 'General',
+			language = {
+				label = '语言/Language', 
+				hover = 'English translation is not complete',
+			},
+			user_elevate_in_age = {
+				label = 'auto add old player to be moderator',
+				hover = 'the old player whose alive days is greater or equal then appointed days will be automatically add to moderator',
+				disable = 'Disable',
+				day = 'Day(s)'
+			},
+			reserve_moderator_data_while_world_regen = {
+				label = 'reserve moderator data while reset', 
+				hover = 'reserve moderator\'s permission while a world reseting, but not reset there permission to normal player'
+			},
+			minimap_tips_for_killed_player = {
+				label = 'hint player position of being killed', 
+				hover = '在使用命令杀死玩家时在地图上短暂地显示玩家死亡位置(信号弹标志)\n需要目标玩家与自己在同一世界才能显示'
+			},
+			vote_min_passed_count = {
+				label = 'minimum player number of agree a vote ', 
+				hover = '如果同意的玩家总人数低于该指定值, 那么投票无论如何都不会通过, 并且若当前在线的玩家总人数已经不满足该条件, 那么投票将不会被发起',
+				any = 'Any'
+			},
+			moderator_title = 'Moderator Commands', 
+			moderator_save     = { label = 'save' }, 
+			moderator_rollback = { label = 'rollback', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_kick     = { label = 'kick', hover = '只有权限低于监督员的玩家才能被踢出\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权'}, 
+			moderator_kill     = { label = 'kill', hover = '只有权限低于监督员的玩家才能被杀死\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_ban      = { label = 'ban', hover = '只有权限低于监督员的玩家才能被封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_killban  = { label = 'kill-ban', hover = '只有权限低于监督员的玩家才能被杀死并封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_add_moderator = {label = 'add another player to be moderator', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_remove_moderator = {label = 'remove another player\'s permission', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_regenerate_world = {label = 'regenerate world', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			others_title = 'Others',
+			debug = {
+				label = 'Enable Debug Mode'
 			}
 		}
 	}
@@ -135,7 +193,7 @@ end
 name = trans.name
 description = trans.description
 author = 'Raiscies'
-version = '0.2.2'
+version = '0.2.3'
 
 forumthread = ''
 
@@ -150,11 +208,15 @@ icon = 'modicon.tex'
 
 configuration_options = {
 	title('head_title'),
+	option('language', nil, nil, {
+		{description = '中文', data = 'zh'}, 
+		{description = 'English', data = 'en'}
+	}, 'zh'),
 	option('user_elevate_in_age', nil, nil, {
 			{description =          trans.options.user_elevate_in_age.disable, data = -1},
 			{description = '0'   .. trans.options.user_elevate_in_age.day, data = 0}, 
-			{description = '3'   .. trans.options.user_elevate_in_age.day, data = 0}, 
-			{description = '5'   .. trans.options.user_elevate_in_age.day, data = 0}, 
+			{description = '3'   .. trans.options.user_elevate_in_age.day, data = 3}, 
+			{description = '5'   .. trans.options.user_elevate_in_age.day, data = 5}, 
 			{description = '10'  .. trans.options.user_elevate_in_age.day, data = 10}, 
 			{description = '20'  .. trans.options.user_elevate_in_age.day, data = 20}, 
 			{description = '30'  .. trans.options.user_elevate_in_age.day, data = 30}, 
