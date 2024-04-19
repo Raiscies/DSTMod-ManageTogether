@@ -2,8 +2,6 @@ local trans = ChooseTranslationTable({
 	{
 		name = '共同管理-历史玩家信息(GUI)',
 		description = [[
-			开发中.
-
 			通过GUI管理你的服务器.
 			在(默认)按住Tab打开的在线玩家信息窗口中, 管理员或者监督员的窗口左上角会出现一个打开历史玩家记录窗口的按钮,
 			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家;
@@ -49,6 +47,57 @@ local trans = ChooseTranslationTable({
 			others_title = '其它',
 			debug = {
 				label = '开启调试'
+			}
+		}
+	},
+	en = {
+		name = 'Manage Together-History Player Infomation(GUI)',
+		description = [[
+			Manage your server by GUI screen.
+			在(默认)按住Tab打开的在线玩家信息窗口中, 管理员或者监督员的窗口左上角会出现一个打开历史玩家记录窗口的按钮,
+			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家;
+			大部分命令都可以作用于离线玩家;
+			部分设置如果没有你想要的选项, 请到存档的模组配置文件中修改.
+		]],
+		options = {
+			yes = 'Yes', 
+			no = 'No',
+			vote_only_and_majority_yes = 'Start Vote Only(Majority Yes)',
+			vote_only_and_unanimous_yes = 'Start Vote Only(Unanimous Yes)',
+			vote_only_detail = '',
+			head_title = 'Gernal',
+			user_elevate_in_age = {
+				label = 'Old Player ',
+				hover = '存活天数大于等于指定天数的玩家被添加为监督员, 0天表示任何加入的新玩家都会自动添加为监督员',
+				disable = 'Disable',
+				day = 'Day(s)'
+			},
+			reserve_moderator_data_while_world_regen = {
+				label = '世界重置时保留监督员数据', 
+				hover = '当前世界的监督员在世界重置后依旧保留他们的权限, 而非重置为普通玩家'
+			},
+			minimap_tips_for_killed_player = {
+				label = '提示玩家死亡位置', 
+				hover = '在使用命令杀死玩家时在地图上短暂地显示玩家死亡位置(信号弹标志)\n需要目标玩家与自己在同一世界才能显示'
+			},
+			vote_min_passed_count = {
+				label = '投票通过最低所需要的同意玩家人数', 
+				hover = '如果同意的玩家总人数低于该指定值, 那么投票无论如何都不会通过, 并且若当前在线的玩家总人数已经不满足该条件, 那么投票将不会被发起',
+				any = 'Any'
+			},
+			moderator_title = 'Moderator Available Commands', 
+			moderator_save     = { label = '允许监督员存档' }, 
+			moderator_rollback = { label = '允许监督员回档', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_kick     = { label = '允许监督员踢出玩家', hover = '只有权限低于监督员的玩家才能被踢出\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权'}, 
+			moderator_kill     = { label = '允许监督员杀死玩家', hover = '只有权限低于监督员的玩家才能被杀死\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_ban      = { label = '允许监督员封禁玩家', hover = '只有权限低于监督员的玩家才能被封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_killban  = { label = '允许监督员杀死并封禁玩家', hover = '只有权限低于监督员的玩家才能被杀死并封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
+			moderator_regenerate_world = {label = '允许监督员重新生成世界', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			others_title = 'Others',
+			debug = {
+				label = 'Enable Debug Mode'
 			}
 		}
 	}
