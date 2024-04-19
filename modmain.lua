@@ -1170,19 +1170,9 @@ function M.StartCommandVote(executor, cmd, arg)
 end
 
 
-
-
 AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then
         inst:AddComponent('shard_serverinforecord')
-    end
-end)
-
--- backward compatible, will be delete in the future
--- probaly the next commitment
-AddPrefabPostInit('world', function(inst)
-    if not inst.components.serverinforecord then
-        inst:AddComponent('serverinforecord')
     end
 end)
 
