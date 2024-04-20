@@ -105,7 +105,7 @@ M.ERROR_CODE.SUCCESS = 0
 
 
 local function moderator_config(name)
-    local conf GetModConfigData('moderator_' .. string.lower(name))
+    local conf = GetModConfigData('moderator_' .. string.lower(name))
     -- forwarding compatible
     if conf == true then 
         conf = M.EXECUTION_CATEGORY.YES
