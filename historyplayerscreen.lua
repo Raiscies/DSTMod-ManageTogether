@@ -464,7 +464,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
     end, nil)
     screen:DoInitRollbackSpinner()
 
-    CreateButtonOfServer('regenerate_world',nil, true, function(vote_state)
+    CreateButtonOfServer('regenerate_world', nil, true, function(vote_state)
         PopupConfirmDialog(
             vote_state and (S.START_A_VOTE .. S.REGENERATE_WORLD) or S.REGENERATE_WORLD, 
             S.REGENERATE_WORLD_DESC,
@@ -479,6 +479,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
             end
         )
     end)
+    -- TODO
+    -- CreateButtonOfServer('set_player_joinable', nil, false, function(vote_state)
+        
+    -- end)
 
     CreateButtonOfServer('vote', nil, false, function()
         for _, btn in ipairs(screen.votable_buttons) do
