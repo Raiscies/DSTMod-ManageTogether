@@ -47,11 +47,11 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = 'should we kill and ban %s',
             TITLE = 'should we kill and ban the player?'
         }, 
-        ROLLBACK = {
+        ROLLBACK_OLD = {
             FMT_ANNOUNCE = 'should we rollback to %s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },
-        ROLLBACK_TO = {
+        ROLLBACK = {
             FMT_ANNOUNCE = 'should we rollback to %s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },

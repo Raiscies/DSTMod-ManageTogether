@@ -658,8 +658,9 @@ M.AddCommands(
     },
     {
         -- deprecated
-        name = 'ROLLBACK',
+        name = 'ROLLBACK_OLD',
         can_vote = true, 
+        permission = moderator_config('rollback'),
         args_description = function(saving_point_index)
             return GetServerInfoComponent():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
         end,
@@ -707,7 +708,7 @@ M.AddCommands(
     },
     {
         -- a better rollback command, which can let client specify the appointed rollback slot, but not saving point index
-        name = 'ROLLBACK_TO', 
+        name = 'ROLLBACK', 
         can_vote = true, 
         args_description = function(target_snapshot_id)
             return GetServerInfoComponent():BuildDaySeasonStringBySnapshotID(target_snapshot_id)
