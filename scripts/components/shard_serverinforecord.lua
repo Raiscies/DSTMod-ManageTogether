@@ -125,7 +125,7 @@ function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     if do_permission_elevate then
         for _, client in ipairs(online_clients) do
             self:ShardRecordPlayer(client.userid, client)
-            self:ShardTryElevateUserPermissionByAge(client.userid, client.playerage or 0)
+            self:ShardTryElevateUserPermissionByAge(client.userid)
         end
     else
         for _, client in ipairs(online_clients) do
@@ -134,16 +134,16 @@ function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     end
 end
 
-function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid, newage)
+function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid)
 
     local record = self.player_record[userid]
     if not record or not M.USER_PERMISSION_ELEVATE_IN_AGE then return end
 
-    if (newage >= M.USER_PERMISSION_ELEVATE_IN_AGE and 
+    if (record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE and 
         not record.no_elevate_in_age and
         M.LevelHigherThan(M.PERMISSION.MODERATOR, record.permission_level))
     then
-        self:ShardSetPermission(M.PERMISSION.MODERATOR)
+        self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
     end
 end
  
