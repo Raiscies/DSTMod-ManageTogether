@@ -13,6 +13,17 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
+    
+    FMT_MAKE_ITEM_STAT_HEAD = '%s发起了物品栏统计请求', 
+    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s', 
+    MAKE_ITEM_STAT_ALL_ONLINE_PLAYERS = '所有在线玩家',
+    MAKE_ITEM_STAT_ALL_OFFLINE_PLAYERS = '所有记录的离线玩家',
+    MAKE_ITEM_STAT_ALL_PLAYERS = '所有玩家', 
+    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)拥有%d个%s;',
+    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s无目标物品%s;',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER = ', 该玩家存在未执行统计的深层容器',
+    MAKE_ITEM_STAT_END = '物品栏统计结束',
+
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
 

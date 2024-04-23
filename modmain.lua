@@ -821,7 +821,46 @@ M.AddCommands(
                 M.log('set player joinable: not allow incoming connections')
             else
                 dbg('set player joinable: bad flag: ', flag)
+                return M.ERROR_CODE.BAD_ARGUMENT
             end
+        end
+    }, 
+    {
+        name = 'MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES', 
+        can_vote = true, 
+        fn = function(doer, userid_or_flag, item)
+            -- userid_or_flag: a target userid or a flag
+            -- flag representation:
+            -- 0: all of the online players
+            -- 1: all of the offline players(recorded offline players)
+            -- 2: all of the online & offline(recorded) players
+
+            local target_players_string = {
+                [0] = S.MAKE_ITEM_STAT_ALL_ONLINE_PLAYERS, 
+                [1] = S.MAKE_ITEM_STAT_ALL_OFFLINE_PLAYERS,
+                [2] = S.MAKE_ITEM_STAT_ALL_PLAYERS
+            }
+
+            if not type(item) == 'string' or
+                not IsUserid(userid_or_flag) or
+                not type(userid_or_flag) == 'number' or
+                not target_players_string[userid_or_flag]
+            then
+                return M.ERROR_CODE.BAD_ARGUMENT
+            end
+            -- do announce
+            local item_name = f(item)
+            if type(userid_or_flag) == 'string' then
+                local record = GetPlayerRecord(userid_or_flag)
+                if not record then return M.ERROR_CODE.BAD_TARGET end
+                
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name)
+            else
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, target_players_string[userid_or_flag], item_name)
+            end
+            BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, item)
         end
     }
 )
@@ -867,6 +906,49 @@ M.SHARD_COMMAND = {
             if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
                 dbg('error: failed to killban a offline player')
             end
+        end
+    end,
+    [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, item)
+
+        local function announce_stat(name, userid, stat)
+            if stat.count == 0 then
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
+                    name,
+                    stat.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''    
+                )
+            else
+                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HAS_ITEM, 
+                    name, 
+                    userid_or_flag, 
+                    stat.count, 
+                    stat.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''
+                )
+            end
+        end
+
+        if IsUserid(userid_or_flag) then
+            local record = GetPlayerRecord(userid_or_flag)
+            if not record or not record.in_this_shard then return end
+            local stat = M.MakePlayerInventoriesItemStat(userid_or_flag, item)
+            announce_stat(record.name, userid_or_flag, stat)
+            return
+        end
+
+        -- is a list of player
+        if userid_or_flag == 0 then
+            -- all of the online players
+            -- iterate AllPlayers list
+            local stat = M.MakeOnlinePlayerInventoriesItemStat(item)
+            for userid, stat_item in pairs(stat) do
+                local record = GetPlayerRecord(userid)
+                announce_stat(record.name, userid, stat_item)
+            end
+        elseif userid_or_flag == 1 then
+            -- all of the (recorded) offline players
+
+        elseif userid_or_flag == 2 then
+            -- all of the recorded(online and offline) players
+
         end
     end,
 
