@@ -89,7 +89,8 @@ local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 modimport('utils')
 
 local varg_pairs, dbg, chain_get = M.varg_pairs, M.dbg, M.chain_get
-
+local announce, announce_fmt = M.announce, M.announce_fmt
+local IsPlayerOnline = M.IsPlayerOnline
 
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
@@ -215,7 +216,7 @@ local function KillPlayer(player, announce_string)
             -- this bug is reported, but before it is fixed by klei:
             player.components.health:SetPercent(0)
             if announce_string then
-                M.announce(announce_string)
+                announce(announce_string)
             end
             if M.MINIMAP_TIPS_FOR_KILLED_PLAYER then
                 SpawnMiniflareOnPlayerPosition(player)
@@ -225,6 +226,27 @@ local function KillPlayer(player, announce_string)
     else
         dbg('failed to kill a player: player.components or player.components.health is nil')
         return nil
+    end
+end
+
+
+local function AnnounceItemStat(stat)
+    for userid, v in pairs(stat) do
+        local name = GetPlayerRecord(userid).name
+        if v.count == 0 then
+            announce_fmt(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
+                name,
+                userid, 
+                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''    
+            )
+        else
+            announce_fmt(S.FMT_MAKE_ITEM_STAT_HAS_ITEM, 
+                name, 
+                userid, 
+                v.count, 
+                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''
+            )
+        end
     end
 end
 
@@ -522,7 +544,7 @@ M.AddCommands(
             if query_category == 0 or query_category == 1 then
 
                 for userid, record in pairs(GetPlayerRecords()) do 
-                    if M.IsPlayerOnline(userid) then
+                    if IsPlayerOnline(userid) then
                         -- player is online
                         SendModRPCToClient(
                             GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION), doer.userid, 
@@ -581,7 +603,7 @@ M.AddCommands(
             -- kick a player
             -- don't need to check target_userid, which has been checked on ExecuteCommand
             local target_record = GetPlayerRecord(target_userid)
-            if not target_record or doer.userid == target_userid or not M.IsPlayerOnline(target_userid) then
+            if not target_record or doer.userid == target_userid or not IsPlayerOnline(target_userid) then
                 return M.ERROR_CODE.BAD_TARGET
             end
             -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
@@ -589,7 +611,7 @@ M.AddCommands(
             -- end 
 
             GLOBAL.TheNet:Kick(target_userid)
-            M.announce_fmt(S.FMT_KICKED_PLAYER, target_record.name, target_userid)
+            announce_fmt(S.FMT_KICKED_PLAYER, target_record.name, target_userid)
         end
     },
     {
@@ -625,7 +647,7 @@ M.AddCommands(
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             GLOBAL.TheNet:Ban(target_userid)
-            M.announce_fmt(S.FMT_BANNED_PLAYER, record.name, target_userid)
+            announce_fmt(S.FMT_BANNED_PLAYER, record.name, target_userid)
         end
     },
     {
@@ -653,7 +675,7 @@ M.AddCommands(
         fn = function(doer, _)
             -- save the world
             GLOBAL.TheWorld:PushEvent('ms_save')
-            M.announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
+            announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
         end
     },
     {
@@ -674,7 +696,7 @@ M.AddCommands(
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
             local comp = GetServerInfoComponent
-            M.announce_fmt(S.FMT_SENDED_ROLLBACK_REQUEST, 
+            announce_fmt(S.FMT_SENDED_ROLLBACK_REQUEST, 
                 doer.name, 
                 math.abs(saving_point_index), 
                 comp():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
@@ -685,19 +707,19 @@ M.AddCommands(
                 -- we expect M.IsNewestRollbackSlotValid is false 
                 if M.IsNewestRollbackSlotValid(true) then
                     -- server's and client's data are inconsistent
-                    M.announce(S.ERR_DATA_INCONSISTENT)
+                    announce(S.ERR_DATA_INCONSISTENT)
                     return
                 end
             elseif saving_point_index > 0 then 
                 -- we expect M.IsNewestRollbackSlotValid is true
                 if not M.IsNewestRollbackSlotValid() then
-                    M.announce(S.ERR_DATA_INCONSISTENT)
+                    announce(S.ERR_DATA_INCONSISTENT)
                     return
                 end
             end
             -- if M.rollback_request_already_exists then
             if comp:GetIsRollingBack() then
-                M.announce(S.ERR_REPEATED_REQUEST)
+                announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
@@ -718,14 +740,14 @@ M.AddCommands(
             if not IsSnapshotID(target_snapshot_id) then
                 return M.ERROR_CODE.BAD_ARGUMENT
             elseif comp:GetIsRollingBack() then
-                M.announce(S.ERR_REPEATED_REQUEST)
+                announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
             if M.RollbackBySnapshotID(target_snapshot_id) then
                 -- this flag will be automatically reset while world is reloading
                 comp:SetIsRollingBack()
-                M.announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
+                announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
                     doer.name, 
                     comp:BuildDaySeasonStringBySnapshotID(target_snapshot_id)
                 )
@@ -742,7 +764,7 @@ M.AddCommands(
             if not delay_seconds or delay_seconds < 0 then
                 delay_seconds = 5
             end 
-            M.announce(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
+            announce(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
             GLOBAL.TheWorld:DoTaskInTime(delay_seconds, function()
                 TheNet:SendWorldResetRequestToServer()
             end)
@@ -766,7 +788,7 @@ M.AddCommands(
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
 
-            if M.IsPlayerOnline(target_userid) then
+            if IsPlayerOnline(target_userid) then
                 GLOBAL.TheWorld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
                     M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
@@ -791,7 +813,7 @@ M.AddCommands(
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
-            if M.IsPlayerOnline(target_userid) then
+            if IsPlayerOnline(target_userid) then
                 GLOBAL.TheWOrld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
                     M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
@@ -800,7 +822,7 @@ M.AddCommands(
         end
     }, 
     {
-        name = 'SET_PLAYER_JOINABLE', 
+        name = 'SET_PLAYER_JOINABILITY', 
         can_vote = true, 
         fn = function(doer, flag)
             -- flag representation:
@@ -849,16 +871,16 @@ M.AddCommands(
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
             -- do announce
-            local item_name = f(item)
+            local item_name = GLOBAL.STRINGS.NAMES[string.upper(item)]
             if type(userid_or_flag) == 'string' then
                 local record = GetPlayerRecord(userid_or_flag)
                 if not record then return M.ERROR_CODE.BAD_TARGET end
                 
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name)
             else
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, target_players_string[userid_or_flag], item_name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, target_players_string[userid_or_flag], item_name)
             end
             BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, item)
         end
@@ -873,7 +895,7 @@ M.SHARD_COMMAND = {
         if not target or not target.in_this_shard then return end
 
         local announce_string = string.format(S.FMT_KILLED_PLAYER, target.name, target_userid)
-        if M.IsPlayerOnline(target_userid) then
+        if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
                     KillPlayer(v, announce_string)
@@ -893,7 +915,7 @@ M.SHARD_COMMAND = {
         if not target or not target.in_this_shard then return end
 
         local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name, target_userid)
-        if M.IsPlayerOnline(target_userid) then
+        if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
                     KillPlayer(v, announce_string)
@@ -909,46 +931,37 @@ M.SHARD_COMMAND = {
         end
     end,
     [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, item)
-
-        local function announce_stat(name, userid, stat)
-            if stat.count == 0 then
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
-                    name,
-                    stat.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''    
-                )
-            else
-                M.announce_fmt(S.FMT_MAKE_ITEM_STAT_HAS_ITEM, 
-                    name, 
-                    userid_or_flag, 
-                    stat.count, 
-                    stat.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''
-                )
-            end
-        end
-
+        
         if IsUserid(userid_or_flag) then
             local record = GetPlayerRecord(userid_or_flag)
             if not record or not record.in_this_shard then return end
-            local stat = M.MakePlayerInventoriesItemStat(userid_or_flag, item)
-            announce_stat(record.name, userid_or_flag, stat)
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item))
             return
         end
 
-        -- is a list of player
+        -- userid_or_flag is a flag
+
         if userid_or_flag == 0 then
             -- all of the online players
             -- iterate AllPlayers list
-            local stat = M.MakeOnlinePlayerInventoriesItemStat(item)
-            for userid, stat_item in pairs(stat) do
-                local record = GetPlayerRecord(userid)
-                announce_stat(record.name, userid, stat_item)
-            end
+            AnnounceItemStat(M.MakeOnlinePlayerInventoriesItemStat(item))
+        
         elseif userid_or_flag == 1 then
-            -- all of the (recorded) offline players
-
+            -- all of the offline player
+            local userid_list = {}
+            for userid, record in pairs(GetPlayerRecords()) do
+                if record.in_this_shard and IsPlayerOnline(userid) then table.insert(userid_list, userid) end
+            end
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item))
+        
         elseif userid_or_flag == 2 then
-            -- all of the recorded(online and offline) players
-
+            -- all of the recorded player
+            local userid_list  = {}
+            for userid, record in pairs(GetPlayerRecords()) do
+                if record.in_this_shard then table.insert(userid_list, userid) end
+            end
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item))
+        
         end
     end,
 

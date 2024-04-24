@@ -423,10 +423,10 @@ end
 
 -- file created in this way will not be delete while world regenerating
 -- data: table, data will be serialize as a json file
-function M.WriteModeratorDataToPersistentFile(userid_or_list)
-    if type(userid_or_list) ~= 'table' then return end
+function M.WriteModeratorDataToPersistentFile(userid_list)
+    if type(userid_list) ~= 'table' then return end
     log('writing moderator data to persistent file:', M.MODERATOR_FILE_NAME)
-    TheSim:SetPersistentString(M.MODERATOR_FILE_NAME, json.encode(userid_or_list), false) -- what does false means?
+    TheSim:SetPersistentString(M.MODERATOR_FILE_NAME, json.encode(userid_list), false) -- what does false means?
 
 end
 
@@ -435,9 +435,9 @@ function M.ReadModeratorDataFromPersistentFile()
     local result_list
     TheSim:GetPersistentString(M.MODERATOR_FILE_NAME, function(load_success, data)
         if load_success and data then
-            local decode_success, userid_or_list = pcall( function() return json.decode(data) end )
-            if decode_success and userid_or_list then
-                result_list = userid_or_list
+            local decode_success, userid_list = pcall( function() return json.decode(data) end )
+            if decode_success and userid_list then
+                result_list = userid_list
             else
                 log('error: failed to decode moderator data from persistent file')
             end
