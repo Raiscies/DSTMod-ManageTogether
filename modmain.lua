@@ -276,6 +276,49 @@ local function AddOfficalVoteCommand(name, voteresultfn)
     })
 end
 
+-- currently no any actural function for server running,
+-- just for fun
+-- this should be broadcast to every shard and players
+local function SetCustomVote(vote_title, vote_passed_text)
+    
+    -- repeatly run this function should be legal, i guess :)
+    AddUserCommand('manage_together_custom_vote', {
+        prettyname = nil, 
+        desc = nil,
+        permission = COMMAND_PERMISSION.ADMIN, -- command shouldn't be use directly
+        confirm = false,
+        slash = false,
+        usermenu = false,
+        servermenu = false,
+        params = {'user'},
+        vote = true,
+        votetimeout = 30,
+        voteminstartage = 0,
+        voteminpasscount = M.VOTE_MIN_PASSED_COUNT ~= 0 and M.VOTE_MIN_PASSED_COUNT or nil, -- default is 3
+        votecountvisible = true,
+        voteallownotvoted = true,
+        voteoptions = nil, -- { "Yes", "No" }
+
+        votenamefmt = nil,
+        votetitlefmt = vote_title,
+        votepassedfmt = nil,
+        
+        votecanstartfn = VoteUtil.DefaultCanStartVote,
+        voteresultfn = VoteUtil.YesNoMajorityVote,
+        serverfn = function(fucking_useless_params, caller)
+            dbg('passed vote: serverfn')
+            GLOBAL.TheWorld:DoTaskInTime(5, function()
+                local env = M.GetVoteEnv()
+                if not env then
+                    M.log('error: failed to execute vote command: command arguments lost')
+                    return
+                end
+                M.log('executed custom vote command: title: ', vote_title)
+                M.ResetVoteEnv()
+            end)
+        end,
+    })
+end
 
 --[[
     format: 
@@ -839,6 +882,13 @@ M.AddCommands(
             
             GetServerInfoComponent():SetNewPlayerWallAutoSetter(min_online_player_level)            
         end
+    }, 
+    {
+        name = 'START_CUSTOM_VOTE', 
+        fn = function(doer, vote_title, vote_passed_text)
+            BroadcastShardCommand(M.COMMAND_ENUM.START_CUSTOM_VOTE, vote_title, vote_passed_text)
+
+        end
     }
 )
 
@@ -885,7 +935,10 @@ M.SHARD_COMMAND = {
             end
         end
     end,
-
+    [M.COMMAND_ENUM.START_CUSTOM_VOTE] = function(sender_shard_id, vote_title, vote_passed_text)
+        
+        SetCustomVote(vote_title, vote_passed_text)
+    end,
     -- just for internal use
     -- this is attempted to be called on master shard
     START_VOTE = function(sender_shard_id, cmd, starter_userid, arg)
@@ -1005,6 +1058,12 @@ local function RegisterRPCs()
         end
     end
     )
+
+    -- broadcast to every online players
+    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.SET_CUSTOM_VOTE, 
+    function(vote_title, vote_passed_text)
+        SetCustomVote(vote_title, vote_passed_text)
+    end)
     
 
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS, 
