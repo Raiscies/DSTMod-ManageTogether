@@ -72,7 +72,9 @@
         "net_bool",
         "SHARDID",
         "VerifySpawnNewPlayerOnServerRequest",
-        "smallhash"
+        "smallhash",
+        "net_tinybyte",
+        "net_byte"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

@@ -54,6 +54,17 @@ function M.tolinekvstring(tab)
     return string.format('{%s}', s)
 end
 
+function M.in_range(x, a, b)
+    return type(x) == 'number' and
+        a <= x and x <= b
+end
+function M.in_int_range(x, a, b)
+    return type(x) == 'number' and 
+        math.type(x) == 'integer' and
+        a <= x and x <= b
+end
+
+
 -- log print
 function M.log(...)
     print('[ManageTogether]', ...)

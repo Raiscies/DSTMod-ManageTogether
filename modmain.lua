@@ -13,20 +13,25 @@ M.PERMISSION = table.invert({
     'MODERATOR_VOTE', -- = 2
     'MODERATOR',      -- = ...
     'USER',
-    'USER_BANNED'
+    'USER_BANNED',
+    'MINIMUN'
 })
+
+assert(GetTableSize(M.PERMISSION) <= 255, 'permission level amount exceeded the limitation(255)')
+
 -- use this to order the permission level, cuz M.PERMISSION's map relation shouldn't be change
 -- currently the order is same as M.PERMISSION, but who knows in the future?
-M.PERMISSION_ORDER = table.invert({
+M.PERMISSION_ORDER = {
     -- the highest level
-    M.PERMISSION.ADMIN,             -- = 1
-    M.PERMISSION.MODERATOR_VOTE,    -- = 2
-    M.PERMISSION.MODERATOR,         -- = ...
-    M.PERMISSION.USER, 
-    M.PERMISSION.USER_BANNED
-
+    [M.PERMISSION.ADMIN]              = 1,
+    [M.PERMISSION.MODERATOR_VOTE]     = 2,
+    [M.PERMISSION.MODERATOR]          = 3,
+    [M.PERMISSION.USER]               = 4, 
+    [M.PERMISSION.USER_BANNED]        = 5,
+    
+    [M.PERMISSION.MINIMUN]            = 255
     -- the lowest level
-})
+}
 
 M.PERMISSION_VOTE_POSTFIX = '_VOTE'
 function M.LevelHigherThan(a_lvl, b_lvl)
@@ -271,6 +276,7 @@ local function AddOfficalVoteCommand(name, voteresultfn)
     })
 end
 
+
 --[[
     format: 
     M.AddCommand(
@@ -289,10 +295,8 @@ local function DefaultUserTargettedArgsDescription(userid, ...)
         user_desc .. ', ' .. DefaultArgsDescription(...)
 end
 function M.AddCommand(info_table, command_fn, regen_permission_mask)
-    if M.COMMAND_NUM >= 64 then
-        M.log('error: the number of commands exceeded limitation(64)')
-        return
-    end
+    assert(M.COMMAND_NUM < 64, 'error: the number of commands exceeded limitation(64)')
+    
     -- local name, permission, player_targeted = info_table.name, info_table.permission, info_table.player_targeted
 
     local name, permission, args_description, can_vote, user_targetted = 
@@ -799,7 +803,7 @@ M.AddCommands(
         end
     }, 
     {
-        name = 'SET_PLAYER_JOINABLE', 
+        name = 'SET_PLAYER_JOINABILITY', 
         can_vote = true, 
         fn = function(doer, flag)
             -- flag representation:
@@ -810,17 +814,30 @@ M.AddCommands(
             if flag == nil or flag == true or flag == 2 then
                 TheNet:SetAllowIncomingConnections(true)
                 TheNet:SetAllowNewPlayersToConnect(true)
-                M.log('set player joinable: all of the player is allowed')
+                M.log('set player joinability: all of the player is allowed')
             elseif flag == 1 then
                 TheNet:SetAllowIncomingConnections(true)
                 TheNet:SetAllowNewPlayersToConnect(false)
-                M.log('set player joinable: only old player is allowed')
+                M.log('set player joinability: only old player is allowed')
             elseif flag == 0 or flag == false then
                 TheNet:SetAllowIncomingConnections(false)
-                M.log('set player joinable: not allow incoming connections')
+                M.log('set player joinability: not allow incoming connections')
             else
-                dbg('set player joinable: bad flag: ', flag)
+                dbg('set player joinability: bad flag: ', flag)
+                return M.ERROR_CODE
             end
+        end
+    },
+    {
+        -- enable the new player's joinability while no old player or no admin/moderator is online 
+        name = 'SET_NEW_PLAYER_WALL_AUTOSETTER',
+        can_vote = true, 
+        fn = function(doer, min_online_player_level)
+            if min_online_player_level and not M.PERMISSION_ORDER[min_online_player_level] then
+                return M.ERROR_CODE.BAD_ARGUMENT
+            end
+            
+            GetServerInfoComponent():SetNewPlayerWallAutoSetter(min_online_player_level)            
         end
     }
 )

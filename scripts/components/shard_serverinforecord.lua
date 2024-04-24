@@ -15,6 +15,7 @@ local ShardServerInfoRecord = Class(
 
         self:InitNetVars()
         self:RegisterShardRPCs()
+        self:MasterOnlyInit()
 
         -- register event listeners
         self.world:ListenForEvent('ms_playerjoined', function(src, player)
@@ -22,7 +23,8 @@ local ShardServerInfoRecord = Class(
             self:RecordPlayer(player.userid)
         end)
         self.world:ListenForEvent('ms_playerdespawn', function(src, player)
-            dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
+            -- dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
+
         end)
 
         self.world:ListenForEvent('cycleschanged', function(src, data)
@@ -41,8 +43,17 @@ local ShardServerInfoRecord = Class(
             self:LoadModeratorFile()
         
         end)
+
     end
 )
+
+ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
+    -- master only
+    self.inst:ListenForEvent('ms_playercounts', function(data)
+        self:AutoSetNewPlayerWall()
+    end, self.world)
+
+end or function() end
 
 function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
     local record = self.player_record[userid]
@@ -251,8 +262,10 @@ end
 
 function ShardServerInfoRecord:InitNetVars()
     self.netvar = {
-        is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back')
+        is_rolling_back = net_bool(self.inst.GUID),
+        new_player_wall_autosetter = net_byte(self.inst.GUID)
     }
+    self.netvar.new_player_wall_autosetter:set_local(M.PERMISSION.MINIMUN)
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)
     if b == nil then
@@ -264,6 +277,44 @@ end
 function ShardServerInfoRecord:GetIsRollingBack()
     return self.netvar.is_rolling_back:value()
 end
+
+
+function ShardServerInfoRecord:SetNewPlayerWallAutoSetter(min_online_player_level)
+    self:SetNetVar('new_player_wall_autosetter', min_online_player_level or M.PERMISSION.MINIMUN)
+end
+function ShardServerInfoRecord:GetNewPlayerWallAutoSetter()
+    return self.netvar.new_player_wall_autosetter:value()
+end
+
+-- call this after player list changed
+ShardServerInfoRecord.AutoSetNewPlayerWall = TheShard:IsMaster() and function(self)
+    -- master
+    local required_min_online_player_level = self:GetNewPlayerWallAutoSetter()
+    if required_min_online_player_level == M.PERMISSION.MINIMUN then
+        -- disable the new player wall
+        TheNet:SetAllowNewPlayersToConnect(true)
+        return
+    end
+    
+    local current_min_online_player_level = M.PERMISSION.MINIMUN
+    for _, client in ipairs(GetPlayerClientTable()) do
+        local level = self.player_record[client.userid].permission_level
+        if M.LevelHigherThan(level, current_min_online_player_level) then
+            current_min_online_player_level = level
+        end
+    end
+
+    -- if current_min_online_player_level is not satisfied the required_min_online_player_level, 
+    -- then enable the new player wall
+    if M.LevelHigherOrEqualThan(current_min_online_player_level, required_min_online_player_level) then
+        -- disable the new player wall
+        TheNet:SetAllowNewPlayersToConnect(true)
+    else
+        -- enable the new player wall
+        TheNet:SetAllowNewPlayersToConnect(false)
+    end
+
+end or function() end
 
 -- this function is expensive
 function ShardServerInfoRecord:LoadSaveInfo()
