@@ -235,7 +235,7 @@ function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
 
-VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
+local VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
     ImageButton._ctor(self, atlas, normal, focus, disabled, down, selected, scale, offset)
 
     self.normal_textures = {
@@ -327,10 +327,6 @@ function VotableImageButton:EnableVote()
 end 
 function VotableImageButton:DisableVote()
     self:UpdateVoteState(false)
-end
-
-function SetAutoDisable()
-    
 end
 
 local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)

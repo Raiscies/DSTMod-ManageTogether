@@ -124,12 +124,12 @@ function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     local online_clients = GetPlayerClientTable()
     if do_permission_elevate then
         for _, client in ipairs(online_clients) do
-            self:ShardRecordPlayer(client.userid, client)
+            self:ShardRecordPlayer(client.userid, nil, client)
             self:ShardTryElevateUserPermissionByAge(client.userid)
         end
     else
         for _, client in ipairs(online_clients) do
-            self:ShardRecordPlayer(client.userid, client)
+            self:ShardRecordPlayer(client.userid, nil, client)
         end
     end
 end
@@ -146,7 +146,7 @@ function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid)
         self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
     end
 end
- 
+
 
 function ShardServerInfoRecord:SetPermission(userid, permission_level)
     SendModRPCToShard(
