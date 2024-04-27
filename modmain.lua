@@ -14,7 +14,7 @@ M.PERMISSION = table.invert({
     'MODERATOR',      -- = ...
     'USER',
     'USER_BANNED',
-    'MINIMUN'
+    'MINIMUM'
 })
 
 assert(GetTableSize(M.PERMISSION) <= 255, 'permission level amount exceeded the limitation(255)')
@@ -29,7 +29,7 @@ M.PERMISSION_ORDER = {
     [M.PERMISSION.USER]               = 4, 
     [M.PERMISSION.USER_BANNED]        = 5,
     
-    [M.PERMISSION.MINIMUN]            = 255
+    [M.PERMISSION.MINIMUM]            = 255
     -- the lowest level
 }
 
@@ -72,7 +72,6 @@ local function InitConfigs()
     -- nil means disable elevation 
     local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
     local auto_new_player_wall_min_level = GetModConfigData('auto_new_player_wall_min_level')
-    
     M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
     M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled('minimap_tips_for_killed_player')
     M.DEBUG                                    = is_config_enabled('debug')
@@ -81,17 +80,17 @@ local function InitConfigs()
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
 
-    -- supports permission level name or level enum
-    -- this setting(config) is unable to set on in-game screen yet,
-    -- but the command is implemented
-    if type(auto_new_player_wall_min_level) == 'number' then
-        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = auto_new_player_wall_min_level
-    elseif type(auto_new_player_wall_min_level) == 'string' then
+
+    M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
+    if type(auto_new_player_wall_min_level) == 'string' then
+        -- config is permission level name
+        -- this setting(config) is unable to set on in-game screen yet,
+        -- but the command is implemented
         M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION[string.upper(auto_new_player_wall_min_level)] or M.PERMISSION.MODERATOR
     else
         M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
     end
-    
+
     M.LANGUAGE = GetModConfigData('language')
     if M.LANGUAGE == 'en' then
         modimport('main_strings_en')
@@ -608,9 +607,6 @@ M.AddCommands(
             if not target_record or doer.userid == target_userid or not M.IsPlayerOnline(target_userid) then
                 return M.ERROR_CODE.BAD_TARGET
             end
-            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-            --     return M.ERROR_CODE.PERMISSION_DENIED
-            -- end 
 
             GLOBAL.TheNet:Kick(target_userid)
             M.announce_fmt(S.FMT_KICKED_PLAYER, target_record.name, target_userid)
@@ -628,9 +624,7 @@ M.AddCommands(
             if not target_record or doer.userid == target_userid then
                 return M.ERROR_CODE.BAD_TARGET
             end
-            --   elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-            --       return M.ERROR_CODE.PERMISSION_DENIED
-  
+
             BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
         end
     },
@@ -644,8 +638,6 @@ M.AddCommands(
             if not record or doer.userid == target_userid or record.permission_level == M.PERMISSION.USER_BANNED then
                 return M.ERROR_CODE.BAD_TARGET
             end
-            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
-            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             GLOBAL.TheNet:Ban(target_userid)
@@ -664,8 +656,6 @@ M.AddCommands(
             if not record or doer.userid == target_userid and record.permission_level == M.PERMISSION.USER_BANNED then
                 return M.ERROR_CODE.BAD_TARGET
             end
-            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, record.permission_level) then
-            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             BroadcastShardCommand(M.COMMAND_ENUM.KILLBAN, target_userid)
@@ -785,8 +775,6 @@ M.AddCommands(
                 -- target is alreay a moderator
                 return M.ERROR_CODE.BAD_TARGET
             end
-            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
 
@@ -810,8 +798,6 @@ M.AddCommands(
                 -- target is not a moderator
                 return M.ERROR_CODE.BAD_TARGET
             end
-            -- elseif not M.LevelHigherThan(GetPlayerRecord(doer.userid).permission_level, target_record.permission_level) then
-            --     return M.ERROR_CODE.PERMISSION_DENIED
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
@@ -831,7 +817,6 @@ M.AddCommands(
             -- 2 or true       : all of the player is joinable
             -- 1               : only old player(not a new player) is joinable
             -- 0 or false      : does not accept new incoming connections
-
             
             if type(flag) == 'boolean' then
                 flag = flag and 2 or 0
@@ -839,13 +824,16 @@ M.AddCommands(
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
 
-            TheNet:SetAllowNewPlayersToConnect(flag == 2)
-
-            -- only admin can execute TheNet:SetAllowIncomingConnections
-            if GetPlayerRecord(doer.userid).permission_level == M.PERMISSION.ADMIN then
+            -- ad-hoc: only admin can execute TheNet:SetAllowIncomingConnections
+            if PermissionLevel(doer.userid) == M.PERMISSION.ADMIN then
                 TheNet:SetAllowIncomingConnections(flag ~= 0)
+            elseif flag == 0 then
+                -- change this flag, just for announcement string
+                flag = 1
             end
-
+            TheNet:SetAllowNewPlayersToConnect(flag == 2)
+            
+            M.announce_fmt(S.FMT_SET_PLAYER_JOINABILITY[flag], doer.name)
         end
     },
     {
@@ -856,17 +844,17 @@ M.AddCommands(
             if type(enabled) ~= 'boolean' or (min_online_player_level and not M.PERMISSION_ORDER[min_online_player_level]) then
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
-
+            
             -- ad-hoc: only admin can set min_online_player_level
             -- moderator's argument of this will be ignore
 
-            if GetPlayerRecord(doer.userid).permission_level ~= M.PERMISSION.ADMIN then
+            if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
                 GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
                 dbg('a non-admin player executed SET_AUTO_NEW_PLAYER_WALL command, min_online_player_level argument is ignored')
             else
                 GetServerInfoComponent():SetAutoNewPlayerWall(enabled, min_online_player_level)
             end
-            M.announce_fmt(enabled and S.FMT_NEW_PLAYER_WALL_ENABLED or S.FMT_NEW_PLAYER_WALL_DISABLED, doer.name)
+            M.announce_fmt(enabled and S.FMT_AUTO_NEW_PLAYER_WALL_ENABLED or S.FMT_AUTO_NEW_PLAYER_WALL_DISABLED, doer.name)
             
         end
     }
@@ -1135,7 +1123,7 @@ end
 RegisterRPCs()
 
 
-if GLOBAL.TheNet and GLOBAL.TheNet:GetIsServer() then
+if GLOBAL.TheNet:GetIsServer() then
 -- Server codes begin ----------------------------------------------------------
 -- it is hard to fully clearify which parts are for server and the others are for clients or both
 -- so this is just a proximately seperation
@@ -1226,11 +1214,36 @@ AddPrefabPostInit('shard_network', function(inst)
     end
 end)
 
+-- master only
+if TheShard:IsMaster() then
+
+-- listen for newplayerwall state change
+AddPrefabPostInit('world', function(inst)
+    inst:ListenForEvent('master_newplayerwallupdate', function(data)
+        
+        -- redirect MINIMUM level to USER
+        local required_min_level = data.required_min_level == M.PERMISSION.MINIMUM and M.PERMISSION.USER or data.required_min_level
+        if data.old_state == data.new_state then return end
+        if data.new_state then
+            -- allow new players to join
+            M.announce(S.AUTO_NEW_PLAYER_WALL_STATE_ALLOW)
+        else
+            -- not allow new players to join
+            M.announce_fmt(
+                S.FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW, 
+                S.LEVEL_PRETTY_NAME[M.LevelEnumToName(required_min_level)]
+            )
+        end
+    end)
+end)
+
+end
+
 
 -- Server codes end ------------------------------------------------------------
 end
 
-if GLOBAL.TheNet and GLOBAL.TheNet:GetIsClient() then
+if GLOBAL.TheNet:GetIsClient() then
 -- Client codes begin ----------------------------------------------------------
 
 M.ATLAS = 'images/manage_together_integrated.xml'

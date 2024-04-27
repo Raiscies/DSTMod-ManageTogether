@@ -7,22 +7,19 @@ local trans = ChooseTranslationTable({
 			点击打开GUI, 可以通过各种按钮管理服务器和在线或离线的玩家;
 			大部分命令都可以作用于离线玩家;
 			部分设置如果没有你想要的选项, 请到存档的模组配置文件中修改.
+
+			*监督员投票选项中的'一致同意'指没有投票反对的玩家, 但是允许弃权.
 		]],
 		options = {
 			yes = '是', 
 			no = '否',
+			disabled = '禁用', 
 			vote_only_and_majority_yes = '仅允许发起投票(多数同意)',
 			vote_only_and_unanimous_yes = '仅允许发起投票(一致同意)',
 			vote_only_detail = '',
 			head_title = '通用选项',
 			language = {
 				label = '语言/Language',  	
-			},
-			user_elevate_in_age = {
-				label = '老玩家自动添加为监督员',
-				hover = '存活天数大于等于指定天数的玩家被添加为监督员, 0天表示任何加入的新玩家都会自动添加为监督员',
-				disable = '禁用',
-				day = '天'
 			},
 			reserve_moderator_data_while_world_regen = {
 				label = '世界重置时保留监督员数据', 
@@ -39,14 +36,32 @@ local trans = ChooseTranslationTable({
 			},
 			moderator_title = '监督员可用命令', 
 			moderator_save     = { label = '允许监督员存档' }, 
-			moderator_rollback = { label = '允许监督员回档', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
-			moderator_kick     = { label = '允许监督员踢出玩家', hover = '只有权限低于监督员的玩家才能被踢出\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权'}, 
-			moderator_kill     = { label = '允许监督员杀死玩家', hover = '只有权限低于监督员的玩家才能被杀死\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
-			moderator_ban      = { label = '允许监督员封禁玩家', hover = '只有权限低于监督员的玩家才能被封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
-			moderator_killban  = { label = '允许监督员杀死并封禁玩家', hover = '只有权限低于监督员的玩家才能被杀死并封禁\n投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
-			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
-			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
-			moderator_regenerate_world = {label = '允许监督员重新生成世界', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_rollback = { label = '允许监督员回档' },
+			moderator_kick     = { label = '允许监督员踢出玩家', hover = '只有权限低于监督员的玩家才能被踢出' }, 
+			moderator_kill     = { label = '允许监督员杀死玩家', hover = '只有权限低于监督员的玩家才能被杀死' },
+			moderator_ban      = { label = '允许监督员封禁玩家', hover = '只有权限低于监督员的玩家才能被封禁' },
+			moderator_killban  = { label = '允许监督员杀死并封禁玩家', hover = '只有权限低于监督员的玩家才能被杀死并封禁' }, 
+			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员' },
+			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限' }, 
+			moderator_regenerate_world = {label = '允许监督员重新生成世界' },
+			moderator_set_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			auto_control_title = '自动控制选项', 
+			user_elevate_in_age = {
+				label = '老玩家自动添加为监督员',
+				hover = '存活天数大于等于指定天数的玩家被添加为监督员, 0天表示任何加入的新玩家都会自动添加为监督员',
+				day = '天'
+			},
+			auto_new_player_wall_enabled = {
+				label = '启用新玩家过滤器', 
+				hover = '当在线玩家中不存在指定或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入\n新玩家指未曾加入过服务器的玩家, 曾加入过服务器的玩家不受限制' 
+			},
+			auto_new_player_wall_min_level = {
+				label = '新玩家过滤器的条件',
+				hover = '当在线玩家中不存在选项中的权限或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入', 
+				admin = '管理员不在线时',
+				moderator = '监督员和管理员都不在线时',
+				user = '任意玩家都不在线时',
+			},
 			others_title = '其它',
 			debug = {
 				label = '开启调试'
@@ -62,11 +77,12 @@ there will be a button on the left top side of scoreboard screen, click it to op
 you can manage server and online/offline player in this screen by using command buttons.
 most of the commands are available applying to offline player.
 
-'Vote' options of the moderator config means moderator can start a vote, but is not allowed to execute command directly. 
+*'Vote' options of the moderator config means moderator can start a vote, but is not allowed to execute command directly. 
 		]],
 		options = {
 			yes = 'Yes', 
 			no = 'No',
+			disabled = 'Disabled',
 			vote_only_and_majority_yes = 'Vote(Majority Yes)',
 			vote_only_and_unanimous_yes = 'Vote(Unanimous Yes)',
 			vote_only_detail = '',
@@ -78,7 +94,6 @@ most of the commands are available applying to offline player.
 			user_elevate_in_age = {
 				label = 'auto add old player to be moderator',
 				hover = 'the old player whose alive days is greater or equal then appointed days will be automatically add to moderator',
-				disable = 'Disable',
 				day = 'Day(s)'
 			},
 			reserve_moderator_data_while_world_regen = {
@@ -212,23 +227,6 @@ configuration_options = {
 		{description = '中文', data = 'zh'}, 
 		{description = 'English', data = 'en'}
 	}, 'zh'),
-	option('user_elevate_in_age', nil, nil, {
-			{description =          trans.options.user_elevate_in_age.disable, data = -1},
-			{description = '0'   .. trans.options.user_elevate_in_age.day, data = 0}, 
-			{description = '3'   .. trans.options.user_elevate_in_age.day, data = 3}, 
-			{description = '5'   .. trans.options.user_elevate_in_age.day, data = 5}, 
-			{description = '10'  .. trans.options.user_elevate_in_age.day, data = 10}, 
-			{description = '20'  .. trans.options.user_elevate_in_age.day, data = 20}, 
-			{description = '30'  .. trans.options.user_elevate_in_age.day, data = 30}, 
-			{description = '50'  .. trans.options.user_elevate_in_age.day, data = 50}, 
-			{description = '70'  .. trans.options.user_elevate_in_age.day, data = 70}, 
-			{description = '100' .. trans.options.user_elevate_in_age.day, data = 100}, 
-			{description = '150' .. trans.options.user_elevate_in_age.day, data = 150}, 
-			{description = '200' .. trans.options.user_elevate_in_age.day, data = 200},
-			{description = '300' .. trans.options.user_elevate_in_age.day, data = 300}, 
-			{description = '500' .. trans.options.user_elevate_in_age.day, data = 500},
-			{description = '1000' .. trans.options.user_elevate_in_age.day, data = 1000}
-	}),
 	binary_option('reserve_moderator_data_while_world_regen', YES),
 	binary_option('minimap_tips_for_killed_player', YES),
 	option('vote_min_passed_count', nil, nil, {
@@ -256,6 +254,31 @@ configuration_options = {
 	moderator_option('moderator_add_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true), 
 	moderator_option('moderator_remove_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true),
 	moderator_option('moderator_regenerate_world', NO),
+	moderator_option('moderator_set_player_joinability', VOTE_ONLY_AND_MAJORITY_YES),
+	title('auto_control_title'), 
+	option('user_elevate_in_age', nil, nil, {
+		{description =          trans.options.disabled, data = -1},
+		{description = '0'   .. trans.options.user_elevate_in_age.day, data = 0}, 
+		{description = '3'   .. trans.options.user_elevate_in_age.day, data = 3}, 
+		{description = '5'   .. trans.options.user_elevate_in_age.day, data = 5}, 
+		{description = '10'  .. trans.options.user_elevate_in_age.day, data = 10}, 
+		{description = '20'  .. trans.options.user_elevate_in_age.day, data = 20}, 
+		{description = '30'  .. trans.options.user_elevate_in_age.day, data = 30}, 
+		{description = '50'  .. trans.options.user_elevate_in_age.day, data = 50}, 
+		{description = '70'  .. trans.options.user_elevate_in_age.day, data = 70}, 
+		{description = '100' .. trans.options.user_elevate_in_age.day, data = 100}, 
+		{description = '150' .. trans.options.user_elevate_in_age.day, data = 150}, 
+		{description = '200' .. trans.options.user_elevate_in_age.day, data = 200},
+		{description = '300' .. trans.options.user_elevate_in_age.day, data = 300}, 
+		{description = '500' .. trans.options.user_elevate_in_age.day, data = 500},
+		{description = '1000' .. trans.options.user_elevate_in_age.day, data = 1000}
+	}),
+	binary_option('auto_new_player_wall_enabled', NO), 
+	option('auto_new_player_wall_min_level', nil, nil, {
+		{description = trans.options.auto_new_player_wall.user, data = 'user'},
+		{description = trans.options.auto_new_player_wall.moderator, data = 'moderator'},
+		{description = trans.options.auto_new_player_wall.admin, data = 'admin'},
+	}, 'moderator'),
 	title('others_title'),
 	binary_option('debug', NO), 
 }

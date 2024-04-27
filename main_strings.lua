@@ -6,13 +6,12 @@ STRINGS.UI.MANAGE_TOGETHER = {
     -- announcement
     ANNOUNCE_PREFIX = '[共同管理] ',
 
+    -- currently just for auto new player wall state changed
     LEVEL_PRETTY_NAME = {
         ADMIN = '管理员',
         MODERATOR = '监督员',
         USER = '普通玩家', 
-        USER_BANNED = '已封禁玩家', 
     },
-
 
     FMT_KICKED_PLAYER = '%s(%s)已被踢出服务器',
     FMT_BANNED_PLAYER = '%s(%s)已被封禁',
@@ -23,12 +22,17 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
     
-    FMT_NEW_PLAYER_WALL_LEVEL_NOT_SATISFIED = '服务器当前没有%s或更高权限的玩家在线, ',
-    -- FMT_NEW_PLAYER_WALL_LEVEL_SATISFIED     = '服务器当前有%s或更高权限的玩家在线, ',
-    FMT_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家自动过滤器, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
-    FMT_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家自动过滤器',
---     '已阻止新玩家加入服务器',
---  '已允许新玩家加入服务器',
+    FMT_SET_PLAYER_JOINABILITY = {
+        -- see the command flag
+        [0] = '%s已禁止所有玩家加入服务器', 
+        [1] = '%s已禁止新玩家加入服务器', 
+        [2] = '%s已允许所有玩家加入服务器'
+    },
+
+    FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家自动过滤器, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
+    FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家自动过滤器',
+    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已禁止新玩家加入服务器',
+    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已允许新玩家加入服务器',
     
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',

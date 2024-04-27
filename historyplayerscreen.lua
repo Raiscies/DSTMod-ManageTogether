@@ -45,11 +45,9 @@ local PlayerHud = require 'screens/playerhud'
 local PopupDialogScreen = require 'screens/redux/popupdialog'
 local InputDialogScreen  = require 'screens/redux/inputdialog'
 
--- local UserCommands = require 'usercommands'
+local VotableImageButton, VotableStatefulImageButton = require 'widgets/votableimagebutton'
 
 local TEMPLATES = require('widgets/redux/templates')
-
--- local BAN_ENABLED = true
 
 local REFRESH_INTERVAL = .5
 
@@ -235,99 +233,6 @@ function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
 
-local VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
-    ImageButton._ctor(self, atlas, normal, focus, disabled, down, selected, scale, offset)
-
-    self.normal_textures = {
-        atlas, normal, focus, disabled, down, selected, scale, offset
-    }
-    self.vote_state = false
-    self.vote_tip_image = self:AddChild(Image('images/button_icons.xml', 'vote.tex'))
-    self.vote_tip_image:SetPosition(-11,-10,0)
-    self.vote_tip_image:SetScale(.4)
-    self.vote_tip_image:Hide()
-
-    self.hover_text_at_vote = ''
-    self.hover_text_at_normal = ''
-    
-    self:SetOnClick(function()
-        if self.vote_state then
-            if self.onclick_at_vote then
-                self.onclick_at_vote()
-            end
-        else
-            if self.onclick_at_normal then
-                self.onclick_at_normal()
-            end
-        end
-    end)
-end)
-
-function VotableImageButton:SetTexturesAtVote(atlas, normal, focus, disabled, down, selected, scale, offset)
-    if not atlas then
-        self.vote_textures = nil 
-        return
-    end
-    self.vote_textures = {
-        atlas, normal, focus, disabled, down, selected, scale, offset
-    }
-end
-
-function VotableImageButton:SetOnClickAtNormal(fn)
-    self.onclick_at_normal = fn
-end
-function VotableImageButton:SetOnClickAtVote(fn)
-    self.onclick_at_vote = fn
-end
-function VotableImageButton:SetHoverTextAtVote(text, params)
-    self.hover_text_at_vote = text or self.hover_text_at_normal
-    self.hover_text_params_at_vote = params or self.hover_text_params_at_normal
-    if self.vote_state then
-        self:SetHoverText(self.hover_text_at_vote, params)
-    end
-end
-function VotableImageButton:SetHoverTextAtNormal(text, params)
-    self.hover_text_at_normal = text or ''
-    self.hover_text_params_at_normal = params
-    if not self.vote_state then
-        self:SetHoverText(self.hover_text_at_normal, params)
-    end
-end
-
-function VotableImageButton:UpdateVoteState(state, force_update)
-    if state == nil then
-        -- always update
-        state = self.vote_state
-    else
-        if self.vote_state ~= state then
-            self.vote_state = state
-        elseif not force_update then 
-            return
-        end
-    end
-
-    if state then
-        if self.vote_textures then
-            self:SetTextures(unpack(self.vote_textures))
-        else
-            self.vote_tip_image:Show()
-        end
-        self:SetHoverText(self.hover_text_at_vote, self.hover_text_params_at_vote)
-    else
-        if self.vote_textures then
-            self:SetTextures(unpack(self.normal_textures))
-        end
-        self.vote_tip_image:Hide()
-        self:SetHoverText(self.hover_text_at_normal, self.hover_text_params_at_normal)
-    end
-end
-
-function VotableImageButton:EnableVote()
-    self:UpdateVoteState(true)
-end 
-function VotableImageButton:DisableVote()
-    self:UpdateVoteState(false)
-end
 
 local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
     TheFrontEnd:PushScreen(InputVerificationDialog(
@@ -357,88 +262,75 @@ local function BuildDaySeasonStringByInfoIndex(index)
     return M.BuildDaySeasonString(M.rollback_info[index].day, M.rollback_info[index].season)
 end
 
+local function CreateButtonOfServer(screen, name, default_state_name, img_src, close_on_clicked, command_fn)
+    local button = screen[name]
+    if button ~= nil and TheInput:ControllerAttached() then
+        button:Kill()
+        button = nil
+    elseif button == nil and not TheInput:ControllerAttached() then
+        if not img_src then
+            img_src = {
+                M.ATLAS,
+                name .. '_normal.tex', 
+                name .. '_hover.tex', 
+                name .. '_select.tex', -- disabled.tex 
+                name .. '_select.tex'
+            }
+        end
+        --                                                        atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
+        button = screen.root:AddChild(VotableStatefulImageButton(default_state_name, img_src[1], img_src[2], img_src[3], img_src[4] or img_src[2], img_src[5] or img_src[2], nil, { .4, .4 }, { 0, 0 }))
+        
+        -- this flag affects:
+        -- hover_text
+        -- onclick_fn
+        button.name = name
+        table.insert(screen.votable_buttons, button)
+
+        screen[name] = button
+        button:SetOnClick(function(vote_state, current_state)
+            if close_on_clicked then screen:Close() end
+            -- swap the argument places
+            command_fn(vote_state, current_state)
+        end)
+
+        button:SetHoverTextAtNormal(
+            S[string.upper(name)] or '',
+            { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }
+        )
+        button:SetHoverTextAtVote(
+            (S.START_A_VOTE .. (S[string.upper(name)] or ''))
+        )
+
+        screen.servermenunumbtns = screen.servermenunumbtns + 1 
+        
+        local cmd = M.COMMAND_ENUM[string.upper(name)]
+        if cmd == nil or HasPermission(cmd) then
+            screen.server_button_x = screen.server_button_x + screen.server_button_offset
+            button:SetPosition(screen.server_button_x, 200)
+            button:Show()
+        elseif HasVotePermission(cmd) then
+            button:EnableVote()
+            screen.server_button_x = screen.server_button_x + screen.server_button_offset
+            button:SetPosition(screen.server_button_x, 200)
+            button:Show()
+        else
+            button:Hide()
+        end
+    end
+end
+
+
+
 local function DoInitServerRelatedCommnadButtons(screen)
 
-    local button_offset = 48
-    local button_x = -329
+    screen.server_button_offset = 48
+    screen.server_button_x = -329
 
-    -- local function shift_button_x(offset)
-    --     button_x = button_x + (offset or button_offset)
-    --     return button_x
-    -- end
-
-    local function CreateButtonOfServer(name, img_src, close_on_clicked, command_fn, vote_command_fn)
-        local button = screen[name]
-        if button ~= nil and TheInput:ControllerAttached() then
-            button:Kill()
-            button = nil
-        elseif button == nil and not TheInput:ControllerAttached() then
-            if not img_src then
-                img_src = {
-                    M.ATLAS,
-                    name .. '_normal.tex', 
-                    name .. '_hover.tex', 
-                    name .. '_select.tex', -- disabled.tex 
-                    name .. '_select.tex'
-                }
-            end
-            --                                               atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
-            button = screen.root:AddChild(VotableImageButton(img_src[1], img_src[2], img_src[3], img_src[4] or img_src[2], img_src[5] or img_src[2], nil, { .4, .4 }, { 0, 0 }))
-            
-            -- this flag affects:g
-            -- hover_text
-            -- onclick_fn
-            button.name = name
-            table.insert(screen.votable_buttons, button)
-
-            screen[name] = button
-            if not vote_command_fn then
-                button:SetOnClick(function()
-                    if close_on_clicked then screen:Close() end
-                    command_fn(button.vote_state)
-                end)
-            else
-                button:SetOnClickAtNormal(function()
-                    if close_on_clicked then screen:Close() end
-                    command_fn()
-                end)
-                button:SetOnClickAtVote(function()
-                    if close_on_clicked then screen:Close() end
-                    vote_command_fn()
-                end)
-            end
-
-            button:SetHoverTextAtNormal(
-                S[string.upper(name)] or '',
-                { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }
-            )
-            button:SetHoverTextAtVote(
-                (S.START_A_VOTE .. (S[string.upper(name)] or ''))
-            )
-   
-            screen.servermenunumbtns = screen.servermenunumbtns + 1 
-            button_x = button_x + button_offset
-
-            local cmd = M.COMMAND_ENUM[string.upper(name)]
-            if cmd == nil or HasPermission(cmd) then
-                button:SetPosition(button_x, 200)
-                button:Show()
-            elseif HasVotePermission(cmd) then
-                button:EnableVote()
-                button:SetPosition(button_x, 200)
-                button:Show()
-            else
-                button:Hide()
-            end
-        end
-
-    end
-
-    CreateButtonOfServer('save', nil, false, function()
-        RequestToExecuteCommand(M.COMMAND_ENUM.SAVE, nil)
+    CreateButtonOfServer(screen, 'save', nil, nil, false, function()
+        RequestToExecuteCommand(M.COMMAND_ENUM.SAVE)
     end)
 
-    CreateButtonOfServer('rollback', nil, false, function(vote_state)
+    CreateButtonOfServer(screen, 'rollback', nil, nil, false, function(vote_state)
         if screen.rollback_spinner:GetSelected().data == nil then
             PopupDialog(S.ERR_ROLLBACK_TITLE_BAD_INDEX, S.ERR_ROLLBACK_DESC_BAD_INDEX)
         else
@@ -447,9 +339,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                    -- for command ROLLBACK_OLD
-                    -- (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.ROLLBACK, screen.rollback_spinner:GetSelected().data)
-                    -- for command ROLLBACK
                     M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
                     M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', M.rollback_info[screen.rollback_spinner:GetSelected().data])
 
@@ -457,10 +346,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 end
             )
         end
-    end, nil)
+    end)
     screen:DoInitRollbackSpinner()
 
-    CreateButtonOfServer('regenerate_world', nil, true, function(vote_state)
+    CreateButtonOfServer(screen, 'regenerate_world', nil, nil, true, function(vote_state)
         PopupConfirmDialog(
             vote_state and (S.START_A_VOTE .. S.REGENERATE_WORLD) or S.REGENERATE_WORLD, 
             S.REGENERATE_WORLD_DESC,
@@ -475,34 +364,60 @@ local function DoInitServerRelatedCommnadButtons(screen)
             end
         )
     end)
-    -- TODO
-    -- CreateButtonOfServer('set_player_joinable', nil, false, function(vote_state)
-        
-    -- end)
 
-    CreateButtonOfServer('vote', nil, false, function()
-        for _, btn in ipairs(screen.votable_buttons) do
-            local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
-            if cmd and HasVotePermission(cmd) then
-                btn:EnableVote()
-            end
+    CreateButtonOfServer(screen, 'set_player_joinability', 'allow_all_player', 
+        {'allow_all_player_normal.tex', 'allow_all_player_hover.tex', 'allow_all_player_select.tex', 'allow_all_player_select.tex'}, -- 'default' state
+        false, 
+        function(vote_state, current_state)
+            PopupConfirmDialog(
+                (vote_state and S.START_A_VOTE or '') .. '', 
+                S.SET_PLAYER_JOINABILITY_DESC, 
+                function()
+                    
+                end
+            )
         end
-        screen.vote:EnableVote()
-    end, function() 
-        for _, btn in ipairs(screen.votable_buttons) do
-            local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
-            if cmd and HasPermission(cmd) then
-                btn:DisableVote() 
+    )
+    screen.set_player_joinability:AddState('allow_old_player', 
+        'allow_old_player_normal.tex', 
+        'allow_old_player_hover.tex', 
+        'allow_old_player_select.tex', 
+        'allow_old_player_select.tex', 
+        'allow_old_player_select.tex', nil, { .4, .4 }, { 0, 0 }
+    )
+    screen.set_player_joinability:AddState('not_allow_all_player', 
+        'not_allow_all_player_normal.tex', 
+        'not_allow_all_player_hover.tex', 
+        'not_allow_all_player_select.tex', 
+        'not_allow_all_player_select.tex', 
+        'not_allow_all_player_select.tex', nil, { .4, .4 }, { 0, 0 }
+    )
+
+    CreateButtonOfServer(screen, 'vote', nil, nil, false, function(vote_state)
+        if vote_state then
+            for _, btn in ipairs(screen.votable_buttons) do
+                local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
+                if cmd and HasPermission(cmd) then
+                    btn:DisableVote() 
+                end
             end
+            screen.vote:DisableVote()
+        else
+            for _, btn in ipairs(screen.votable_buttons) do
+                local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
+                if cmd and HasVotePermission(cmd) then
+                    btn:EnableVote()
+                end
+            end
+            screen.vote:EnableVote()
         end
-        screen.vote:DisableVote()
     end)
     screen.vote:SetHoverTextAtVote(S.NO_VOTE)
     screen.vote:SetTexturesAtVote(M.ATLAS, 'no_vote_normal.tex', 'no_vote_hover.tex', 'no_vote_select.tex', 'no_vote_select.tex', nil, { .4, .4 }, { 0, 0 })
-    
-    CreateButtonOfServer('refresh_records', nil, true, function()
+
+    CreateButtonOfServer(screen, 'refresh_records', nil, nil, true, function()
         PopupConfirmDialog(S.REFRESH_RECORDS, S.REFRESH_RECORDS_DESC, function()
-            RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS, nil)
+            RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS)
         end)
     end)
 end
@@ -904,8 +819,6 @@ function HistoryPlayerScreen:DoInit()
             button:SetNormalScale(0.39)
             button:SetFocusScale(0.39*1.1)
             button:SetFocusSound('dontstarve/HUD/click_mouseover', nil, ClickMouseoverSoundReduction())
-
-
    
             if needs_confirm then
                 button:SetOnClick(function()

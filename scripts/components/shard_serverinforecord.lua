@@ -261,8 +261,12 @@ function ShardServerInfoRecord:OnLoad(data)
         
     end
 
-    self.netvar.auto_new_player_wall_min_level:set(data and data.auto_new_player_wall_min_level or M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
-    self.netvar.auto_new_player_wall_enabled:set(data and data.auto_new_player_wall_enabled or false)
+    self.netvar.auto_new_player_wall_min_level:set(
+        data and data.auto_new_player_wall_min_level or M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL
+    )
+    self.netvar.auto_new_player_wall_enabled:set(
+        data and data.auto_new_player_wall_enabled or M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED
+    )
 
 end
 
@@ -321,17 +325,22 @@ end
 
 -- master side only
 -- call this after player list changed
-ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and function(self)
-    local auto_new_player_wall_min_level = self.netvar.auto_new_player_wall_min_level:value()
+ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and function(self)    
+    if not self.netvar.auto_new_player_wall_enabled:value() then
+        -- new auto player wall is disabled
+        return
+    end
+    
+    local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
+    local old_state = TheNet:GetAllowNewPlayersToConnect()
+    local new_state
 
-    local old_allow_new_player_join = TheNet:SetAllowNewPlayersToConnect()
-    local new_allow_new_player_join
-    if not self.netvar.auto_new_player_wall_enabled:value() or auto_new_player_wall_min_level == M.PERMISSION.MINIMUN then
-        -- disable the new player wall(allow new players to join)
-        new_allow_new_player_join = true
+    if required_min_level == M.PERMISSION.MINIMUM then
+        -- auto new player wall state: allow new players to join
+        new_state = true
     else
         
-        local current_min_online_player_level = M.PERMISSION.MINIMUN
+        local current_min_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local level = self.player_record[client.userid].permission_level
             if M.LevelHigherThan(level, current_min_online_player_level) then
@@ -340,14 +349,14 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         end
 
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
-        -- then enable the new player wall
-        new_allow_new_player_join = M.LevelHigherOrEqualThan(current_min_online_player_level, auto_new_player_wall_min_level)
+        -- then auto new player wall state: not allow new players to join
+        new_state = M.LevelHigherOrEqualThan(current_min_online_player_level, required_min_level)
     end
-    if old_allow_new_player_join ~= new_allow_new_player_join then
-        TheNet:SetAllowNewPlayersToConnect(new_allow_new_player_join)
+    if old_state ~= new_state then
+        TheNet:SetAllowNewPlayersToConnect(new_state)
     end
     
-    self.world:PushEvent('master_playerwallupdate', {old_state = not old_allow_new_player_join, new_state = not new_allow_new_player_join})
+    self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function() end
 

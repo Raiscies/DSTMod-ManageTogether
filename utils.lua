@@ -36,6 +36,11 @@ function M.chain_get(root, ...)
     return current
 end
 
+-- select the n-th argument of a vararg
+function M.select_one(n, ...)
+    return ({select(n, ...)})[1]
+end
+
 function M.moretostring(obj)
     if type(obj) == 'table' then
         return '\n' .. PrintTable(obj)
