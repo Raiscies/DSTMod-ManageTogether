@@ -123,7 +123,7 @@ M.ERROR_CODE.SUCCESS = 0
 
 
 local function moderator_config(name)
-    local conf GetModConfigData('moderator_' .. string.lower(name))
+    local conf = GetModConfigData('moderator_' .. string.lower(name))
     -- forwarding compatible
     if conf == true then 
         conf = M.EXECUTION_CATEGORY.YES
@@ -682,8 +682,9 @@ M.AddCommands(
     },
     {
         -- deprecated
-        name = 'ROLLBACK',
+        name = 'ROLLBACK_OLD',
         can_vote = true, 
+        permission = moderator_config('rollback'),
         args_description = function(saving_point_index)
             return GetServerInfoComponent():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
         end,
@@ -731,7 +732,7 @@ M.AddCommands(
     },
     {
         -- a better rollback command, which can let client specify the appointed rollback slot, but not saving point index
-        name = 'ROLLBACK_TO', 
+        name = 'ROLLBACK', 
         can_vote = true, 
         args_description = function(target_snapshot_id)
             return GetServerInfoComponent():BuildDaySeasonStringBySnapshotID(target_snapshot_id)
@@ -792,7 +793,7 @@ M.AddCommands(
             if M.IsPlayerOnline(target_userid) then
                 GLOBAL.TheWorld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
-                    M.COMMAND.QUERY_PERMISSION.fn(doer, nil)
+                    M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
                 end)
             end
 
@@ -817,7 +818,7 @@ M.AddCommands(
             if M.IsPlayerOnline(target_userid) then
                 GLOBAL.TheWOrld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
-                    M.COMMAND.QUERY_PERMISSION.fn(doer, nil)
+                    M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
                 end)
             end
         end
@@ -1219,19 +1220,9 @@ function M.StartCommandVote(executor, cmd, ...)
 end
 
 
-
-
 AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then
         inst:AddComponent('shard_serverinforecord')
-    end
-end)
-
--- backward compatible, will be delete in the future
--- probaly the next commitment
-AddPrefabPostInit('world', function(inst)
-    if not inst.components.serverinforecord then
-        inst:AddComponent('serverinforecord')
     end
 end)
 

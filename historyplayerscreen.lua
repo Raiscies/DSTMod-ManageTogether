@@ -235,7 +235,7 @@ function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
 
-VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
+local VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
     ImageButton._ctor(self, atlas, normal, focus, disabled, down, selected, scale, offset)
 
     self.normal_textures = {
@@ -327,10 +327,6 @@ function VotableImageButton:EnableVote()
 end 
 function VotableImageButton:DisableVote()
     self:UpdateVoteState(false)
-end
-
-function SetAutoDisable()
-    
 end
 
 local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
@@ -451,20 +447,20 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                    -- for command ROLLBACK
+                    -- for command ROLLBACK_OLD
                     -- (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(M.COMMAND_ENUM.ROLLBACK, screen.rollback_spinner:GetSelected().data)
-                    -- for command ROLLBACK_TO
+                    -- for command ROLLBACK
                     M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
                     M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', M.rollback_info[screen.rollback_spinner:GetSelected().data])
 
-                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.ROLLBACK_TO, M.rollback_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
+                    SelectCommandToExecute(vote_state, M.COMMAND_ENUM.ROLLBACK, M.rollback_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
             )
         end
     end, nil)
     screen:DoInitRollbackSpinner()
 
-    CreateButtonOfServer('regenerate_world',nil, true, function(vote_state)
+    CreateButtonOfServer('regenerate_world', nil, true, function(vote_state)
         PopupConfirmDialog(
             vote_state and (S.START_A_VOTE .. S.REGENERATE_WORLD) or S.REGENERATE_WORLD, 
             S.REGENERATE_WORLD_DESC,
@@ -479,6 +475,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
             end
         )
     end)
+    -- TODO
+    -- CreateButtonOfServer('set_player_joinable', nil, false, function(vote_state)
+        
+    -- end)
 
     CreateButtonOfServer('vote', nil, false, function()
         for _, btn in ipairs(screen.votable_buttons) do
@@ -590,7 +590,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     -- build/rebuild rollback_slots anyway
     if #M.rollback_info ~= 0 then
         
-        -- for new command ROLLBACK_TO
+        -- for new command ROLLBACK
         if M.IsNewestRollbackSlotValid() then
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #M.rollback_info do
@@ -599,10 +599,10 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         else
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
             for i = 2, #M.rollback_info do
-                table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command(ROLLBACK_TO)
+                table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
 
-        -- old: for command ROLLBACK
+        -- old: for command ROLLBACK_OLD
         --     -- negative saving_point_index means this request is sended when
         --     -- a new save has just created, which means server will automatically skip the newest slot, 
         --     -- but this is not we wants, we should correct it 

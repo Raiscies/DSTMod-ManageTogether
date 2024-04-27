@@ -74,7 +74,8 @@
         "VerifySpawnNewPlayerOnServerRequest",
         "smallhash",
         "net_tinybyte",
-        "net_byte"
+        "net_byte",
+        "NEWFONT"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

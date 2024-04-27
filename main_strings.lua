@@ -65,11 +65,11 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = '是否杀死并封禁%s',
             TITLE = '我们应该杀死并封禁该玩家吗?'
         }, 
-        ROLLBACK = {
+        ROLLBACK_OLD = {
             FMT_ANNOUNCE = '是否回档到%s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },
-        ROLLBACK_TO = {
+        ROLLBACK = {
             FMT_ANNOUNCE = '是否回档到%s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },

@@ -9,7 +9,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_BANNED_PLAYER = '%s(%s) is banned',
     FMT_KILLED_PLAYER = '%s(%s) is killed',
     FMT_KILLBANNED_PLAYER = '%s(%s) is killed and banned',
-    FMT_SENDED_SAVE_REQUEST = '%s raised a rollback request',
+    FMT_SENDED_SAVE_REQUEST = '%s raised a save request',
     FMT_SENDED_ROLLBACK_REQUEST = '%s raised a rollback request, to the %dth saving point:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s raised a rollback request, to the saving point: %s',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s raised a world regenerating request, the world will regenerate in %d second(s)',
@@ -47,11 +47,11 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = 'should we kill and ban %s',
             TITLE = 'should we kill and ban the player?'
         }, 
-        ROLLBACK = {
+        ROLLBACK_OLD = {
             FMT_ANNOUNCE = 'should we rollback to %s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },
-        ROLLBACK_TO = {
+        ROLLBACK = {
             FMT_ANNOUNCE = 'should we rollback to %s',
             TITLE = STRINGS.UI.BUILTINCOMMANDS.ROLLBACK.VOTETITLEFMT
         },
@@ -96,7 +96,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = 'this snapshot is disabled due to a very recent saving time(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
-    REGENERATE_WORLD = 'regengerate world',
+    REGENERATE_WORLD = 'Regengerate World',
     REGENERATE_WORLD_DESC = 'distory EVERYTHING of the world, and then generate a new world',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = 'server name',
     VOTE = 'Start a Vote...',

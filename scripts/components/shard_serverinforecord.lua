@@ -59,6 +59,8 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
 end or function() end
 
 function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
+    
+    
     local record = self.player_record[userid]
     if not record then return end
 
@@ -66,18 +68,25 @@ function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
     -- ADMIN is un-changeable
     if current == M.PERMISSION.ADMIN then return end
 
-    if M.USER_PERMISSION_ELEVATE_IN_AGE and 
-        current == M.PERMISSION.MODERATOR and 
-        permission_level == M.PERMISSION.USER and
-        record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE
+
+    if M.USER_PERMISSION_ELEVATE_IN_AGE and              -- enabled auto elevation
+        current == M.PERMISSION.MODERATOR and            -- current is moderator
+        permission_level == M.PERMISSION.USER and        -- new is user
+        record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE   -- elevation age is satisfied
     then
-        -- in this case, we should set a flag to keep the player's USER permission 
+        -- in this special case, we should set a flag to keep the player's USER permission in case it changes by auto elevation
         self.player_record[userid].no_elevate_in_age = true
-    else
-        -- any other of the SetPermission operations will clear the flag  
+        self.player_record[userid].permission_level = M.PERMISSION.USER
+        return
+    elseif permission_level ~= nil then
+        -- this flag will be reset only when new permission_level is not nil
         self.player_record[userid].no_elevate_in_age = nil
     end
-    self.player_record[userid].permission_level = permission_level or M.PERMISSION.USER
+
+    -- 1. set new permission_level if it is not nil
+    -- 2. keep the old permission_level it is if not nil
+    -- 3. initialize the permission_level to USER 
+    self.player_record[userid].permission_level = permission_level or current or M.PERMISSION.USER
 end
 
 function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
@@ -129,29 +138,29 @@ function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)
     local online_clients = GetPlayerClientTable()
     if do_permission_elevate then
         for _, client in ipairs(online_clients) do
-            self:ShardRecordPlayer(client.userid, client)
-            self:ShardTryElevateUserPermissionByAge(client.userid, client.playerage or 0)
+            self:ShardRecordPlayer(client.userid, nil, client)
+            self:ShardTryElevateUserPermissionByAge(client.userid)
         end
     else
         for _, client in ipairs(online_clients) do
-            self:ShardRecordPlayer(client.userid, client)
+            self:ShardRecordPlayer(client.userid, nil, client)
         end
     end
 end
 
-function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid, newage)
+function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid)
 
     local record = self.player_record[userid]
     if not record or not M.USER_PERMISSION_ELEVATE_IN_AGE then return end
 
-    if (newage >= M.USER_PERMISSION_ELEVATE_IN_AGE and 
+    if (record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE and 
         not record.no_elevate_in_age and
         M.LevelHigherThan(M.PERMISSION.MODERATOR, record.permission_level))
     then
-        self:ShardSetPermission(M.PERMISSION.MODERATOR)
+        self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
     end
 end
- 
+
 
 function ShardServerInfoRecord:SetPermission(userid, permission_level)
     SendModRPCToShard(
