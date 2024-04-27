@@ -71,7 +71,8 @@ local function InitConfigs()
     -- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
     -- nil means disable elevation 
     local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
-                            
+    local auto_new_player_wall_min_level = GetModConfigData('auto_new_player_wall_min_level')
+    
     M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
     M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled('minimap_tips_for_killed_player')
     M.DEBUG                                    = is_config_enabled('debug')
@@ -79,6 +80,18 @@ local function InitConfigs()
     M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
+
+    -- supports permission level name or level enum
+    -- this setting(config) is unable to set on in-game screen yet,
+    -- but the command is implemented
+    if type(auto_new_player_wall_min_level) == 'number' then
+        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = auto_new_player_wall_min_level
+    elseif type(auto_new_player_wall_min_level) == 'string' then
+        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION[string.upper(auto_new_player_wall_min_level)] or M.PERMISSION.MODERATOR
+    else
+        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
+    end
+    
     M.LANGUAGE = GetModConfigData('language')
     if M.LANGUAGE == 'en' then
         modimport('main_strings_en')
@@ -93,7 +106,7 @@ local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
 modimport('utils')
 
-local varg_pairs, dbg, chain_get = M.varg_pairs, M.dbg, M.chain_get
+local varg_pairs, dbg, chain_get, select_one = M.varg_pairs, M.dbg, M.chain_get, M.select_one
 
 
 M.ERROR_CODE = table.invert({
@@ -268,8 +281,8 @@ local function AddOfficalVoteCommand(name, voteresultfn)
                     M.log('error: failed to execute vote command: command arguments lost')
                     return
                 end
-                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.arg)))
-                M.log('executed vote command: cmd = ', name, 'args = ', M.tolinekvstring(env.arg), ', result = ', result)
+                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
+                M.log('executed vote command: cmd = ', name, 'args = ', M.tolinekvstring(env.args), ', result = ', result)
                 M.ResetVoteEnv()
             end)
         end,
@@ -409,7 +422,6 @@ function M.ErrorCodeToName(code)
     end
     return ''
 end
-
 function M.CommandEnumToName(cmd)
     for name, cmd_enum in pairs(M.COMMAND_ENUM) do
         if cmd_enum == cmd then
@@ -417,7 +429,15 @@ function M.CommandEnumToName(cmd)
         end
     end
     return ''
-end 
+end
+function M.LevelEnumToName(level)
+    for name, lvl in pairs(M.PERMISSION) do
+        if lvl == level then
+            return name
+        end
+    end
+    return ''
+end
 
 function M.CmdEnumToVoteHash(cmd)
     return smallhash('manage_together_' .. M.CommandEnumToName(cmd))
@@ -807,37 +827,46 @@ M.AddCommands(
         can_vote = true, 
         fn = function(doer, flag)
             -- flag representation:
-            -- 2 or true or nil: all of the player is joinable
+            -- 2 or true       : all of the player is joinable
             -- 1               : only old player(not a new player) is joinable
             -- 0 or false      : does not accept new incoming connections
 
-            if flag == nil or flag == true or flag == 2 then
-                TheNet:SetAllowIncomingConnections(true)
-                TheNet:SetAllowNewPlayersToConnect(true)
-                M.log('set player joinability: all of the player is allowed')
-            elseif flag == 1 then
-                TheNet:SetAllowIncomingConnections(true)
-                TheNet:SetAllowNewPlayersToConnect(false)
-                M.log('set player joinability: only old player is allowed')
-            elseif flag == 0 or flag == false then
-                TheNet:SetAllowIncomingConnections(false)
-                M.log('set player joinability: not allow incoming connections')
-            else
-                dbg('set player joinability: bad flag: ', flag)
-                return M.ERROR_CODE
+            
+            if type(flag) == 'boolean' then
+                flag = flag and 2 or 0
+            elseif not M.in_int_range(flag, 0, 2) then
+                return M.ERROR_CODE.BAD_ARGUMENT
             end
+
+            TheNet:SetAllowNewPlayersToConnect(flag == 2)
+
+            -- only admin can execute TheNet:SetAllowIncomingConnections
+            if GetPlayerRecord(doer.userid).permission_level == M.PERMISSION.ADMIN then
+                TheNet:SetAllowIncomingConnections(flag ~= 0)
+            end
+
         end
     },
     {
-        -- enable the new player's joinability while no old player or no admin/moderator is online 
-        name = 'SET_NEW_PLAYER_WALL_AUTOSETTER',
+        name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
-        fn = function(doer, min_online_player_level)
-            if min_online_player_level and not M.PERMISSION_ORDER[min_online_player_level] then
+        fn = function(doer, enabled, min_online_player_level)
+
+            if type(enabled) ~= 'boolean' or (min_online_player_level and not M.PERMISSION_ORDER[min_online_player_level]) then
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
+
+            -- ad-hoc: only admin can set min_online_player_level
+            -- moderator's argument of this will be ignore
+
+            if GetPlayerRecord(doer.userid).permission_level ~= M.PERMISSION.ADMIN then
+                GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
+                dbg('a non-admin player executed SET_AUTO_NEW_PLAYER_WALL command, min_online_player_level argument is ignored')
+            else
+                GetServerInfoComponent():SetAutoNewPlayerWall(enabled, min_online_player_level)
+            end
+            M.announce_fmt(enabled and S.FMT_NEW_PLAYER_WALL_ENABLED or S.FMT_NEW_PLAYER_WALL_DISABLED, doer.name)
             
-            GetServerInfoComponent():SetNewPlayerWallAutoSetter(min_online_player_level)            
         end
     }
 )
@@ -888,11 +917,11 @@ M.SHARD_COMMAND = {
 
     -- just for internal use
     -- this is attempted to be called on master shard
-    START_VOTE = function(sender_shard_id, cmd, starter_userid, arg)
+    START_VOTE = function(sender_shard_id, cmd, starter_userid, ...)
         if not TheShard:IsMaster() then
             -- this is not as excepted
             dbg('error: M.SHARD_COMMAND.START_VOTE() is called on secondary shard')
-            dbg('sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', arg)
+            dbg('sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
             return
         end
         
@@ -907,9 +936,11 @@ M.SHARD_COMMAND = {
         -- so we just pass a fucking nil to offical function
 
         -- shardnetworking.lua
+        local args = {...}
+
         M.SetVoteEnv({
             starter_userid = starter_userid, 
-            arg = {arg}, 
+            args = args, 
         })
         Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
@@ -920,17 +951,18 @@ M.SHARD_COMMAND = {
 
                 local announce_string = string.format(
                     S.VOTE[M.CommandEnumToName(cmd)].FMT_ANNOUNCE, 
-                    M.COMMAND[cmd].args_description(arg)
+                    M.COMMAND[cmd].args_description(unpack(args))
                 )
                 M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
             else
                 -- clear vote env cuz vote is not actually starts
                 M.ResetVoteEnv()
+                M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
                 dbg('failed to start a vote.')
             end
                 
         end)
-        dbg('Intent to Start a Vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', arg)
+        dbg('Intent to Start a Vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
     end
 }
 
@@ -939,9 +971,9 @@ local function RegisterRPCs()
     -- server rpcs
 
     -- handle send_command
-    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND, function(player, cmd, arg)
-        local result = M.ExecuteCommand(player, cmd, false, arg)
-        if result == M.ERROR_CODE.PERMISSION_DENIED and M.SILENT_FOR_PERMISSION_DEINED then
+    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND, function(player, cmd, ...)
+        local result = M.ExecuteCommand(player, cmd, false, ...)
+        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return
         end
 
@@ -951,9 +983,9 @@ local function RegisterRPCs()
         )
     end)
     -- handle send_vote_command
-    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND, function(player, cmd, arg)
-        local result = M.StartCommandVote(player, cmd, arg)
-        if result == M.ERROR_CODE.PERMISSION_DENIED and M.SILENT_FOR_PERMISSION_DEINED then
+    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND, function(player, cmd, ...)
+        local result = M.StartCommandVote(player, cmd, ...)
+        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return
         end
 
@@ -1135,21 +1167,21 @@ BroadcastShardCommand = function(cmd, ...)
     dbg('Broadcasted Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
 end
 
-function M.ExecuteCommand(executor, cmd, is_vote, arg)
+function M.ExecuteCommand(executor, cmd, is_vote, ...)
     local permission_level = PermissionLevel(executor.userid)
     if is_vote then
         permission_level = VotePermissionElevate(permission_level)
     end
 
-    -- check data validity: cmd, arg
+    -- check data validity: cmd, args
     if not IsCommandEnum(cmd) then
         -- bad command type
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
     elseif M.COMMAND[cmd].player_targeted then
-        -- arg will be target_userid if command is player targeted
-        local target_record = GetPlayerRecord(arg)
+        -- the first argument will be target_userid if command is player targeted
+        local target_record = GetPlayerRecord(select_one(1, ...))
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
         elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
@@ -1158,13 +1190,13 @@ function M.ExecuteCommand(executor, cmd, is_vote, arg)
         end
     end
     
-    local result = M.COMMAND[cmd].fn(executor, arg)
-    M.dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', arg)
+    local result = M.COMMAND[cmd].fn(executor, ...)
+    M.dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
     -- nil(by default) means success
     return result == nil and M.ERROR_CODE.SUCCESS or result
     
 end
-function M.StartCommandVote(executor, cmd, arg)
+function M.StartCommandVote(executor, cmd, ...)
     local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
     if not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
@@ -1181,7 +1213,7 @@ function M.StartCommandVote(executor, cmd, arg)
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
-    ForwardToMasterShard('START_VOTE', cmd, executor.userid, arg)
+    ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...)
 
     return M.ERROR_CODE.SUCCESS
 end
@@ -1230,15 +1262,15 @@ function ClearRollbackInfos()
 end
 
 function QueryPermission()
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION, nil)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION)
 end
 
-function RequestToExecuteCommand(cmd, arg)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), cmd, arg)
+function RequestToExecuteCommand(cmd, ...)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), cmd, ...)
 end
 
-function RequestToExecuteVoteCommand(cmd, arg)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, arg)
+function RequestToExecuteVoteCommand(cmd, ...)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
 end
 
 -- just for quick typing in console

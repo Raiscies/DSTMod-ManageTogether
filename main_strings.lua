@@ -5,6 +5,15 @@ STRINGS.UI.MANAGE_TOGETHER = {
     
     -- announcement
     ANNOUNCE_PREFIX = '[共同管理] ',
+
+    LEVEL_PRETTY_NAME = {
+        ADMIN = '管理员',
+        MODERATOR = '监督员',
+        USER = '普通玩家', 
+        USER_BANNED = '已封禁玩家', 
+    },
+
+
     FMT_KICKED_PLAYER = '%s(%s)已被踢出服务器',
     FMT_BANNED_PLAYER = '%s(%s)已被封禁',
     FMT_KILLED_PLAYER = '%s(%s)已被杀死',
@@ -13,6 +22,14 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
+    
+    FMT_NEW_PLAYER_WALL_LEVEL_NOT_SATISFIED = '服务器当前没有%s或更高权限的玩家在线, ',
+    -- FMT_NEW_PLAYER_WALL_LEVEL_SATISFIED     = '服务器当前有%s或更高权限的玩家在线, ',
+    FMT_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家自动过滤器, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
+    FMT_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家自动过滤器',
+--     '已阻止新玩家加入服务器',
+--  '已允许新玩家加入服务器',
+    
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
 
@@ -26,6 +43,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     -- vote related strings
     VOTE = {
         FMT_START = '%s 发起了一场投票: %s?',
+        FAILED_TO_START = '发起投票失败',
         -- only some of the command to vote has there's strings 
         KICK = {
             -- for vote beginning announcement
