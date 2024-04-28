@@ -228,6 +228,15 @@ function InputVerificationDialog:OnControl(control, down)
     end
     InputVerificationDialog._base.OnControl(self, control, down)
 end
+function InputVerificationDialog:OnTextInput(text)
+    if self:Verify() then
+        self.bg.actions:EnableItem(1)
+    else
+        self.bg.actions:DisableItem(1)
+    end
+    InputVerificationDialog._base.OnTextInput(self, text)
+end
+
 function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
