@@ -1,8 +1,6 @@
 
 GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
 
-
-
 -- GUI - clients only
 if not (TheNet and TheNet:GetIsClient()) then return end
 
@@ -52,7 +50,6 @@ local TEMPLATES = require('widgets/redux/templates')
 -- local BAN_ENABLED = true
 
 local REFRESH_INTERVAL = .5
-
 
 local function GetBasePrefabFromSkin(skin)
     -- the simplist and cheapest way to get the prefab name
@@ -207,7 +204,7 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
             text = STRINGS.UI.PLAYERSTATUSSCREEN.OK, 
             cb = function() 
                 if self:Verify() then
-                    on_confirmed_fn()
+                    on_confirmed_fn(self:GetText())
                     TheFrontEnd:PopScreen() 
                 end
             end
@@ -234,6 +231,39 @@ end
 function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
+
+
+local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc, on_submitted)
+    -- M.ToPrefabName: returns nil if the name is not valid or else returns non-nil item prefab name string
+    
+    local verify_fn = function(text)
+        self.the_item_prefab = M.ToPrefabName(text)
+        return self.the_item_prefab ~= nil
+    end
+    local submitted_fn = function()
+        on_submitted(self.the_item_prefab)
+    end
+    
+    InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
+    self.desc = desc
+
+    -- enable item text prediction
+    self.edit_text:EnableWordPrediction({width = 1000, mode = 'enter_tab'})
+
+    for _, dict in ipairs(M.GetItemDictionaries()) do
+        self.edit_text:AddWordPredictionDictionary({
+            words = dict, 
+            delim = '', 
+            postfix = '', 
+        })
+    end
+end)
+
+function ItemStatDialog:GetItemPrefab()
+    self:Verify()
+    return self.the_item_prefab
+end
+
 
 VotableImageButton = Class(ImageButton, function(self, atlas, normal, focus, disabled, down, selected, scale, offset)
     ImageButton._ctor(self, atlas, normal, focus, disabled, down, selected, scale, offset)

@@ -201,6 +201,41 @@ function M.EncodeToBase64(s)
     return table.concat(result)
 end
 
+function M.GetItemDictionaries()
+    if not (M.ITEM_PREFAB_DICTIONARY and M.ITEM_LOCAL_NAME_DICTIONARY and M.LOCAL_NAME_REFERENCES) then
+        
+        local names = STRINGS.NAMES
+        for prefab, _ in pairs(Prefabs) do
+            table.insert(M.ITEM_PREFAB_DICTIONARY, prefab)
+
+            local local_name = names[string.upper(prefab)]
+            table.insert(M.ITEM_LOCAL_DICTIONARY, local_name)
+            -- keep a reference from localized name to prefab name
+            M.LOCAL_NAME_REFERENCES[local_name] = prefab
+        end
+        
+    end
+    
+    return {M.ITEM_PREFAB_DICTIONARY, M.ITEM_LOCAL_NAME_DICTIONARY}
+end
+
+function M.ToPrefabName(s) 
+    -- a valid item representation is:
+    -- a item prefab;
+    -- a localized item name;
+    
+    -- try to generate the refs in case the tables haven't exist yet
+    M.GetItemDictionaries()
+    
+    if M.LOCAL_NAME_REFERENCES[s] then
+        return M.LOCAL_NAME_REFERENCES[s] --> prefab name
+    elseif Prefabs[s] then
+        return s
+    end
+
+    return nil
+end
+
 end -- is client
 
 -- some utils for server
