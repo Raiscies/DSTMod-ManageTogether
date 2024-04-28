@@ -215,10 +215,3 @@ end
 function VotableStatefulImageButton:SetHoverTextAtNormal(text, params)
    self:SetStateHoverTextAtVote('default', text, params)
 end
-
-local RatioVotableImageButtonSet = Class(Widget, function(self, buttons)
-    
-end)
-
-return VotableImageButton, VotableStatefulImageButton
-    
