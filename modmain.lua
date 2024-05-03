@@ -1150,10 +1150,10 @@ function M.ExecuteCommand(executor, cmd, is_vote, arg)
 end
 function M.StartCommandVote(executor, cmd, arg)
     local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
-    if not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
-        return M.ERROR_CODE.PERMISSION_DENIED
-    elseif not IsCommandEnum(cmd) then
+    if not IsCommandEnum(cmd) then
         return M.ERROR_CODE.BAD_COMMAND
+    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
+        return M.ERROR_CODE.PERMISSION_DENIED
     elseif not M.COMMAND[cmd].can_vote then
         return M.ERROR_CODE.COMMAND_NOT_VOTABLE
     end
