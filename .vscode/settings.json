@@ -73,7 +73,8 @@
         "SHARDID",
         "VerifySpawnNewPlayerOnServerRequest",
         "smallhash",
-        "NEWFONT"
+        "NEWFONT",
+        "GetTick"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

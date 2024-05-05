@@ -136,7 +136,7 @@ end
 
 
 local function RequestToUpdateRollbackInfo()
-    RequestToExecuteCommand(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 2)
+    QueryHistoryPlayers(2)
 end
 
 local function DoInitScreenToggleButton(screen, current_or_history_index)
@@ -151,7 +151,7 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
                     -- is current
                     -- toggle to history player screen now
                     -- query for history player list data from server
-                    RequestToExecuteCommand(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, nil)
+                    QueryHistoryPlayers()
                     screen.owner.HUD:ShowHistoryPlayerScreeen(true)
                 else
                     -- is history
@@ -1271,10 +1271,11 @@ function PlayerStatusScreen:DoInit(ClientObjs)
     
     OldDoInit(self, ClientObjs)
     
-    if not M.has_queried then
+    if not M.has_queried_permission then
         QueryPermission()
-        M.has_queried = true
+        M.has_queried_permission = true
     end
+
     
     -- once the request is sent, 
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received

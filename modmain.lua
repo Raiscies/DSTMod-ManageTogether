@@ -512,41 +512,52 @@ M.AddCommands(
     {
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
-        fn = function(doer, query_category)
+        fn = function(doer, query_category, last_query_timestamp)
             -- query_category: nil or 0: query history players and rollback info
             --                        1: query history players only
             --                        2: query rollback info only
 
+            local function send_record(userid, record)
+                if M.IsPlayerOnline(userid) then
+                    -- player is online
+                    SendModRPCToClient(
+                        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION), doer.userid, 
+                        userid, record.permission_level
+                    )
+                else
+                    -- player is offline
+                    SendModRPCToClient(
+                        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS), doer.userid, 
+                        userid, record.netid, record.name, record.age, record.skin, record.permission_level
+                    )
+                end
+            end
+
             if not query_category then query_category = 0 end
             
+            -- send player records
             if query_category == 0 or query_category == 1 then
 
-                for userid, record in pairs(GetPlayerRecords()) do 
-                    if M.IsPlayerOnline(userid) then
-                        -- player is online
-                        SendModRPCToClient(
-                            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION), doer.userid, 
-                            userid, record.permission_level
-                        )
-                    else
-                        -- player is offline
-                        SendModRPCToClient(
-                            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS), doer.userid, 
-                            userid, record.netid, record.name, record.age, record.skin, record.permission_level
-                        )
+                -- all of the records will be send if last_query_timestamp is nil
+                if not last_query_timestamp then 
+                    -- full sync
+                    for userid, record in pairs(GetPlayerRecords()) do send_record(userid, record) end
+                else
+                    -- only send updated records
+                    for userid, record in pairs(GetPlayerRecords()) do 
+                        if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
+                            send_record(userid, record)
+                        end
                     end
                 end
             end
+            -- send snapshot infos
             if query_category == 0 or query_category == 2 then
                 local slots = GetSnapshotInfo().slots
                 if not slots then
                     return M.ERROR_CODE.DATA_NOT_PRESENT
                 end
                 for i, v in ipairs(slots) do
-                    -- SendModRPCToClient(
-                    --     GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_ROLLBACK_INFO), doer.userid, 
-                    --     i, v.day, v.season
-                    -- )
                     SendModRPCToClient(
                         GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_ROLLBACK_INFO), doer.userid, 
                         i, v.day, v.season, v.snapshot_id -- add a snapshot id, clients can clearly specify the rollback target they want
@@ -975,6 +986,13 @@ local function RegisterRPCs()
     function(cmd, result) 
         if IsCommandEnum(cmd) and IsErrorCode(result) then
             dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
+            if cmd == M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS then
+                -- re-init the history player screen if it is opened
+                local screen = GLOBAL.ThePlayer.HUD.historyplayerscreen
+                if screen and screen.shown then
+                    screen:DoInit()
+                end
+            end
         else
             dbg('received from server(send command): server drunk')
         end
@@ -1016,12 +1034,6 @@ local function RegisterRPCs()
             skin = skin, 
         }
         dbg('received from server(query history players(offline)): ', M.player_record[userid])
-
-        -- re-init the history player screen
-        -- ad-hoc, should simply update the player list
-        if GLOBAL.ThePlayer.HUD.historyplayerscreen ~= nil and GLOBAL.ThePlayer.HUD.historyplayerscreen.shown then
-            GLOBAL.ThePlayer.HUD.historyplayerscreen:DoInit()
-        end
     end
     )
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION, 
@@ -1037,10 +1049,6 @@ local function RegisterRPCs()
         M.player_record[userid].permission_level = permission_level
 
         dbg('received from server(query history players(online)): userid: ', userid, ', record: ', M.player_record[userid])
-        
-        if GLOBAL.ThePlayer.HUD.historyplayerscreen ~= nil and GLOBAL.ThePlayer.HUD.historyplayerscreen.shown then
-            GLOBAL.ThePlayer.HUD.historyplayerscreen:DoInit()
-        end
     end
     )
 
@@ -1054,7 +1062,7 @@ local function RegisterRPCs()
         if not index then return 
         elseif index == 1 then
             -- we assume the RPC receiving is same as sending time order
-            ClearRollbackInfos()
+            M.rollback_info = {}
         end
         M.rollback_info[index] = {
             day = day, 
@@ -1197,14 +1205,19 @@ M.rollback_info = {}
 M.self_permission_level = nil
 M.self_permission_mask = 0
 M.self_vote_permission_mask = 0
-M.has_queried = false
-
-function ClearRollbackInfos()
-    M.rollback_info = {}
-end
+M.last_query_timestamp = nil
+M.has_queried_permission = false
 
 function QueryPermission()
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION, nil)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION)
+end
+
+function QueryHistoryPlayers(flag)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, flag, M.last_query_timestamp)
+    if flag ~= 2 then
+        -- update timestamp only when the history player querying request is really sent, but not query the rollback info
+        M.last_query_timestamp = GetTick()
+    end
 end
 
 function RequestToExecuteCommand(cmd, arg)
