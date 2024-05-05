@@ -292,9 +292,9 @@ end
 
 function ShardServerInfoRecord:InitNetVars()
     self.netvar = {
-        is_rolling_back = net_bool(self.inst.GUID),
-        auto_new_player_wall_min_level = net_byte(self.inst.GUID), 
-        auto_new_player_wall_enabled = net_bool(self.inst.GUID)
+        is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back'),
+        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level'), 
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled')
     }
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)

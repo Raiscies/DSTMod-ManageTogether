@@ -98,7 +98,7 @@ local log = M.log
 
 
 function M.announce(s, ...)
-    GLOBAL.TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
+    TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
 end
 
 function M.announce_fmt(pattern, ...)
@@ -113,7 +113,7 @@ function M.announce_vote_fmt(pattern, ...)
 end
 
 function M.IsPlayerOnline(userid)
-    return userid and GLOBAL.TheNet:GetClientTableForUser(userid) ~= nil or false
+    return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
 end
 function M.GetPlayerFromUserid(userid)
     for _, v in ipairs(AllPlayers) do
@@ -160,10 +160,31 @@ function M.IsNewestRollbackSlotValid(do_advance)
     end
 end
 
+M.PLAYER_JOINABILITY_ENUM = {
+    ALLOW_ALL_PLAYER = 2, 
+    ALLOW_OLD_PLAYER = 1, 
+    NOT_ALLOW_ALL_PLAYER = 0
+}
+function M.FromPlayerJoinabilityEnum(e)
+    return 
+        e == 2 and 'ALLOW_ALL_PLAYER' or
+        e == 1 and 'ALLOW_OLD_PLAYER' or 
+        e == 0 and 'NOT_ALLOW_ALL_PLAYER' or nil
+end
+function M.GetPlayerJoinability()
+    return TheNet:GetAllowIncomingConnections() and 
+        (TheNet:GetAllowNewPlayersToConnect() and 
+            M.PLAYER_JOINABILITY_ENUM.ALLOW_ALL_PLAYER or 
+            M.PLAYER_JOINABILITY_ENUM.ALLOW_OLD_PLAYER
+        ) or 
+        M.PLAYER_JOINABILITY_ENUM.NOT_ALLOW_ALL_PLAYER  
+end
+
 -- some utils for client
-if TheNet and TheNet:GetIsClient() then
+if TheNet:GetIsClient() then
 
 local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
+local insert, concat = table.insert, table.concat
 local byte = string.byte
 
 local base64 = {
@@ -172,7 +193,7 @@ local base64 = {
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
 } 
-local base64_padding, base64_double_padding = '=', '=='
+local base64_padding = '='
 
 function M.EncodeToBase64(s)
     if type(s) ~= 'string' then return end
@@ -184,43 +205,44 @@ function M.EncodeToBase64(s)
     for i = 1, len - remain, 3 do
         local c0, c1, c2 = byte(s, i, i + 2)
         -- c0 >> 2
-        table.insert(result, base64[rshift(c0, 2)]) 
+        insert(result, base64[rshift(c0, 2)]) 
         -- ((c0 << 4) | (c1 >> 4)) & 0x3f
-        table.insert(result, base64[bitand(bitor(lshift(c0, 4), rshift(c1, 4)), 0x3f)])
+        insert(result, base64[bitand(bitor(lshift(c0, 4), rshift(c1, 4)), 0x3f)])
         -- ((c1 << 2) | (c2 >> 6)) & 0x3f
-        table.insert(result, base64[bitand(bitor(lshift(c1, 2), rshift(c2, 6)), 0x3f)])
+        insert(result, base64[bitand(bitor(lshift(c1, 2), rshift(c2, 6)), 0x3f)])
         -- c2 & 0x3f
-        table.insert(result, base64[bitand(c2, 0x3f)])
+        insert(result, base64[bitand(c2, 0x3f)])
     end
 
     if remain == 2 then
         local c0, c1 = byte(s, len - 1, len)
         -- c0 >> 2
-        table.insert(result, base64[rshift(c0, 2)])
+        insert(result, base64[rshift(c0, 2)])
         -- ((c0 << 4) | (c1 >> 4)) & 0x3f
-        table.insert(result, base64[bitand(bitor(lshift(c0, 4), rshift(c1, 4)), 0x3f)])
+        insert(result, base64[bitand(bitor(lshift(c0, 4), rshift(c1, 4)), 0x3f)])
         -- (c1 << 2) & 0x3f
-        table.insert(result, base64[bitand(lshift(c1, 2), 0x3f)])
+        insert(result, base64[bitand(lshift(c1, 2), 0x3f)])
         -- padding '='
-        table.insert(result, base64_padding)
+        insert(result, base64_padding)
         
     elseif remain == 1 then
         local c0 = byte(s, len)
         -- c0 >> 2
-        table.insert(result, base64[rshift(c0, 2)])
+        insert(result, base64[rshift(c0, 2)])
         -- (c0 << 4) & 0x3f
-        table.insert(result, base64[bitand(lshift(c0, 4), 0x3f)])
+        insert(result, base64[bitand(lshift(c0, 4), 0x3f)])
         -- double padding '=='
-        table.insert(result, base64_double_padding)
+        insert(result, base64_padding)
+        insert(result, base64_padding)
     end
 
-    return table.concat(result)
+    return concat(result)
 end
 
 end -- is client
 
 -- some utils for server
-if TheNet and TheNet:GetIsServer() then
+if TheNet:GetIsServer() then
 
 function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     -- assume the shard that invokes this function is the shard that the offline player the last joined

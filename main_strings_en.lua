@@ -16,6 +16,13 @@ STRINGS.UI.MANAGE_TOGETHER = {
     ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
     ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 
+    FMT_SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW = '%s allowed new players to join the server',
+        NOT_ALLOW  = '%s forbiddened new players to join the server'
+    },
+    ALLOW_NEW_PLAYER_JOIN = 'allow new players to join the server', 
+    NOT_ALLOW_NEW_PLAYER_JOIN = 'forbidden new players to join the server',
+
     UNKNOWN_PLAYER = 'Unknown Player',
     
     FMT_DAY = 'Day %d', 
@@ -33,7 +40,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
             -- for vote result announcement
             -- FMT_NAME = ''
             -- for vote dialog
-            FMT_TITLE = 'should we kick the player?'
+            TITLE = 'should we kick the player?'
         },
         BAN = {
             FMT_ANNOUNCE = 'should we ban %s',
@@ -66,6 +73,10 @@ STRINGS.UI.MANAGE_TOGETHER = {
         REMOVE_MODERATOR = {
             FMT_ANNOUNCE = 'should we remove %s\'s moderator permission',
             TITLE = 'should we remove the player\'s moderator permission?'
+        },
+        SET_NEW_PLAYER_JOINABILITY = {
+            FMT_ANNOUNCE = 'should we %s',
+            TITLE = 'should we modify new player connection setting?'
         },
     }
 }
@@ -113,6 +124,13 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     KILLBAN = 'Kill and Ban',
     ADD_MODERATOR = 'Add Moderator', 
     REMOVE_MODERATOR = 'Remove Moderator',
+
+    SET_NEW_PLAYER_JOINABILITY_TITLE = 'modify new player joinability',
+    SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = 'allow new players to join the server', 
+        ALLOW_OLD_PLAYER = 'forbidden new players to join the server', 
+    },
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\nyour setting may be covered while server player state changes if server enabled auto new player filter',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\nthe target player is offline currently, for some commands, server will temporarily load the player and execute the command',
 

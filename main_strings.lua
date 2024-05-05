@@ -21,13 +21,13 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
-    
-    FMT_SET_PLAYER_JOINABILITY = {
-        -- see the command flag
-        [0] = '%s已禁止所有玩家加入服务器', 
-        [1] = '%s已禁止新玩家加入服务器', 
-        [2] = '%s已允许所有玩家加入服务器'
+
+    FMT_SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW = '%s已允许新玩家加入服务器',
+        NOT_ALLOW  = '%s已禁止新玩家加入服务器'
     },
+    ALLOW_NEW_PLAYER_JOIN = '允许新玩家加入服务器', 
+    NOT_ALLOW_NEW_PLAYER_JOIN = '禁止新玩家加入服务器',
 
     FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家自动过滤器, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
     FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家自动过滤器',
@@ -55,7 +55,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
             -- for vote result announcement
             -- FMT_NAME = ''
             -- for vote dialog
-            FMT_TITLE = '我们应该踢掉该玩家吗?'
+            TITLE = '我们应该踢掉该玩家吗?' -- vote title is not formattable
         },
         BAN = {
             FMT_ANNOUNCE = '是否封禁%s',
@@ -88,6 +88,10 @@ STRINGS.UI.MANAGE_TOGETHER = {
         REMOVE_MODERATOR = {
             FMT_ANNOUNCE = '是否移除%s的监督员身份',
             TITLE = '我们应该移除该玩家的监督员身份吗?'
+        },
+        SET_NEW_PLAYER_JOINABILITY = {
+            FMT_ANNOUNCE = '是否%s',
+            TITLE = '我们应该修改新玩家连接设置吗?'
         },
     }
 }
@@ -135,6 +139,13 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     KILLBAN = '杀死并封禁',
     ADD_MODERATOR = '添加为监督员', 
     REMOVE_MODERATOR = '移除监督员',
+
+    SET_NEW_PLAYER_JOINABILITY_TITLE = '修改服务器新玩家连接性',
+    SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = '允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '禁止新玩家加入', 
+    },
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家变动时被覆盖',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 

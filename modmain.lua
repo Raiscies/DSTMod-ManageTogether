@@ -6,6 +6,7 @@ local lshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.bor, GLOBAL.bit.band
 local UserCommands = require("usercommands")
 local VoteUtil = require("voteutil")
 
+local assert, GetTableSize = GLOBAL.assert, GLOBAL.GetTableSize
 -- constants
 
 M.PERMISSION = table.invert({
@@ -288,7 +289,6 @@ local function AddOfficalVoteCommand(name, voteresultfn)
     })
 end
 
-
 --[[
     format: 
     M.AddCommand(
@@ -305,7 +305,7 @@ local function DefaultUserTargettedArgsDescription(userid, ...)
     return select('#', ...) == 0 and 
         user_desc or 
         user_desc .. ', ' .. DefaultArgsDescription(...)
-end
+    end
 function M.AddCommand(info_table, command_fn, regen_permission_mask)
     assert(M.COMMAND_NUM < 64, 'error: the number of commands exceeded limitation(64)')
     
@@ -758,7 +758,7 @@ M.AddCommands(
             end 
             M.announce(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
             GLOBAL.TheWorld:DoTaskInTime(delay_seconds, function()
-                TheNet:SendWorldResetRequestToServer()
+                GLOBAL.TheNet:SendWorldResetRequestToServer()
             end)
 
             
@@ -810,30 +810,15 @@ M.AddCommands(
         end
     }, 
     {
-        name = 'SET_PLAYER_JOINABILITY', 
+        name = 'SET_NEW_PLAYER_JOINABILITY', 
         can_vote = true, 
-        fn = function(doer, flag)
-            -- flag representation:
-            -- 2 or true       : all of the player is joinable
-            -- 1               : only old player(not a new player) is joinable
-            -- 0 or false      : does not accept new incoming connections
-            
-            if type(flag) == 'boolean' then
-                flag = flag and 2 or 0
-            elseif not M.in_int_range(flag, 0, 2) then
-                return M.ERROR_CODE.BAD_ARGUMENT
-            end
+        args_description = function(allow) return allow and S.ALLOW_NEW_PLAYER_JOIN or S.NOT_ALLOW_NEW_PLAYER_JOIN end,
+        fn = function(doer, allow)
 
-            -- ad-hoc: only admin can execute TheNet:SetAllowIncomingConnections
-            if PermissionLevel(doer.userid) == M.PERMISSION.ADMIN then
-                TheNet:SetAllowIncomingConnections(flag ~= 0)
-            elseif flag == 0 then
-                -- change this flag, just for announcement string
-                flag = 1
-            end
-            TheNet:SetAllowNewPlayersToConnect(flag == 2)
-            
-            M.announce_fmt(S.FMT_SET_PLAYER_JOINABILITY[flag], doer.name)
+            if not type(allow) == 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
+
+            GLOBAL.TheNet:SetAllowNewPlayersToConnect(allow)
+            M.announce_fmt(S.FMT_SET_NEW_PLAYER_JOINABILITY[allow and 'ALLOW' or 'NOT_ALLOW'], doer.name)
         end
     },
     {
@@ -845,7 +830,7 @@ M.AddCommands(
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
             
-            -- ad-hoc: only admin can set min_online_player_level
+            -- only admin can set min_online_player_level
             -- moderator's argument of this will be ignore
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
@@ -855,7 +840,6 @@ M.AddCommands(
                 GetServerInfoComponent():SetAutoNewPlayerWall(enabled, min_online_player_level)
             end
             M.announce_fmt(enabled and S.FMT_AUTO_NEW_PLAYER_WALL_ENABLED or S.FMT_AUTO_NEW_PLAYER_WALL_DISABLED, doer.name)
-            
         end
     }
 )
@@ -918,7 +902,7 @@ M.SHARD_COMMAND = {
         -- GLOBAL.TheNet:StartVote(M.CmdEnumToVoteHash(cmd), M.COMMAND[cmd].user_targetted and arg or nil)
         
         
-        -- arg will be target_userid if cmd is user_targetted
+        -- first arg will be target_userid if cmd is user_targetted
         -- the real arg are store to M.VOTE_ENVIRONMENT
         -- this is because the offical function ONLY accepts a target_userid or nil as a arg 
         -- and further more, vote command will be failed to execute if target is offline 

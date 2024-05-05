@@ -44,7 +44,7 @@ local trans = ChooseTranslationTable({
 			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员' },
 			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限' }, 
 			moderator_regenerate_world = {label = '允许监督员重新生成世界' },
-			moderator_set_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
 			auto_control_title = '自动控制选项', 
 			user_elevate_in_age = {
 				label = '老玩家自动添加为监督员',
@@ -91,11 +91,6 @@ most of the commands are available applying to offline player.
 				label = '语言/Language', 
 				hover = 'English translation is not complete',
 			},
-			user_elevate_in_age = {
-				label = 'auto add old player to be moderator',
-				hover = 'the old player whose alive days is greater or equal then appointed days will be automatically add to moderator',
-				day = 'Day(s)'
-			},
 			reserve_moderator_data_while_world_regen = {
 				label = 'reserve moderator data while reset', 
 				hover = 'reserve moderator\'s permission while a world reseting, but not reset there permission to normal player'
@@ -119,6 +114,24 @@ most of the commands are available applying to offline player.
 			moderator_add_moderator = {label = 'add another player to be moderator', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
 			moderator_remove_moderator = {label = 'remove another player\'s permission', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
 			moderator_regenerate_world = {label = 'regenerate world', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
+			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			auto_control_title = 'Automatic Controls', 
+			user_elevate_in_age = {
+				label = 'auto add old player to be moderator',
+				hover = 'the old player whose alive days is greater or equal then appointed days will be automatically add to moderator',
+				day = 'Day(s)'
+			},
+			auto_new_player_wall_enabled = {
+				label = '启用新玩家过滤器', 
+				hover = '当在线玩家中不存在指定或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入\n新玩家指未曾加入过服务器的玩家, 曾加入过服务器的玩家不受限制' 
+			},
+			auto_new_player_wall_min_level = {
+				label = '新玩家过滤器的条件',
+				hover = '当在线玩家中不存在选项中的权限或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入', 
+				admin = '管理员不在线时',
+				moderator = '监督员和管理员都不在线时',
+				user = '任意玩家都不在线时',
+			},
 			others_title = 'Others',
 			debug = {
 				label = 'Enable Debug Mode'
@@ -254,7 +267,7 @@ configuration_options = {
 	moderator_option('moderator_add_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true), 
 	moderator_option('moderator_remove_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true),
 	moderator_option('moderator_regenerate_world', NO),
-	moderator_option('moderator_set_player_joinability', VOTE_ONLY_AND_MAJORITY_YES),
+	moderator_option('moderator_set_new_player_joinability', VOTE_ONLY_AND_MAJORITY_YES),
 	title('auto_control_title'), 
 	option('user_elevate_in_age', nil, nil, {
 		{description =          trans.options.disabled, data = -1},
@@ -275,9 +288,9 @@ configuration_options = {
 	}),
 	binary_option('auto_new_player_wall_enabled', NO), 
 	option('auto_new_player_wall_min_level', nil, nil, {
-		{description = trans.options.auto_new_player_wall.user, data = 'user'},
-		{description = trans.options.auto_new_player_wall.moderator, data = 'moderator'},
-		{description = trans.options.auto_new_player_wall.admin, data = 'admin'},
+		{description = trans.options.auto_new_player_wall_min_level.user, data = 'user'},
+		{description = trans.options.auto_new_player_wall_min_level.moderator, data = 'moderator'},
+		{description = trans.options.auto_new_player_wall_min_level.admin, data = 'admin'},
 	}, 'moderator'),
 	title('others_title'),
 	binary_option('debug', NO), 
