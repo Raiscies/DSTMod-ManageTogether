@@ -538,8 +538,8 @@ M.AddCommands(
             -- send player records
             if query_category == 0 or query_category == 1 then
 
-                -- all of the records will be send if last_query_timestamp is nil
-                if not last_query_timestamp then 
+                -- all of the records will be send if last_query_timestamp is nil or something else
+                if type(last_query_timestamp) ~= 'number' then 
                     -- full sync
                     for userid, record in pairs(GetPlayerRecords()) do send_record(userid, record) end
                 else
