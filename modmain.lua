@@ -99,7 +99,11 @@ M.ERROR_CODE = table.invert({
     'DATA_NOT_PRESENT',
     'VOTE_CONFLICT', 
     'COMMAND_NOT_VOTABLE',
-    'INTERNAL_ERROR'
+    'INTERNAL_ERROR', 
+
+    -- used in command QUERY_HISTORY_PLAYERS, it is actually not an error, 
+    -- just for announcing player that there are more items haven't be send 
+    'SUCCESS_BUT_HAS_MORE', 
 })
 M.ERROR_CODE.SUCCESS = 0
 
@@ -142,7 +146,7 @@ GenerateCommandRPCName({
     'RESULT_SEND_VOTE_COMMAND',
     'RESULT_QUERY_HISTORY_PLAYERS', 
     'RESULT_QUERY_HISTORY_PLAYERS_PERMISSION', 
-    'RESULT_ROLLBACK_INFO', 
+    'RESULT_QUERY_SNAPSHOT_INFORMATIONS', 
 })
 
 M.PERMISSION_MASK = {}
@@ -512,7 +516,7 @@ M.AddCommands(
     {
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
-        fn = function(doer, query_category, last_query_timestamp)
+        fn = function(doer, last_query_timestamp, send_item_count)
             -- query_category: nil or 0: query history players and rollback info
             --                        1: query history players only
             --                        2: query rollback info only
@@ -533,38 +537,46 @@ M.AddCommands(
                 end
             end
 
-            if not query_category then query_category = 0 end
-            
-            -- send player records
-            if query_category == 0 or query_category == 1 then
+            -- all of the records will be send if last_query_timestamp is nil or something else
+            if type(send_item_count) ~= 'number' then send_item_count = math.huge end
+            local sended_count = 0
 
-                -- all of the records will be send if last_query_timestamp is nil or something else
-                if type(last_query_timestamp) ~= 'number' then 
-                    -- full sync
-                    for userid, record in pairs(GetPlayerRecords()) do send_record(userid, record) end
-                else
-                    -- only send updated records
-                    for userid, record in pairs(GetPlayerRecords()) do 
-                        if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
-                            send_record(userid, record)
-                        end
+            if type(last_query_timestamp) ~= 'number' then 
+                -- full sync
+                for userid, record in pairs(GetPlayerRecords()) do
+                    if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+                    send_record(userid, record) 
+                    sended_count = sended_count + 1
+                end
+            else
+                -- only send updated records
+                for userid, record in pairs(GetPlayerRecords()) do 
+                    if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+                    if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
+                        send_record(userid, record)
+                        sended_count = sended_count + 1
                     end
                 end
             end
-            -- send snapshot infos
-            if query_category == 0 or query_category == 2 then
-                local slots = GetSnapshotInfo().slots
-                if not slots then
-                    return M.ERROR_CODE.DATA_NOT_PRESENT
-                end
-                for i, v in ipairs(slots) do
-                    SendModRPCToClient(
-                        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_ROLLBACK_INFO), doer.userid, 
-                        i, v.day, v.season, v.snapshot_id -- add a snapshot id, clients can clearly specify the rollback target they want
-                    )
-                end
-            end
         end 
+    },
+    {
+        name = 'QUERY_SNAPSHOT_INFORMATIONS',
+        permission = M.PERMISSION.MODERATOR, 
+        fn = function(doer)
+            local slots = GetSnapshotInfo().slots
+            if not slots then
+                return M.ERROR_CODE.DATA_NOT_PRESENT
+            end
+            for i, v in ipairs(slots) do
+                SendModRPCToClient(
+                    GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS), doer.userid, 
+                    i, v.day, v.season, 
+                    -- add a snapshot id, clients can clearly specify the rollback target they want
+                    v.snapshot_id 
+                )
+            end
+        end
     },
     {
         name = 'REFRESH_RECORDS', 
@@ -992,6 +1004,10 @@ local function RegisterRPCs()
                 if screen and screen.shown then
                     screen:DoInit()
                 end
+
+                if result == M.ERROR_CODE.SUCCESS_BUT_HAS_MORE then
+                    M.next_query_player_count = M.next_query_player_count + 20
+                end
             end
         else
             dbg('received from server(send command): server drunk')
@@ -1052,7 +1068,7 @@ local function RegisterRPCs()
     end
     )
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_ROLLBACK_INFO, 
+    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS, 
     function(index, day, season, snapshot_id)
         if not (IsRollbackNumber(index) and (day == nil or IsDay(day)) and (season == nil or IsSeason(season)) and IsSnapshotID(snapshot_id)) then
             dbg('received from server(rollback info): server drunk')
@@ -1205,19 +1221,31 @@ M.rollback_info = {}
 M.self_permission_level = nil
 M.self_permission_mask = 0
 M.self_vote_permission_mask = 0
-M.last_query_timestamp = nil
 M.has_queried_permission = false
+
+M.last_query_timestamp = nil
+M.next_query_player_count = 20
 
 function QueryPermission()
     SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION)
 end
 
-function QueryHistoryPlayers(flag)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, flag, M.last_query_timestamp)
-    if flag ~= 2 then
-        -- update timestamp only when the history player querying request is really sent, but not query the rollback info
-        M.last_query_timestamp = GetTick()
-    end
+-- param num: received numbers of players
+function QueryHistoryPlayers(num)
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, M.last_query_timestamp, num)
+    M.last_query_timestamp = GetTick()
+end
+function QueryMoreHistoryPlayers()
+    QueryHistoryPlayers(M.next_query_player_count)
+end
+function QuerySnapshotInformations()
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
+end
+
+-- actually it just query history players and snapshot informations
+function QueryServerData()
+    QueryHistoryPlayers()
+    QuerySnapshotInformations()
 end
 
 function RequestToExecuteCommand(cmd, arg)

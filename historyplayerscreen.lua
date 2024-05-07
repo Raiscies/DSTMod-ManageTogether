@@ -134,11 +134,6 @@ local function GenerateSortedKeyList()
     
 end
 
-
-local function RequestToUpdateRollbackInfo()
-    QueryHistoryPlayers(2)
-end
-
 local function DoInitScreenToggleButton(screen, current_or_history_index)
     if not TheInput:ControllerAttached() then
 
@@ -151,7 +146,7 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
                     -- is current
                     -- toggle to history player screen now
                     -- query for history player list data from server
-                    QueryHistoryPlayers()
+                    QueryServerData()
                     screen.owner.HUD:ShowHistoryPlayerScreeen(true)
                 else
                     -- is history
@@ -548,7 +543,7 @@ function HistoryPlayerScreen:OnDestroy()
     self:Hide()
 
     if TheWorld and TheWorld.net then
-        self.owner:RemoveEventCallback('issavingdirty', RequestToUpdateRollbackInfo, TheWorld.net)
+        self.owner:RemoveEventCallback('issavingdirty', QuerySnapshotInformations, TheWorld.net)
     end
 
     if self.onclosefn ~= nil then
@@ -1235,7 +1230,7 @@ function HistoryPlayerScreen:DoInit()
     DoInitScreenToggleButton(self, 2)
     DoInitServerRelatedCommnadButtons(self)
     if TheWorld and TheWorld.net then
-        self.owner:ListenForEvent('issavingdirty', RequestToUpdateRollbackInfo, TheWorld.net)
+        self.owner:ListenForEvent('issavingdirty', QuerySnapshotInformations, TheWorld.net)
     end
 end
 
