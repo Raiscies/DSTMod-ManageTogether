@@ -50,6 +50,12 @@ local ShardServerInfoRecord = Class(
     end
 )
 
+-- add a time stamp field, to optimize record data transmission costs between server & client 
+-- everytime the function is called, timestamp will update
+function ShardServerInfoRecord:ShardUpdateRecordTimeStamp(userid)
+    self.player_record[userid].update_timestamp = GetTick()
+end
+
 ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
     self.inst:ListenForEvent('ms_playercounts', function(data)
@@ -75,18 +81,20 @@ function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
         record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE   -- elevation age is satisfied
     then
         -- in this special case, we should set a flag to keep the player's USER permission in case it changes by auto elevation
-        self.player_record[userid].no_elevate_in_age = true
-        self.player_record[userid].permission_level = M.PERMISSION.USER
+        record[userid].no_elevate_in_age = true
+        record[userid].permission_level = M.PERMISSION.USER
         return
     elseif permission_level ~= nil then
         -- this flag will be reset only when new permission_level is not nil
-        self.player_record[userid].no_elevate_in_age = nil
+        record[userid].no_elevate_in_age = nil
     end
 
     -- 1. set new permission_level if it is not nil
     -- 2. keep the old permission_level it is if not nil
     -- 3. initialize the permission_level to USER 
-    self.player_record[userid].permission_level = permission_level or current or M.PERMISSION.USER
+    record[userid].permission_level = permission_level or current or M.PERMISSION.USER
+
+    self:ShardUpdateRecordTimeStamp(userid)
 end
 
 function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
@@ -96,7 +104,9 @@ function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
     -- keep the current flag
     if in_this_shard == nil then return end
 
-    self.player_record[userid].in_this_shard = in_this_shard
+    record[userid].in_this_shard = in_this_shard
+
+    self:ShardUpdateRecordTimeStamp(userid)
 end
 
 function ShardServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
@@ -120,18 +130,22 @@ function ShardServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
     if not self.player_record[userid] then
         self.player_record[userid] = {}
     end
+    local record = self.player_record[userid]
 
     if client then
-        self.player_record[userid].name = client.name or ''
-        self.player_record[userid].netid = client.netid
-        self.player_record[userid].skin = client.base_skin
-        self.player_record[userid].age = client.playerage or 0
+        record[userid].name = client.name or ''
+        record[userid].netid = client.netid
+        record[userid].skin = client.base_skin
+        record[userid].age = client.playerage or 0
         self:ShardSetPermission(userid, client.admin and M.PERMISSION.ADMIN or nil)
     else
         self:ShardSetPermission(userid)
-    end
+    end 
 
     self:ShardSetShardLocation(userid, in_this_shard)
+
+    -- no need for call it, ShardServerInfoRecord() or ShardSetPermission() did
+    -- self:ShardUpdateRecordTimeStamp(userid)
 end
 
 function ShardServerInfoRecord:ShardRecordOnlinePlayers(do_permission_elevate)

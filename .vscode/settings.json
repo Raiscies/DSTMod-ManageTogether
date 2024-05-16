@@ -75,7 +75,8 @@
         "smallhash",
         "net_tinybyte",
         "net_byte",
-        "NEWFONT"
+        "NEWFONT",
+        "GetTick"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

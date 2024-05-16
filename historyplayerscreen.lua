@@ -131,11 +131,6 @@ local function GenerateSortedKeyList()
     
 end
 
-
-local function RequestToUpdateRollbackInfo()
-    RequestToExecuteCommand(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 2)
-end
-
 local function DoInitScreenToggleButton(screen, current_or_history_index)
     if not TheInput:ControllerAttached() then
 
@@ -148,7 +143,7 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
                     -- is current
                     -- toggle to history player screen now
                     -- query for history player list data from server
-                    RequestToExecuteCommand(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, nil)
+                    QueryServerData()
                     screen.owner.HUD:ShowHistoryPlayerScreeen(true)
                 else
                     -- is history
@@ -228,6 +223,15 @@ function InputVerificationDialog:OnControl(control, down)
     end
     InputVerificationDialog._base.OnControl(self, control, down)
 end
+function InputVerificationDialog:OnTextInput(text)
+    if self:Verify() then
+        self.bg.actions:EnableItem(1)
+    else
+        self.bg.actions:DisableItem(1)
+    end
+    InputVerificationDialog._base.OnTextInput(self, text)
+end
+
 function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
 end
@@ -520,7 +524,7 @@ function HistoryPlayerScreen:OnDestroy()
     self:Hide()
 
     if TheWorld and TheWorld.net then
-        self.owner:RemoveEventCallback('issavingdirty', RequestToUpdateRollbackInfo, TheWorld.net)
+        self.owner:RemoveEventCallback('issavingdirty', QuerySnapshotInformations, TheWorld.net)
     end
 
     if self.onclosefn ~= nil then
@@ -1205,7 +1209,7 @@ function HistoryPlayerScreen:DoInit()
     DoInitScreenToggleButton(self, 2)
     DoInitServerRelatedCommnadButtons(self)
     if TheWorld and TheWorld.net then
-        self.owner:ListenForEvent('issavingdirty', RequestToUpdateRollbackInfo, TheWorld.net)
+        self.owner:ListenForEvent('issavingdirty', QuerySnapshotInformations, TheWorld.net)
     end
 end
 
@@ -1241,10 +1245,11 @@ function PlayerStatusScreen:DoInit(ClientObjs)
     
     OldDoInit(self, ClientObjs)
     
-    if not M.has_queried then
+    if not M.has_queried_permission then
         QueryPermission()
-        M.has_queried = true
+        M.has_queried_permission = true
     end
+
     
     -- once the request is sent, 
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
