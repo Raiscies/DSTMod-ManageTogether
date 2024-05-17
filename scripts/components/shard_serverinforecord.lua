@@ -57,7 +57,7 @@ local ShardServerInfoRecord = Class(
 -- add a time stamp field, to optimize record data transmission costs between server & client 
 -- everytime the function is called, timestamp will update
 function ShardServerInfoRecord:ShardUpdateRecordTimeStamp(userid)
-    self.player_record[userid].update_timestamp = GetTick()
+    self.player_record[userid].update_timestamp = GetTime()
 end
 
 ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)

@@ -31,6 +31,9 @@ local ServerInfoRecord = Class(function(self, inst)
         -- on client side  
         self.player_record = {}
         self.snapshot_info = {}
+
+        self.total_player_record_num = 0
+        self.has_more_player_records = true
     end
     
     self:RegisterRPCs()
@@ -47,8 +50,6 @@ function ServerInfoRecord:RegisterRPCs()
         }
         dbg('received offline player record sync from server: ', self.player_record[userid])
 
-        -- self:RecordClientData(userid)
-
         self.inst:PushEvent('player_record_updated', userid)
     end)
     
@@ -60,12 +61,21 @@ function ServerInfoRecord:RegisterRPCs()
         
         dbg('received online player record sync from server: ', self.player_record[userid])
 
-        -- self:RecordClientData(userid)
-
         self.inst:PushEvent('player_record_updated', userid)
     end)
 
+    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED, function(total_player_record_num, has_more)
+        self.total_player_record_num = total_player_record_num
+        self.has_more_player_records = has_more
+        self.inst:PushEvent('player_record_sync_completed', {total = total_player_record_num, has_more = has_more})
+    end)
+
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC, function(index, snapshot_id, day, season)
+        if index == 1 then
+            -- clear all of the old snapshot info
+            self.snapshot_info = {}
+        end
+
         self.snapshot_info[index] = {
             snapshot_id = snapshot_id, 
             day = day, 
@@ -106,6 +116,10 @@ function ServerInfoRecord:RecordClientData(userid)
             client = client
         }
     end
+end
+
+function ServerInfoRecord:HasMorePlayerRecords()
+    return self.has_more_player_records
 end
 
 end

@@ -119,9 +119,9 @@ M.ERROR_CODE = table.invert({
     'COMMAND_NOT_VOTABLE',
     'INTERNAL_ERROR', 
 
-    -- used in command QUERY_HISTORY_PLAYERS, it is actually not an error, 
-    -- just for announcing player that there are more items haven't be send 
-    'SUCCESS_BUT_HAS_MORE', 
+    -- -- used in command QUERY_HISTORY_PLAYERS, it is actually not an error, 
+    -- -- just for announcing player that there are more items haven't be send 
+    -- 'SUCCESS_BUT_HAS_MORE', 
 })
 M.ERROR_CODE.SUCCESS = 0
 
@@ -165,7 +165,9 @@ GenerateCommandRPCName({
 
     'OFFLINE_PLAYER_RECORD_SYNC', 
     'ONLINE_PLAYER_RECORD_SYNC', 
+    'PLAYER_RECORD_SYNC_COMPLETED',
     'SNAPSHOT_INFO_SYNC',
+
     -- 'RESULT_QUERY_HISTORY_PLAYERS', 
     -- 'RESULT_QUERY_HISTORY_PLAYERS_PERMISSION', 
     -- 'RESULT_QUERY_SNAPSHOT_INFORMATIONS', 
@@ -699,56 +701,56 @@ M.AddCommands(
             M.announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
         end
     },
-    {
-        -- deprecated
-        name = 'ROLLBACK_OLD',
-        can_vote = true, 
-        permission = moderator_config('rollback'),
-        args_description = function(saving_point_index)
-            return GetServerInfoComponent():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
-        end,
-        fn = function(doer, saving_point_index)
+    -- {
+    --     -- deprecated
+    --     name = 'ROLLBACK_OLD',
+    --     can_vote = true, 
+    --     permission = moderator_config('rollback'),
+    --     args_description = function(saving_point_index)
+    --         return GetServerInfoComponent():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
+    --     end,
+    --     fn = function(doer, saving_point_index)
 
-            -- negative saving_point_index means this request is sended when
-            -- a new save has just created
+    --         -- negative saving_point_index means this request is sended when
+    --         -- a new save has just created
 
-            -- rollback the world
-            if not IsRollbackNumber(saving_point_index) then
-                return M.ERROR_CODE.BAD_ARGUMENT
-            end
-            local comp = GetServerInfoComponent
-            M.announce_fmt(S.FMT_SENDED_ROLLBACK_REQUEST, 
-                doer.name, 
-                math.abs(saving_point_index), 
-                comp():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
-            )
+    --         -- rollback the world
+    --         if not IsRollbackNumber(saving_point_index) then
+    --             return M.ERROR_CODE.BAD_ARGUMENT
+    --         end
+    --         local comp = GetServerInfoComponent
+    --         M.announce_fmt(S.FMT_SENDED_ROLLBACK_REQUEST, 
+    --             doer.name, 
+    --             math.abs(saving_point_index), 
+    --             comp():BuildDaySeasonStringByInfoIndex(saving_point_index < 0 and (-saving_point_index + 1) or saving_point_index)
+    --         )
 
-            if saving_point_index < 0 then
-                saving_point_index = -saving_point_index
-                -- we expect M.IsNewestRollbackSlotValid is false 
-                if M.IsNewestRollbackSlotValid(true) then
-                    -- server's and client's data are inconsistent
-                    M.announce(S.ERR_DATA_INCONSISTENT)
-                    return
-                end
-            elseif saving_point_index > 0 then 
-                -- we expect M.IsNewestRollbackSlotValid is true
-                if not M.IsNewestRollbackSlotValid() then
-                    M.announce(S.ERR_DATA_INCONSISTENT)
-                    return
-                end
-            end
-            -- if M.rollback_request_already_exists then
-            if comp:GetIsRollingBack() then
-                M.announce(S.ERR_REPEATED_REQUEST)
-                return M.ERROR_CODE.REPEATED_REQUEST
-            end
+    --         if saving_point_index < 0 then
+    --             saving_point_index = -saving_point_index
+    --             -- we expect M.IsNewestRollbackSlotValid is false 
+    --             if M.IsNewestRollbackSlotValid(true) then
+    --                 -- server's and client's data are inconsistent
+    --                 M.announce(S.ERR_DATA_INCONSISTENT)
+    --                 return
+    --             end
+    --         elseif saving_point_index > 0 then 
+    --             -- we expect M.IsNewestRollbackSlotValid is true
+    --             if not M.IsNewestRollbackSlotValid() then
+    --                 M.announce(S.ERR_DATA_INCONSISTENT)
+    --                 return
+    --             end
+    --         end
+    --         -- if M.rollback_request_already_exists then
+    --         if comp:GetIsRollingBack() then
+    --             M.announce(S.ERR_REPEATED_REQUEST)
+    --             return M.ERROR_CODE.REPEATED_REQUEST
+    --         end
 
-            GLOBAL.TheNet:SendWorldRollbackRequestToServer(saving_point_index)
-            -- this flag will be automatically reset while world is reloading
-            comp:SetIsRollingBack()
-        end
-    },
+    --         GLOBAL.TheNet:SendWorldRollbackRequestToServer(saving_point_index)
+    --         -- this flag will be automatically reset while world is reloading
+    --         comp:SetIsRollingBack()
+    --     end
+    -- },
     {
         -- a better rollback command, which can let client specify the appointed rollback slot, but not saving point index
         name = 'ROLLBACK', 
@@ -1025,17 +1027,18 @@ local function RegisterRPCs()
     function(cmd, result) 
         if IsCommandEnum(cmd) and IsErrorCode(result) then
             dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
-            if cmd == M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS then
+            -- if cmd == M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS then
                 -- re-init the history player screen if it is opened
-                local screen = GLOBAL.ThePlayer.HUD.historyplayerscreen
-                if screen and screen.shown then
-                    screen:DoInit()
-                end
+                -- local screen = GLOBAL.ThePlayer.HUD.historyplayerscreen
+                -- if result == M.ERROR_CODE.SUCCESS_BUT_HAS_MORE then
+                --     GLOBAL.ThePlayer:IncreaseNextQueryPlayerNum()
 
-                if result == M.ERROR_CODE.SUCCESS_BUT_HAS_MORE then
-                    GLOBAL.ThePlayer:IncreaseNextQueryPlayerNum()
-                end
-            end
+                -- end
+                -- if screen and screen.shown then
+                --     screen:DoInit()
+                -- end
+                
+            -- end
         else
             dbg('received from server(send command): server drunk')
         end
@@ -1279,27 +1282,26 @@ end
 
 local function QueryHistoryPlayers(player, num)
     local classified = player.player_classified
-    if classified then
-        SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
-            M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
-            classified.last_query_player_record_timestamp, 
-            num or classified.next_query_player_num
-        )
-
-        -- update the query timestamp
-        classified.last_query_player_record_timestamp = GetTick()
-    else
+    if not classified then
         dbg('bad call on player:QueryHistoryPlayers: player_classified is nil')
     end
-end
 
-local function IncreaseNextQueryPlayerNum(player, num)
-    local classified = player.classified
-    if classified then
-        classified.next_query_player_num = classified.next_query_player_num + (num or 10)
-    else
-        dbg('bad call on player:IncreaseNextQueryPlayerNum: player_classified is nil')
+    if classified.last_query_player_record_timestamp and 
+        GetTime() - classified.last_query_player_record_timestamp <= 5 then 
+        
+        M.log('ignored a request for query history record, becase one request has just sended')
+        return
     end
+
+    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
+        M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
+        classified.last_query_player_record_timestamp, 
+        num or classified.next_query_player_num
+    )
+
+    -- update the query timestamp
+    classified.last_query_player_record_timestamp = GetTime()
+
 end
 
 local function QuerySnapshotInformations(player)
@@ -1405,6 +1407,13 @@ AddPrefabPostInit('player_classified', function(inst)
         inst.vote_permission_mask = M.concatbit32to64(inst.vote_permission_masks[1]:value(), inst.vote_permission_masks[2]:value())
     end)
     
+    if GLOBAL.TheWorld and GLOBAL.TheWorld.net then
+        inst:ListenForEvent('player_record_sync_completed', function(data)
+            if data.has_more then
+                inst.next_query_player_num = inst.next_query_player_num + 12
+            end
+        end, GLOBAL.TheWorld.net)
+    end
 
     -- attach some functions to player_common 
     local player = inst._parent
@@ -1419,7 +1428,6 @@ AddPrefabPostInit('player_classified', function(inst)
         player.RequestToExecuteCommand = RequestToExecuteCommand
         player.RequestToExecuteVoteCommand = RequestToExecuteVoteCommand
         player.CommandApplyableForPlayerTarget = CommandApplyableForPlayerTarget
-        player.IncreaseNextQueryPlayerNum = IncreaseNextQueryPlayerNum
     end
     
 end)

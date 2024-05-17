@@ -165,10 +165,10 @@ function M.BuildDaySeasonString(day, season_enum)
     return M.BuildDayString(day) .. '-' .. M.BuildSeasonString(season_enum)
 end
 
-function M.IsNewestRollbackSlotValid(do_advance)
+function M.IsNewestRollbackSlotValid()
     if TheWorld.net == nil or 
         TheWorld.net.components.autosaver == nil or 
-        GetTime() - TheWorld.net.components.autosaver:GetLastSaveTime() < (30 - (do_advance and 1 or 0)) then
+        GetTime() - TheWorld.net.components.autosaver:GetLastSaveTime() < 30 then
         return false
     else
         return true

@@ -54,6 +54,9 @@ local TEMPLATES = require('widgets/redux/templates')
 
 local REFRESH_INTERVAL = .5
 
+-- a flag used in sorted_userkey_list, to indicate that we need a button to load more player records 
+local LIST_IS_INCOMPLETE = 0
+
 local function GetBasePrefabFromSkin(skin)
     -- the simplist and cheapest way to get the prefab name
     return skin and string.match(skin, '^(%w+)_[%w_]+$') or nil
@@ -485,7 +488,14 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.show_player_badge = not TheFrontEnd:GetIsOfflineMode() and TheNet:IsOnlineMode()
 
     self.on_snapshot_info_dirty = function()
-        ThePlayer:QuerySnapshotInformations() 
+        -- make a delay, in case the event broadcast frequently in a short time
+        if not self.needs_update_snapshot_info then
+            self.needs_update_snapshot_info = true
+            self.owner:DoTaskInTime(1, function()
+                ThePlayer:QuerySnapshotInformations() 
+                self.needs_update_snapshot_info = nil
+            end)
+        end
     end
 
     self.on_snapshot_info_updated = function()
@@ -527,6 +537,7 @@ function HistoryPlayerScreen:OnDestroy()
         self.owner:RemoveEventCallback('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
     end
     self.owner:RemoveEventCallback('snapshot_info_updated', self.on_snapshot_info_updated, C)
+    self.owner:RemoveEventCallback('player_record_sync_completed', self.on_server_data_updated, C)
 
     if ThePlayer.player_classified then 
         self.owner:RemoveEventCallback('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
@@ -578,10 +589,10 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     self.rollback_slots = {}
     
     -- build/rebuild rollback_slots anyway
+    local first_slot_valid = M.IsNewestRollbackSlotValid()
     if #snapshot_info ~= 0 then
-        
         -- for new command ROLLBACK
-        if M.IsNewestRollbackSlotValid() then
+        if first_slot_valid then
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #snapshot_info do
                 table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
@@ -591,15 +602,6 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
             for i = 2, #snapshot_info do
                 table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
-
-        -- old: for command ROLLBACK_OLD
-        --     -- negative saving_point_index means this request is sended when
-        --     -- a new save has just created, which means server will automatically skip the newest slot, 
-        --     -- but this is not we wants, we should correct it 
-        --     table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
-        --     for i = 2, #snapshot_info do
-        --         table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = -(i - 1)})
-        --     end
         end
         
     else
@@ -618,6 +620,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 25}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
+        self.rollback_spinner.first_slot_valid = first_slot_valid
 
         local x, y = self.rollback:GetPositionXYZ()
 
@@ -643,7 +646,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         end
 
         self.rollback:SetOnGainFocus(function()
-                TintShow() 
+            TintShow() 
         end)
 
         self.bg_rollback_spinner:SetOnLoseFocus(function()
@@ -664,16 +667,22 @@ function HistoryPlayerScreen:OnUpdate(dt)
         self:Close()
     else
         if self.rollback_spinner then
+            local first_slot_valid = M.IsNewestRollbackSlotValid()
 
-            if not self.rollback:IsSelected() and not M.IsNewestRollbackSlotValid() and self.rollback_spinner:GetSelectedIndex() == 1 then
-                -- disable this option
-                self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_NEWEST_SLOT_INVALID)
-                self.rollback_spinner:SetTextColour(UICOLOURS.GREY)
-                self.rollback:Select()
-            elseif self.rollback:IsSelected() and (M.IsNewestRollbackSlotValid() or self.rollback_spinner:GetSelectedIndex() ~= 1) then
-                self.rollback_spinner:ClearHoverText()
-                self.rollback_spinner:SetTextColour(UICOLOURS.GOLD)
-                self.rollback:Unselect()
+            if first_slot_valid ~= self.rollback_spinner.first_slot_valid then
+                -- needs rebuild rollback_spinner
+                self:DoInitRollbackSpinner()
+            else
+                if not self.rollback:IsSelected() and not first_slot_valid and self.rollback_spinner:GetSelectedIndex() == 1 then
+                    -- disable this option
+                    self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_NEWEST_SLOT_INVALID)
+                    self.rollback_spinner:SetTextColour(UICOLOURS.GREY)
+                    self.rollback:Select()
+                elseif self.rollback:IsSelected() and (first_slot_valid or self.rollback_spinner:GetSelectedIndex() ~= 1) then
+                    self.rollback_spinner:ClearHoverText()
+                    self.rollback_spinner:SetTextColour(UICOLOURS.GOLD)
+                    self.rollback:Unselect()
+                end
             end
         end
 
@@ -752,9 +761,10 @@ function HistoryPlayerScreen:DoInit()
 
     self.server_group = TheNet:GetServerClanID()
 
-    --------------------
-
     GenerateSortedKeyList()
+    if C:HasMorePlayerRecords() then 
+        table.insert(sorted_userkey_list, LIST_IS_INCOMPLETE)
+    end
 
     local num_online_players, num_all_players  = #GetPlayerClientTable(), #sorted_userkey_list
 
@@ -863,6 +873,22 @@ function HistoryPlayerScreen:DoInit()
             maxchars = 36,
             x = -286,
         }
+
+        playerListing.load_more_records = playerListing:AddChild(TextButton())
+        playerListing.load_more_records:SetFont(UIFONT)
+        playerListing.load_more_records:SetTextSize(35)
+        playerListing.load_more_records._align = {
+            maxwidth = 215,
+            maxchars = 36,
+            x = 0,
+        }
+        playerListing.load_more_records:SetText(S.LOAD_MORE_HISTORY_PLAYERS)
+        playerListing.load_more_records:SetOnClick(function()
+            -- query server to load more player records
+            ThePlayer:QueryHistoryPlayers()
+        end)
+        playerListing.load_more_records:Hide()
+
 
         playerListing.age = playerListing:AddChild(Text(UIFONT, 35, ''))
         playerListing.age:SetPosition(-20,0,0)
@@ -1035,6 +1061,20 @@ function HistoryPlayerScreen:DoInit()
     local function UpdatePlayerListing(playerListing, userid, i)
         if userid == nil then
             playerListing:Hide()
+            return
+        elseif userid == LIST_IS_INCOMPLETE then
+            
+            -- show a tips button for load more players
+            playerListing.load_more_records:Show()
+            -- hide a dozen of elements 
+            playerListing.profileFlair:Hide()
+            playerListing.characterBadge:Hide()
+            playerListing.number:Hide()
+            playerListing.adminBadge:Hide()
+            playerListing.name:Hide()
+            playerListing.age:Hide()
+            HideAllButtonsOfPlayer(playerListing)
+            playerListing:Show()
             return
         end
         
@@ -1222,9 +1262,11 @@ function HistoryPlayerScreen:DoInit()
     end
     
     self.owner:ListenForEvent('snapshot_info_updated', self.on_snapshot_info_updated, C)
+    self.owner:ListenForEvent('player_record_sync_completed', self.on_server_data_updated, C)
     if ThePlayer.player_classified then 
         self.owner:ListenForEvent('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
     end
+
 end
 
 
