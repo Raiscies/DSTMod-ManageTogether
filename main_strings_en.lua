@@ -34,6 +34,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     VOTE = {
         FMT_START = '%s started a vote: %s?',
         -- only some of the command to vote has there's strings 
+        FAILED_TO_START = 'failed to start a vote',
         KICK = {
             -- for vote beginning announcement
             FMT_ANNOUNCE = 'should we kick %s',

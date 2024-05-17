@@ -76,7 +76,8 @@
         "net_tinybyte",
         "net_byte",
         "NEWFONT",
-        "GetTick"
+        "GetTick",
+        "net_uint"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

@@ -1,13 +1,16 @@
 
 GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
 
-
-
 -- GUI - clients only
-if not (TheNet and TheNet:GetIsClient()) then return end
+if not TheNet:GetIsClient() then return end
 
+-- shortened aliasis
 local M = manage_together
 local S = STRINGS.UI.HISTORYPLAYERSCREEN
+local C = TheWorld.net.components.serverinforecord
+
+local player_record = C.player_record
+local snapshot_info = C.snapshot_info
 
 require 'util'
 local Screen = require 'widgets/screen'
@@ -61,36 +64,17 @@ local function IsSelf(userid)
 end
 
 local function ExecuteOrStartVote(vote_state, cmd, ...)
-    (vote_state and RequestToExecuteVoteCommand or RequestToExecuteCommand)(cmd, ...)
+    if vote_state then 
+        ThePlayer:RequestToExecuteVoteCommand(cmd, ...)
+    else
+        ThePlayer:RequestToExecuteCommand(cmd, ...)
+    end
 end
 
 local function DumpToWebPage(userid)
-    local record = M.player_record[userid]
+    local record = player_record[userid]
     local encoded_data = M.EncodeToBase64(string.format(S.FMT_TEXT_WEB_PAGE, record.name or S.UNKNOWN, userid or S.UNKNOWN, record.netid or S.UNKNOWN))
     VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data))
-end
-
-local function RecordClientData(userid, client)
-    if not client then
-        M.player_record[userid].online = false    
-        M.player_record[userid].colour = DEFAULT_PLAYER_COLOUR 
-        M.player_record[userid].userflags = 0
-    else
-        -- player is online
-        local permission_level = M.player_record[userid].permission_level
-        M.player_record[userid] = {
-            online = true, 
-            name = client.name,
-            netid = client.netid, 
-            skin = client.base_skin, 
-            age = client.playerage, 
-            permission_level = permission_level,
-
-            colour = client.colour,
-            userflags = client.userflags 
-        }
-    end
-
 end
 
 local sorted_userkey_list
@@ -103,7 +87,7 @@ local function GenerateSortedKeyList()
     sorted_userkey_list = {}
     local offline = {}
     
-    for userid, player in pairs(M.player_record) do
+    for userid, player in pairs(player_record) do
         if M.IsPlayerOnline(userid) then
             table.insert(sorted_userkey_list, userid)
         else
@@ -114,11 +98,11 @@ local function GenerateSortedKeyList()
     local sort_fn = function(a, b)
         -- a < b if:
 
-        if M.player_record[a].permission_level == M.player_record[b].permission_level then
-            local a_age, b_age = M.player_record[a].age or 0, M.player_record[b].age or 0
+        if player_record[a].permission_level == player_record[b].permission_level then
+            local a_age, b_age = player_record[a].age or 0, player_record[b].age or 0
             return a_age > b_age
         else
-            return M.LevelHigherThan(M.player_record[a].permission_level, M.player_record[b].permission_level)
+            return M.LevelHigherThan(player_record[a].permission_level, player_record[b].permission_level)
         end
     end
 
@@ -143,7 +127,7 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
                     -- is current
                     -- toggle to history player screen now
                     -- query for history player list data from server
-                    QueryServerData()
+                    ThePlayer:QueryServerData()
                     screen.owner.HUD:ShowHistoryPlayerScreeen(true)
                 else
                     -- is history
@@ -262,7 +246,7 @@ local function PopupDialog(title, text)
 end
 
 local function BuildDaySeasonStringByInfoIndex(index)
-    return M.BuildDaySeasonString(M.rollback_info[index].day, M.rollback_info[index].season)
+    return M.BuildDaySeasonString(snapshot_info[index].day, snapshot_info[index].season)
 end
 
 local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, command_fn)
@@ -307,11 +291,11 @@ local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, com
         screen.servermenunumbtns = screen.servermenunumbtns + 1 
         
         local cmd = M.COMMAND_ENUM[name:upper()]
-        if cmd == nil or HasPermission(cmd) then
+        if cmd == nil or ThePlayer:HasPermission(cmd) then
             screen.server_button_x = screen.server_button_x + screen.server_button_offset
             button:SetPosition(screen.server_button_x, 200)
             button:Show()
-        elseif HasVotePermission(cmd) then
+        elseif ThePlayer:HasVotePermission(cmd) then
             button:EnableVote()
             screen.server_button_x = screen.server_button_x + screen.server_button_offset
             button:SetPosition(screen.server_button_x, 200)
@@ -373,7 +357,7 @@ local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_nam
         table.insert(screen.votable_buttons, button)
 
         screen[name] = button
-        button:SetOnClick(function(vote_state, current_state)
+        button:SetOnClick(function(current_state, vote_state)
             if close_on_clicked then screen:Close() end
             command_fn(current_state, vote_state)
         end)
@@ -381,14 +365,14 @@ local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_nam
         screen.servermenunumbtns = screen.servermenunumbtns + 1 
         
         local cmd = M.COMMAND_ENUM[name:upper()]
-        if cmd ~= nil and not HasPermission(cmd) then
+        if cmd ~= nil and not ThePlayer:HasPermission(cmd) then
             button:Hide()
             return
         end
         screen.server_button_x = screen.server_button_x + screen.server_button_offset
         button:SetPosition(screen.server_button_x, 200)
         button:Show()
-        if not HasPermission(cmd) and HasVotePermission(cmd) then
+        if not ThePlayer:HasPermission(cmd) and ThePlayer:HasVotePermission(cmd) then
             button:EnableVote()
         end
     end
@@ -400,7 +384,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
     screen.server_button_x = -329
 
     CreateButtonOfServer(screen, 'save', nil, false, function()
-        RequestToExecuteCommand(M.COMMAND_ENUM.SAVE)
+        ThePlayer:RequestToExecuteCommand(M.COMMAND_ENUM.SAVE)
     end)
 
     CreateButtonOfServer(screen, 'rollback', nil, false, function(vote_state)
@@ -412,9 +396,9 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
                     M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
-                    M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', M.rollback_info[screen.rollback_spinner:GetSelected().data])
+                    M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', snapshot_info[screen.rollback_spinner:GetSelected().data])
 
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, M.rollback_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, snapshot_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
             )
         end
@@ -447,6 +431,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 target_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
                 function() ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) end
             )
+            M.dbg('current state: ', current_state, 'target state: ', not current_state, 'type of current state: ', type(current_state), 'target state: ', type(not current_state))
         end
     )
     -- modify 'disabled' texture
@@ -467,7 +452,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
         if vote_state then
             for _, btn in ipairs(screen.votable_buttons) do
                 local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
-                if cmd and HasPermission(cmd) then
+                if cmd and ThePlayer:HasPermission(cmd) then
                     btn:DisableVote() 
                 end
             end
@@ -475,7 +460,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
         else
             for _, btn in ipairs(screen.votable_buttons) do
                 local cmd = M.COMMAND_ENUM[string.upper(btn.name)]
-                if cmd and HasVotePermission(cmd) then
+                if cmd and ThePlayer:HasVotePermission(cmd) then
                     btn:EnableVote()
                 end
             end
@@ -487,7 +472,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
 
     CreateButtonOfServer(screen, 'refresh_records', nil, true, function()
         PopupConfirmDialog(S.REFRESH_RECORDS, S.REFRESH_RECORDS_DESC, function()
-            RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS)
+            ThePlayer:RequestToExecuteCommand(M.COMMAND_ENUM.REFRESH_RECORDS)
         end)
     end)
 end
@@ -499,6 +484,21 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.usercommandpickerscreen = nil
     self.show_player_badge = not TheFrontEnd:GetIsOfflineMode() and TheNet:IsOnlineMode()
 
+    self.on_snapshot_info_dirty = function()
+        ThePlayer:QuerySnapshotInformations() 
+    end
+
+    self.on_snapshot_info_updated = function()
+        if self.shown then 
+            self:DoInitRollbackSpinner()
+        end
+    end
+
+    self.on_server_data_updated = function()
+        if self.shown then 
+            self:DoInit()
+        end
+    end
 end)
 
 function HistoryPlayerScreen:OnBecomeActive()
@@ -524,9 +524,14 @@ function HistoryPlayerScreen:OnDestroy()
     self:Hide()
 
     if TheWorld and TheWorld.net then
-        self.owner:RemoveEventCallback('issavingdirty', QuerySnapshotInformations, TheWorld.net)
+        self.owner:RemoveEventCallback('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
     end
+    self.owner:RemoveEventCallback('snapshot_info_updated', self.on_snapshot_info_updated, C)
 
+    if ThePlayer.player_classified then 
+        self.owner:RemoveEventCallback('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
+    end
+    
     if self.onclosefn ~= nil then
         self.onclosefn()
     end
@@ -573,17 +578,17 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     self.rollback_slots = {}
     
     -- build/rebuild rollback_slots anyway
-    if #M.rollback_info ~= 0 then
+    if #snapshot_info ~= 0 then
         
         -- for new command ROLLBACK
         if M.IsNewestRollbackSlotValid() then
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
-            for i = 2, #M.rollback_info do
+            for i = 2, #snapshot_info do
                 table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
             end
         else
             table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
-            for i = 2, #M.rollback_info do
+            for i = 2, #snapshot_info do
                 table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
 
@@ -592,7 +597,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         --     -- a new save has just created, which means server will automatically skip the newest slot, 
         --     -- but this is not we wants, we should correct it 
         --     table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
-        --     for i = 2, #M.rollback_info do
+        --     for i = 2, #snapshot_info do
         --         table.insert(self.rollback_slots, {text = BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = -(i - 1)})
         --     end
         end
@@ -747,6 +752,8 @@ function HistoryPlayerScreen:DoInit()
 
     self.server_group = TheNet:GetServerClanID()
 
+    --------------------
+
     GenerateSortedKeyList()
 
     local num_online_players, num_all_players  = #GetPlayerClientTable(), #sorted_userkey_list
@@ -892,7 +899,7 @@ function HistoryPlayerScreen:DoInit()
    
             if needs_confirm then
                 button:SetOnClick(function()
-                    local online = M.player_record[playerListing.userid].online
+                    local online = player_record[playerListing.userid].online
                     PopupConfirmDialog(
                         string.format(S.FMT_CONFIRM_DIALOG_TITLE, hover_text),
                         string.format(S.FMT_CONFIRM_DIALOG_DESC, playerListing.displayName, hover_text, online and '' or S.COMFIRM_DIALOG_OFFLINE_PLAYER_DESC), 
@@ -1031,36 +1038,38 @@ function HistoryPlayerScreen:DoInit()
             return
         end
         
-
-        local client = TheNet:GetClientTableForUser(userid)
-        RecordClientData(userid, client)
-        local record = M.player_record[userid]
+        C:RecordClientData(userid)
+        local record = player_record[userid]
         
         playerListing:Show()
-
         playerListing.displayName = (record.name or '???') .. '('.. userid ..')'
 
         playerListing.userid = userid
         playerListing.netid = record.netid
 
+        local colour = record.client and record.client.colour or DEFAULT_PLAYER_COLOUR
+        local userflags = record.client and record.client.userflags or 0
+
+        -- if record.client then
         playerListing.characterBadge:Set(
-            GetBasePrefabFromSkin(record.skin) or '',     -- prefab name
-            record.colour,                                -- colour 
-            false,                                        -- is_host
-            record.userflags,                             -- userflags 
-            record.skin or ''                             -- base_skin
+            GetBasePrefabFromSkin(record.skin) or '',       -- prefab name
+            colour,                                         -- colour 
+            false,                                          -- is_host
+            userflags,                                      -- userflags 
+            record.skin or ''                               -- base_skin
         )
-        playerListing.characterBadge:Show()
 
         if self.show_player_badge then
-            if client then
-                local _, _, _, profileflair, rank = GetSkinsDataFromClientTableData(client)
+            if record.client then
+                local _, _, _, profileflair, rank = GetSkinsDataFromClientTableData(record.client)
                 playerListing.profileFlair:SetRank(profileflair, rank)
                 playerListing.profileFlair:Show()
             else
                 playerListing.profileFlair:Hide()
             end
         end
+
+        playerListing.characterBadge:Show()
 
         if record.permission_level == M.PERMISSION.ADMIN then
             playerListing.adminBadge:SetTextures(M.ATLAS, 'admin_badge.tex', 'admin_badge.tex', 'admin_badge.tex', nil, nil, {.3,.3}, {0,0})        
@@ -1107,7 +1116,7 @@ function HistoryPlayerScreen:DoInit()
             
             local cmd = M.COMMAND_ENUM[string.upper(name)]
             if cmd then
-                local category = CommandApplyableForPlayerTarget(cmd, userid)
+                local category = ThePlayer:CommandApplyableForPlayerTarget(cmd, userid)
                 if category == M.EXECUTION_CATEGORY.YES then
                     if self.vote.vote_state then
                         playerListing[name]:EnableVote()
@@ -1209,7 +1218,12 @@ function HistoryPlayerScreen:DoInit()
     DoInitScreenToggleButton(self, 2)
     DoInitServerRelatedCommnadButtons(self)
     if TheWorld and TheWorld.net then
-        self.owner:ListenForEvent('issavingdirty', QuerySnapshotInformations, TheWorld.net)
+        self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
+    end
+    
+    self.owner:ListenForEvent('snapshot_info_updated', self.on_snapshot_info_updated, C)
+    if ThePlayer.player_classified then 
+        self.owner:ListenForEvent('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
     end
 end
 
@@ -1241,19 +1255,13 @@ end
 
 local OldDoInit = PlayerStatusScreen.DoInit
 
-function PlayerStatusScreen:DoInit(ClientObjs)
+function PlayerStatusScreen:DoInit(clients)
     
-    OldDoInit(self, ClientObjs)
-    
-    if not M.has_queried_permission then
-        QueryPermission()
-        M.has_queried_permission = true
-    end
-
+    OldDoInit(self, clients)
     
     -- once the request is sent, 
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
-    if HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
+    if ThePlayer:HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
         DoInitScreenToggleButton(self, 1)
     end
 

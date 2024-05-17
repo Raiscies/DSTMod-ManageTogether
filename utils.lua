@@ -4,6 +4,10 @@ GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, 
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
+local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
+local insert, concat = table.insert, table.concat
+local byte = string.byte
+
 function M.varg_iter(arr, i)
     i = i + 1
     if i <= arr.n then
@@ -69,6 +73,17 @@ function M.in_int_range(x, a, b)
         a <= x and x <= b
 end
 
+-- little endian
+function M.concatbit32to64(low32, high32)
+    -- low32 | high32 << 32
+    return bitor(low32, lshift(high32, 32))
+end
+
+function M.splitbit64to32(value64)
+    -- low32  = value64 & 0xff'ff'ff'ff
+    -- high32 = value64 >> 32
+    return bitand(value64, 0xffffffff), rshift(value64, 32)
+end
 
 -- log print
 function M.log(...)
@@ -160,32 +175,11 @@ function M.IsNewestRollbackSlotValid(do_advance)
     end
 end
 
-M.PLAYER_JOINABILITY_ENUM = {
-    ALLOW_ALL_PLAYER = 2, 
-    ALLOW_OLD_PLAYER = 1, 
-    NOT_ALLOW_ALL_PLAYER = 0
-}
-function M.FromPlayerJoinabilityEnum(e)
-    return 
-        e == 2 and 'ALLOW_ALL_PLAYER' or
-        e == 1 and 'ALLOW_OLD_PLAYER' or 
-        e == 0 and 'NOT_ALLOW_ALL_PLAYER' or nil
-end
-function M.GetPlayerJoinability()
-    return TheNet:GetAllowIncomingConnections() and 
-        (TheNet:GetAllowNewPlayersToConnect() and 
-            M.PLAYER_JOINABILITY_ENUM.ALLOW_ALL_PLAYER or 
-            M.PLAYER_JOINABILITY_ENUM.ALLOW_OLD_PLAYER
-        ) or 
-        M.PLAYER_JOINABILITY_ENUM.NOT_ALLOW_ALL_PLAYER  
-end
+
 
 -- some utils for client
 if TheNet:GetIsClient() then
 
-local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
-local insert, concat = table.insert, table.concat
-local byte = string.byte
 
 local base64 = {
     [0] = 

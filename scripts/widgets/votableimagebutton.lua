@@ -75,6 +75,7 @@ function VotableImageButton:UpdateVoteState(state, force_update)
     if state then
         if self.vote_textures then
             self:SetTextures(unpack(self.vote_textures))
+            self.vote_tip_image:Hide()
         else
             self.vote_tip_image:Show()
         end
@@ -315,7 +316,7 @@ end
 
 function VotableImageSwitch:Switch()
     self.switch_state = not self.switch_state
-    self:Uptate()
+    self:Update()
     return self.switch_state
 end
 function VotableImageSwitch:TurnOn()
@@ -345,7 +346,7 @@ end
 function VotableImageSwitch:DisableVote()
     if self.vote_state then
         self.vote_state = false
-        self:Uptate()
+        self:Update()
     end
 end
 

@@ -5,6 +5,8 @@ local M = manage_together
 
 local dbg, chain_get = M.dbg, M.chain_get
 
+local IsPlayerOnline = M.IsPlayerOnline
+
 
 local ShardServerInfoRecord = Class(
     function(self, inst)
@@ -19,18 +21,20 @@ local ShardServerInfoRecord = Class(
         self:MasterOnlyInit()
 
         -- register event listeners
-        self.world:ListenForEvent('ms_playerjoined', function(src, player)
+        self.inst:ListenForEvent('ms_playerjoined', function(src, player)
             dbg('ms_playerjoined:', player.userid)
             self:RecordPlayer(player.userid)
-        end)
+        end, self.world)
         -- self.world:ListenForEvent('ms_playerdespawn', function(src, player)
             -- dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
 
         -- end)
 
-        self.world:ListenForEvent('cycleschanged', function(src, data)
+        self.inst:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
-        end)
+        end, self.world)
+
+  
 
         -- OnLoad will not be called if mod is firstly loaded 
         -- in this case, we should handle it properly
@@ -62,10 +66,15 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         self:UpdateNewPlayerWallState()
     end, self.world)
 
+    self.inst:ListenForEvent('ms_new_player_joinability_changed', function(inst)
+        local allowed = not not self.netvar.allow_new_players_to_connect:value()
+        dbg('event: ms_new_player_joinability_changed: ', allowed)
+        TheNet:SetAllowNewPlayersToConnect(allowed)
+    end)
+
 end or function() end
 
 function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
-    
     
     local record = self.player_record[userid]
     if not record then return end
@@ -81,21 +90,25 @@ function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
         record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE   -- elevation age is satisfied
     then
         -- in this special case, we should set a flag to keep the player's USER permission in case it changes by auto elevation
-        record[userid].no_elevate_in_age = true
-        record[userid].permission_level = M.PERMISSION.USER
+        record.no_elevate_in_age = true
+        record.permission_level = M.PERMISSION.USER
         return
     elseif permission_level ~= nil then
         -- this flag will be reset only when new permission_level is not nil
-        record[userid].no_elevate_in_age = nil
+        record.no_elevate_in_age = nil
     end
 
     -- 1. set new permission_level if it is not nil
     -- 2. keep the old permission_level it is if not nil
     -- 3. initialize the permission_level to USER 
-    record[userid].permission_level = permission_level or current or M.PERMISSION.USER
+    record.permission_level = permission_level or current or M.PERMISSION.USER
+
+    -- update netvers for target player
+    M.SetPlayerClassifiedPermission(userid, record.permission_level)
 
     self:ShardUpdateRecordTimeStamp(userid)
 end
+
 
 function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
     local record = self.player_record[userid]
@@ -104,7 +117,7 @@ function ShardServerInfoRecord:ShardSetShardLocation(userid, in_this_shard)
     -- keep the current flag
     if in_this_shard == nil then return end
 
-    record[userid].in_this_shard = in_this_shard
+    record.in_this_shard = in_this_shard
 
     self:ShardUpdateRecordTimeStamp(userid)
 end
@@ -133,10 +146,10 @@ function ShardServerInfoRecord:ShardRecordPlayer(userid, in_this_shard, client)
     local record = self.player_record[userid]
 
     if client then
-        record[userid].name = client.name or ''
-        record[userid].netid = client.netid
-        record[userid].skin = client.base_skin
-        record[userid].age = client.playerage or 0
+        record.name = client.name or ''
+        record.netid = client.netid
+        record.skin = client.base_skin
+        record.age = client.playerage or 0
         self:ShardSetPermission(userid, client.admin and M.PERMISSION.ADMIN or nil)
     else
         self:ShardSetPermission(userid)
@@ -177,6 +190,7 @@ end
 
 
 function ShardServerInfoRecord:SetPermission(userid, permission_level)
+    -- broadcast to every shards
     SendModRPCToShard(
         GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION), 
         nil, 
@@ -212,6 +226,63 @@ function ShardServerInfoRecord:SetNetVar(name, value)
             name, value
         )
     end
+end
+
+local function SendPlayerRecord(acceptor_userid, record_userid, record)
+    if IsPlayerOnline(record_userid) then
+        SendModRPCToClient(
+            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+            record_userid, record.permission_level
+        )
+    else
+        SendModRPCToClient(
+            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+            record_userid, record.netid, record.name, record.age, record.skin, record.permission_level
+        )
+    end
+end
+
+function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, max_item_num)
+    if type(last_query_timestamp) ~= 'number' then
+        max_item_num = math.huge
+    end
+    local sended_item_num = 0
+
+    if type(last_query_timestamp) ~= 'number' then 
+        -- full sync
+        for record_userid, record in pairs(self.player_record) do
+            if sended_item_num >= max_item_num then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+            SendPlayerRecord(userid, record_userid, record) 
+            sended_item_num = sended_item_num + 1
+        end
+    else
+        -- only send updated records
+        for record_userid, record in pairs(self.player_record) do 
+            if sended_item_num >= max_item_num then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+            if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
+                SendPlayerRecord(userid, record_userid, record)
+                sended_item_num = sended_item_num + 1
+            end
+        end
+    end
+
+    return M.ERROR_CODE.SUCCESS
+end
+
+function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
+    local slots = self.snapshot_info.slots
+    if not slots then
+        return M.ERROR_CODE.DATA_NOT_PRESENT
+    end
+
+    for i, v in ipairs(slots) do
+        SendModRPCToClient(
+            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC), userid, 
+            i, v.snapshot_id, v.day, v.season
+        )
+    end
+
+    return M.ERROR_CODE.SUCCESS
 end
 
 function ShardServerInfoRecord:OnSave()
@@ -308,8 +379,10 @@ function ShardServerInfoRecord:InitNetVars()
     self.netvar = {
         is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back'),
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level'), 
-        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled')
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled'),
+        allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_changed')
     }
+
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)
     if b == nil then
@@ -320,6 +393,13 @@ function ShardServerInfoRecord:SetIsRollingBack(b)
 end
 function ShardServerInfoRecord:GetIsRollingBack()
     return self.netvar.is_rolling_back:value()
+end
+
+function ShardServerInfoRecord:SetAllowNewPlayersToConnect(allowed)
+    self:SetNetVar('allow_new_players_to_connect', allowed)
+end
+function ShardServerInfoRecord:GetAllowNewPlayersToConnect()
+    return self.netvar.allow_new_players_to_connect:value()
 end
 
 function ShardServerInfoRecord:SetAutoNewPlayerWall(enabled, min_level)

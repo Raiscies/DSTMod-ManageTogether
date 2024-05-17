@@ -2,7 +2,7 @@
 GLOBAL.manage_together = {}
 local M = GLOBAL.manage_together
 
-local lshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.bor, GLOBAL.bit.band
+local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
 local UserCommands = require("usercommands")
 local VoteUtil = require("voteutil")
 
@@ -150,7 +150,7 @@ local function GenerateCommandRPCName(tab)
     end
 end
 GenerateCommandRPCName({
-    'QUERY_PERMISSION', 
+    -- 'QUERY_PERMISSION', 
     'SEND_COMMAND', 
     'SEND_VOTE_COMMAND', 
     'SHARD_SEND_COMMAND', 
@@ -159,12 +159,16 @@ GenerateCommandRPCName({
     'SHARD_SET_PLAYER_PERMISSION',
     'SHARD_SET_NET_VAR',
 
-    'RESULT_QUERY_PERMISSION', 
+    -- 'RESULT_QUERY_PERMISSION', 
     'RESULT_SEND_COMMAND', 
     'RESULT_SEND_VOTE_COMMAND',
-    'RESULT_QUERY_HISTORY_PLAYERS', 
-    'RESULT_QUERY_HISTORY_PLAYERS_PERMISSION', 
-    'RESULT_QUERY_SNAPSHOT_INFORMATIONS', 
+
+    'OFFLINE_PLAYER_RECORD_SYNC', 
+    'ONLINE_PLAYER_RECORD_SYNC', 
+    'SNAPSHOT_INFO_SYNC',
+    -- 'RESULT_QUERY_HISTORY_PLAYERS', 
+    -- 'RESULT_QUERY_HISTORY_PLAYERS_PERMISSION', 
+    -- 'RESULT_QUERY_SNAPSHOT_INFORMATIONS', 
 })
 
 M.PERMISSION_MASK = {}
@@ -523,82 +527,84 @@ local BroadcastShardCommand
 
 M.AddCommands(
     -- some technical commands
-    {
-        name = 'QUERY_PERMISSION',
-        permission = M.PERMISSION.USER, 
-        fn = function(doer, _) 
-            local permission_level = PermissionLevel(doer.userid)
-            SendModRPCToClient(
-                GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_PERMISSION), doer.userid,
-                permission_level, 
-                M.PERMISSION_MASK[permission_level],                                               -- original permission_level
-                FiltUnvotableCommands(M.PERMISSION_MASK[VotePermissionElevate(permission_level)])  -- vote permission_level 
-            )
-        end
-    },
+    -- {
+    --     name = 'QUERY_PERMISSION',
+    --     permission = M.PERMISSION.USER, 
+    --     fn = function(doer, _) 
+    --         local permission_level = PermissionLevel(doer.userid)
+    --         SendModRPCToClient(
+    --             GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_PERMISSION), doer.userid,
+    --             permission_level, 
+    --             M.PERMISSION_MASK[permission_level],                                               -- original permission_level
+    --             FiltUnvotableCommands(M.PERMISSION_MASK[VotePermissionElevate(permission_level)])  -- vote permission_level 
+    --         )
+    --     end
+    -- },
     {
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
         fn = function(doer, last_query_timestamp, send_item_count)
-            -- query_category: nil or 0: query history players and rollback info
-            --                        1: query history players only
-            --                        2: query rollback info only
 
-            local function send_record(userid, record)
-                if M.IsPlayerOnline(userid) then
-                    -- player is online
-                    SendModRPCToClient(
-                        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION), doer.userid, 
-                        userid, record.permission_level
-                    )
-                else
-                    -- player is offline
-                    SendModRPCToClient(
-                        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS), doer.userid, 
-                        userid, record.netid, record.name, record.age, record.skin, record.permission_level
-                    )
-                end
-            end
+        return 
+            GetServerInfoComponent():PushPlayerRecordTo(doer.userid, last_query_timestamp, send_item_count)
 
-            -- all of the records will be send if last_query_timestamp is nil or something else
-            if type(send_item_count) ~= 'number' then send_item_count = math.huge end
-            local sended_count = 0
+        --     local function send_record(userid, record)
+        --         if M.IsPlayerOnline(userid) then
+        --             -- player is online
+        --             SendModRPCToClient(
+        --                 GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION), doer.userid, 
+        --                 userid, record.permission_level
+        --             )
+        --         else
+        --             -- player is offline
+        --             SendModRPCToClient(
+        --                 GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS), doer.userid, 
+        --                 userid, record.netid, record.name, record.age, record.skin, record.permission_level
+        --             )
+        --         end
+        --     end
 
-            if type(last_query_timestamp) ~= 'number' then 
-                -- full sync
-                for userid, record in pairs(GetPlayerRecords()) do
-                    if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
-                    send_record(userid, record) 
-                    sended_count = sended_count + 1
-                end
-            else
-                -- only send updated records
-                for userid, record in pairs(GetPlayerRecords()) do 
-                    if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
-                    if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
-                        send_record(userid, record)
-                        sended_count = sended_count + 1
-                    end
-                end
-            end
+        --     -- all of the records will be send if last_query_timestamp is nil or something else
+        --     if type(send_item_count) ~= 'number' then send_item_count = math.huge end
+        --     local sended_count = 0
+
+        --     if type(last_query_timestamp) ~= 'number' then 
+        --         -- full sync
+        --         for userid, record in pairs(GetPlayerRecords()) do
+        --             if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+        --             send_record(userid, record) 
+        --             sended_count = sended_count + 1
+        --         end
+        --     else
+        --         -- only send updated records
+        --         for userid, record in pairs(GetPlayerRecords()) do 
+        --             if sended_count >= send_item_count then return M.ERROR_CODE.SUCCESS_BUT_HAS_MORE end
+        --             if record.update_timestamp and record.update_timestamp >= last_query_timestamp then
+        --                 send_record(userid, record)
+        --                 sended_count = sended_count + 1
+        --             end
+        --         end
+        --     end
         end 
     },
     {
         name = 'QUERY_SNAPSHOT_INFORMATIONS',
         permission = M.PERMISSION.MODERATOR, 
         fn = function(doer)
-            local slots = GetSnapshotInfo().slots
-            if not slots then
-                return M.ERROR_CODE.DATA_NOT_PRESENT
-            end
-            for i, v in ipairs(slots) do
-                SendModRPCToClient(
-                    GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS), doer.userid, 
-                    i, v.day, v.season, 
-                    -- add a snapshot id, clients can clearly specify the rollback target they want
-                    v.snapshot_id 
-                )
-            end
+
+            return GetServerInfoComponent():PushSnapshotInfoTo(doer.userid)
+            -- local slots = GetSnapshotInfo().slots
+            -- if not slots then
+            --     return M.ERROR_CODE.DATA_NOT_PRESENT
+            -- end
+            -- for i, v in ipairs(slots) do
+            --     SendModRPCToClient(
+            --         GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS), doer.userid, 
+            --         i, v.day, v.season, 
+            --         -- add a snapshot id, clients can clearly specify the rollback target they want
+            --         v.snapshot_id 
+            --     )
+            -- end
         end
     },
     {
@@ -825,7 +831,7 @@ M.AddCommands(
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
             if M.IsPlayerOnline(target_userid) then
-                GLOBAL.TheWOrld:DoTaskInTime(1, function()
+                GLOBAL.TheWorld:DoTaskInTime(1, function()
                     local permission_level = PermissionLevel(target_userid)
                     M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
                 end)
@@ -835,13 +841,14 @@ M.AddCommands(
     {
         name = 'SET_NEW_PLAYER_JOINABILITY', 
         can_vote = true, 
-        args_description = function(allow) return allow and S.ALLOW_NEW_PLAYER_JOIN or S.NOT_ALLOW_NEW_PLAYER_JOIN end,
-        fn = function(doer, allow)
+        args_description = function(allowed) return allowed and S.ALLOW_NEW_PLAYER_JOIN or S.NOT_ALLOW_NEW_PLAYER_JOIN end,
+        fn = function(doer, allowed)
 
-            if not type(allow) == 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
-
-            GLOBAL.TheNet:SetAllowNewPlayersToConnect(allow)
-            M.announce_fmt(S.FMT_SET_NEW_PLAYER_JOINABILITY[allow and 'ALLOW' or 'NOT_ALLOW'], doer.name)
+            dbg('type of allowed: ', type(allowed), 'value: ', allowed)
+            if allowed ~= nil and type(allowed) ~= 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
+            allowed = not not allowed
+            GetServerInfoComponent():SetAllowNewPlayersToConnect(allowed)
+            M.announce_fmt(S.FMT_SET_NEW_PLAYER_JOINABILITY[allowed and 'ALLOW' or 'NOT_ALLOW'], doer.name)
         end
     },
     {
@@ -852,7 +859,6 @@ M.AddCommands(
             if type(enabled) ~= 'boolean' or (min_online_player_level and not M.PERMISSION_ORDER[min_online_player_level]) then
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
-            
             -- only admin can set min_online_player_level
             -- moderator's argument of this will be ignore
 
@@ -993,27 +999,27 @@ local function RegisterRPCs()
 
     -- client rpcs
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_PERMISSION, 
-    function(permission_level, permission_mask, vote_permission_mask)
-        if not (IsPermissionLevel(permission_level) and IsPermissionMask(permission_mask) and IsPermissionMask(vote_permission_mask)) then
-            dbg('received from server(query permission): server drunk')
-            dbg('permission_level:', permission_level, ', permission_mask: ', permission_mask, ', vote_permission_mask: ', vote_permission_mask)
-            return
-        end
-        dbg('received from server(query permission): permission_level:', permission_level, ', permission_mask: ', permission_mask, ', vote_permission_mask: ', vote_permission_mask)
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_PERMISSION, 
+    -- function(permission_level, permission_mask, vote_permission_mask)
+    --     if not (IsPermissionLevel(permission_level) and IsPermissionMask(permission_mask) and IsPermissionMask(vote_permission_mask)) then
+    --         dbg('received from server(query permission): server drunk')
+    --         dbg('permission_level:', permission_level, ', permission_mask: ', permission_mask, ', vote_permission_mask: ', vote_permission_mask)
+    --         return
+    --     end
+    --     dbg('received from server(query permission): permission_level:', permission_level, ', permission_mask: ', permission_mask, ', vote_permission_mask: ', vote_permission_mask)
         
-        if M.self_permission_level ~= permission_level or M.self_permission_mask ~= permission_mask then
-            M.self_permission_level = permission_level
-            M.self_permission_mask = permission_mask
-            M.self_vote_permission_mask = vote_permission_mask
+    --     if M.self_permission_level ~= permission_level or M.self_permission_mask ~= permission_mask then
+    --         M.self_permission_level = permission_level
+    --         M.self_permission_mask = permission_mask
+    --         M.self_vote_permission_mask = vote_permission_mask
             
-            -- re-init playerstatusscreen if it is shown
-            if GLOBAL.ThePlayer.HUD:IsStatusScreenOpen() then
-                GLOBAL.ThePlayer.HUD.playerstatusscreen:DoInit()
-            end
-        end
-    end
-    )
+    --         -- re-init playerstatusscreen if it is shown
+    --         if GLOBAL.ThePlayer.HUD:IsStatusScreenOpen() then
+    --             GLOBAL.ThePlayer.HUD.playerstatusscreen:DoInit()
+    --         end
+    --     end
+    -- end
+    -- )
 
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND, 
     function(cmd, result) 
@@ -1027,7 +1033,7 @@ local function RegisterRPCs()
                 end
 
                 if result == M.ERROR_CODE.SUCCESS_BUT_HAS_MORE then
-                    M.next_query_player_count = M.next_query_player_count + 20
+                    GLOBAL.ThePlayer:IncreaseNextQueryPlayerNum()
                 end
             end
         else
@@ -1046,73 +1052,73 @@ local function RegisterRPCs()
     )
     
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS, 
-    function(userid, netid, name, age, skin, permission_level)
-        if not (
-            IsUserid(userid) and 
-            (netid == nil or type(netid) == 'string') and
-            (name  == nil or type(name ) == 'string') and
-            (age   == nil or type(age  ) == 'number') and 
-            (skin  == nil or type(skin ) == 'string') and 
-            IsPermissionLevel(permission_level)
-        ) then
-            dbg('received from server(query history players(offline)): server drunk')
-            dbg('userid: ', userid, ', netid: ', netid, ', name: ', name, ', age: ', age, ', skin: ', skin, ', permission_level: ', permission_level)
-            dbg('type of: userid: ', type(userid), ', netid: ', type(netid), ', name: ', type(name), ', age: ', type(age), ', skin: ', type(skin), ', permission_level: ', type(permission_level))
-            return
-        end
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS, 
+    -- function(userid, netid, name, age, skin, permission_level)
+    --     if not (
+    --         IsUserid(userid) and 
+    --         (netid == nil or type(netid) == 'string') and
+    --         (name  == nil or type(name ) == 'string') and
+    --         (age   == nil or type(age  ) == 'number') and 
+    --         (skin  == nil or type(skin ) == 'string') and 
+    --         IsPermissionLevel(permission_level)
+    --     ) then
+    --         dbg('received from server(query history players(offline)): server drunk')
+    --         dbg('userid: ', userid, ', netid: ', netid, ', name: ', name, ', age: ', age, ', skin: ', skin, ', permission_level: ', permission_level)
+    --         dbg('type of: userid: ', type(userid), ', netid: ', type(netid), ', name: ', type(name), ', age: ', type(age), ', skin: ', type(skin), ', permission_level: ', type(permission_level))
+    --         return
+    --     end
 
-        -- only offline players are excepted to receive
-        M.player_record[userid] = {
-            netid = netid,
-            name = name or '',
-            age = age or -1,
-            permission_level = permission_level, 
-            skin = skin, 
-        }
-        dbg('received from server(query history players(offline)): ', M.player_record[userid])
-    end
-    )
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION, 
-    function(userid, permission_level)
-        if not (IsUserid(userid) and IsPermissionLevel(permission_level)) then
-            dbg('received from server(query history players(online)): server drunk')
-            dbg('userid: ', userid, ', permission_level: ', permission_level)
-            return
-        end
-        if M.player_record[userid] == nil then
-            M.player_record[userid] = {}
-        end
-        M.player_record[userid].permission_level = permission_level
+    --     -- only offline players are excepted to receive
+    --     M.player_record[userid] = {
+    --         netid = netid,
+    --         name = name or '',
+    --         age = age or -1,
+    --         permission_level = permission_level, 
+    --         skin = skin, 
+    --     }
+    --     dbg('received from server(query history players(offline)): ', M.player_record[userid])
+    -- end
+    -- )
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_HISTORY_PLAYERS_PERMISSION, 
+    -- function(userid, permission_level)
+    --     if not (IsUserid(userid) and IsPermissionLevel(permission_level)) then
+    --         dbg('received from server(query history players(online)): server drunk')
+    --         dbg('userid: ', userid, ', permission_level: ', permission_level)
+    --         return
+    --     end
+    --     if M.player_record[userid] == nil then
+    --         M.player_record[userid] = {}
+    --     end
+    --     M.player_record[userid].permission_level = permission_level
 
-        dbg('received from server(query history players(online)): userid: ', userid, ', record: ', M.player_record[userid])
-    end
-    )
+    --     dbg('received from server(query history players(online)): userid: ', userid, ', record: ', M.player_record[userid])
+    -- end
+    -- )
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS, 
-    function(index, day, season, snapshot_id)
-        if not (IsRollbackNumber(index) and (day == nil or IsDay(day)) and (season == nil or IsSeason(season)) and IsSnapshotID(snapshot_id)) then
-            dbg('received from server(rollback info): server drunk')
-            dbg('index: ', index, ', day: ', day, ', season: ', season, ', snapshot_id: ', snapshot_id)
-            return
-        end
-        if not index then return 
-        elseif index == 1 then
-            -- we assume the RPC receiving is same as sending time order
-            M.rollback_info = {}
-        end
-        M.rollback_info[index] = {
-            day = day, 
-            season = season, 
-            snapshot_id = snapshot_id
-        }
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_QUERY_SNAPSHOT_INFORMATIONS, 
+    -- function(index, day, season, snapshot_id)
+    --     if not (IsRollbackNumber(index) and (day == nil or IsDay(day)) and (season == nil or IsSeason(season)) and IsSnapshotID(snapshot_id)) then
+    --         dbg('received from server(rollback info): server drunk')
+    --         dbg('index: ', index, ', day: ', day, ', season: ', season, ', snapshot_id: ', snapshot_id)
+    --         return
+    --     end
+    --     if not index then return 
+    --     elseif index == 1 then
+    --         -- we assume the RPC receiving is same as sending time order
+    --         M.rollback_info = {}
+    --     end
+    --     M.rollback_info[index] = {
+    --         day = day, 
+    --         season = season, 
+    --         snapshot_id = snapshot_id
+    --     }
 
-        -- re-init the rollback spinner
-        if GLOBAL.ThePlayer.HUD.historyplayerscreen ~= nil and GLOBAL.ThePlayer.HUD.historyplayerscreen.shown then
-            GLOBAL.ThePlayer.HUD.historyplayerscreen:DoInitRollbackSpinner()
-        end
-    end
-    )
+    --     -- re-init the rollback spinner
+    --     if GLOBAL.ThePlayer.HUD.historyplayerscreen ~= nil and GLOBAL.ThePlayer.HUD.historyplayerscreen.shown then
+    --         GLOBAL.ThePlayer.HUD.historyplayerscreen:DoInitRollbackSpinner()
+    --     end
+    -- end
+    -- )
 
     -- shard rpcs
 
@@ -1127,9 +1133,7 @@ local function RegisterRPCs()
     end)
 
 end
-
 RegisterRPCs()
-
 
 if GLOBAL.TheNet:GetIsServer() then
 -- Server codes begin ----------------------------------------------------------
@@ -1251,6 +1255,7 @@ end
 -- Server codes end ------------------------------------------------------------
 end
 
+
 if GLOBAL.TheNet:GetIsClient() then
 -- Client codes begin ----------------------------------------------------------
 
@@ -1260,70 +1265,109 @@ Assets = {
     Asset('IMAGE', 'images/manage_together_integrated.tex')
 }
 
+modimport('historyplayerscreen')
 
--- this table records all of the players that had joined the server from it starts 
-M.player_record = {}
-M.rollback_info = {}
-M.self_permission_level = nil
-M.self_permission_mask = 0
-M.self_vote_permission_mask = 0
-M.has_queried_permission = false
-
-M.last_query_timestamp = nil
-M.next_query_player_count = 20
-
-function QueryPermission()
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_PERMISSION)
+-- Client codes end ------------------------------------------------------------
 end
 
--- param num: received numbers of players
-function QueryHistoryPlayers(num)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, M.last_query_timestamp, num)
-    M.last_query_timestamp = GetTick()
+local function HasPermission(player, cmd)
+    return player.player_classified and M.HasPermission(cmd, player.player_classified.permission_mask) or false 
 end
-function QueryMoreHistoryPlayers()
-    QueryHistoryPlayers(M.next_query_player_count)
+local function HasVotePermission(player, cmd)
+    return player.player_classified and M.HasPermission(cmd, player.player_classified.vote_permission_mask) or false
 end
-function QuerySnapshotInformations()
+
+local function QueryHistoryPlayers(player, num)
+    local classified = player.player_classified
+    if classified then
+        SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
+            M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
+            classified.last_query_player_record_timestamp, 
+            num or classified.next_query_player_num
+        )
+
+        -- update the query timestamp
+        classified.last_query_player_record_timestamp = GetTick()
+    else
+        dbg('bad call on player:QueryHistoryPlayers: player_classified is nil')
+    end
+end
+
+local function IncreaseNextQueryPlayerNum(player, num)
+    local classified = player.classified
+    if classified then
+        classified.next_query_player_num = classified.next_query_player_num + (num or 10)
+    else
+        dbg('bad call on player:IncreaseNextQueryPlayerNum: player_classified is nil')
+    end
+end
+
+local function QuerySnapshotInformations(player)
     SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
 end
 
 -- actually it just query history players and snapshot informations
-function QueryServerData()
-    QueryHistoryPlayers()
-    QuerySnapshotInformations()
+local function QueryServerData(player)
+    QueryHistoryPlayers(player)
+    QuerySnapshotInformations(player)
 end
 
-function RequestToExecuteCommand(cmd, ...)
+local function RequestToExecuteCommand(player, cmd, ...)
     SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), cmd, ...)
 end
 
-function RequestToExecuteVoteCommand(cmd, ...)
+local function RequestToExecuteVoteCommand(player, cmd, ...)
     SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
 end
 
--- just for quick typing in console
-function FromCmdName(name)
-    return M.COMMAND_ENUM[string.upper(name)]
+-- for server, 
+-- notice: it is useless for the player itself, 
+-- cause the real permission check is on the server, 
+-- and it does not work for other players, 
+-- cause the player_classified entity not exists on the other clients
+local function SetPermission(player, level)
+    local classified = player.player_classified 
+    if not classified then
+        dbg('bad call on player:SetPermission: player_classified is nil')
+        return 
+    end
+
+    -- permission level
+    classified.permission_level:set(level)
+
+    local mask = M.PERMISSION_MASK[level]
+    local vote_mask = FiltUnvotableCommands(M.PERMISSION_MASK[VotePermissionElevate(level)])
+
+    -- permission mask
+    local low32, high32 = M.splitbit64to32(mask)
+    classified.permission_masks[1]:set(low32)
+    classified.permission_masks[2]:set(high32)
+
+    -- vote permission mask
+    low32, high32 = M.splitbit64to32(vote_mask)
+    classified.vote_permission_masks[1]:set(low32)
+    classified.vote_permission_masks[2]:set(high32)
+
 end
 
-function HasPermission(cmd)
-    return M.HasPermission(cmd, M.self_permission_mask)
-end
-function HasVotePermission(cmd)
-    return M.HasPermission(cmd, M.self_vote_permission_mask)
-end
-
-function CommandApplyableForPlayerTarget(cmd, target_userid)
+local function CommandApplyableForPlayerTarget(player, cmd, target_userid)
+    local classified = player.player_classified
+    if not classified then
+        dbg('bad call on player:CommandApplyableForPlayerTarget: player_classified is nil')
+        return
+    end
     if not chain_get(M.COMMAND[cmd], 'user_targetted') then
         return M.EXECUTION_CATEGORY.NO
     end
-    
-    local target_lvl = chain_get(M.player_record[target_userid], 'permission_level')
+
+    local target_lvl
+    if GLOBAL.TheWorld then
+        target_lvl = chain_get(GLOBAL.TheWorld.net.components.serverinforecord.player_record, target_userid, 'permission_level')
+    end
     if not target_lvl then return M.EXECUTION_CATEGORY.NO end
-    if HasPermission(cmd) and M.LevelHigherThan(M.self_permission_level, target_lvl) then
+    if player:HasPermission(cmd) and M.LevelHigherThan(classified.permission_level, target_lvl) then
         return M.EXECUTION_CATEGORY.YES
-    elseif HasVotePermission(cmd) and M.LevelHigherThan(VotePermissionElevate(M.self_permission_level), target_lvl) then
+    elseif player:HasVotePermission(cmd) and M.LevelHigherThan(VotePermissionElevate(classified.permission_level), target_lvl) then
         return M.EXECUTION_CATEGORY.VOTE_ONLY
     else
         return M.EXECUTION_CATEGORY.NO
@@ -1331,8 +1375,54 @@ function CommandApplyableForPlayerTarget(cmd, target_userid)
         
 end
 
-modimport('historyplayerscreen')
+-- this should be call on both server & client 
+AddPrefabPostInit('player_classified', function(inst)
+    
+    inst.permission_level = net_byte(inst.GUID, 'manage_together.permission_level', 'permission_level_changed')
+    
+    -- to tell the truth, I don't think the commands will more than 64 in the future...
+    -- so we just make a happy hard code.
+    -- lua integer size have 64 bits, however netver does not supports 64 bits integer type,
+    -- so we should add 2 net_uint(32 bits) variables 
+    inst.permission_masks = {
+        net_uint(inst.GUID, 'manage_together.permission_mask[1]', 'permission_mask_changed'),
+        net_uint(inst.GUID, 'manage_together.permission_mask[2]', 'permission_mask_changed')
+    }
+    inst.vote_permission_masks = {
+        net_uint(inst.GUID, 'manage_together.vote_permission_mask[1]', 'vote_permission_mask_changed'),
+        net_uint(inst.GUID, 'manage_together.vote_permission_mask[2]', 'vote_permission_mask_changed')
+    }
+    inst.permission_mask = 0
+    inst.vote_permission_mask = 0
+    inst.last_query_player_record_timestamp = nil
+    inst.next_query_player_num = 12
+    
+    inst:ListenForEvent('permission_mask_changed', function()
+        inst.permission_mask = M.concatbit32to64(inst.permission_masks[1]:value(), inst.permission_masks[2]:value())
+    end)
+    
+    inst:ListenForEvent('vote_permission_mask_changed', function()
+        inst.vote_permission_mask = M.concatbit32to64(inst.vote_permission_masks[1]:value(), inst.vote_permission_masks[2]:value())
+    end)
+    
 
--- Client codes end ------------------------------------------------------------
-end
+    -- attach some functions to player_common 
+    local player = inst._parent
+    if player then
+        player.HasPermission = HasPermission
+        player.HasVotePermission = HasVotePermission
+        player.SetPermission = SetPermission
+
+        player.QueryHistoryPlayers = QueryHistoryPlayers
+        player.QuerySnapshotInformations = QuerySnapshotInformations
+        player.QueryServerData = QueryServerData
+        player.RequestToExecuteCommand = RequestToExecuteCommand
+        player.RequestToExecuteVoteCommand = RequestToExecuteVoteCommand
+        player.CommandApplyableForPlayerTarget = CommandApplyableForPlayerTarget
+        player.IncreaseNextQueryPlayerNum = IncreaseNextQueryPlayerNum
+    end
+    
+end)
+
+
 
