@@ -31,7 +31,7 @@ function VotableImageButton:SetTexturesAtNormal(...)
 end
 
 function VotableImageButton:SetTexturesAtVote(...)
-    if select('#', ...) then
+    if select('#', ...) == 0 then
         self.vote_textures = nil 
         return
     end
@@ -96,129 +96,6 @@ function VotableImageButton:DisableVote()
     self:UpdateVoteState(false)
 end
 
-----------------------------------------------
-
--- local VotableStatefulImageButton = Class(VotableImageButton, function(self, default_state_name, ...)
---     VotableImageButton._ctor(self, ...)
---     self.states = {}
-
-
---     if select('#', ...) ~= 0 and default_state_name == nil then 
---         self:AddState(self.current_state, ...)
---     end
---     self.current_state = default_state_name or 'default'
--- end)
-
--- function VotableStatefulImageButton:SetStateTexturesAtNormal(state, ...)
---     if not self.states[state] then return end
---     self.states[state].non_vote.textures = {...}
-
---     if self.current_state == state then
---         self._base.SetTexturesAtNormal(self, ...)
---     end
--- end
--- function VotableStatefulImageButton:SetStateTexturesAtVote(state, ...)
---     if not self.states[state] then return end
---     self.states[state].vote.textures = {...}
-
---     if self.current_state == state then
---         self._base.SetTexturesAtVote(self, ...)
---     end
--- end
-
-
--- function VotableStatefulImageButton:StateExists(state)
---     return self.states[state] ~= nil
--- end
-
--- function VotableStatefulImageButton:AddState(state, ...)
---     if self:StateExists(state) then
---         return false
---     end 
---     self.states[state] = {
---         non_vote = {
---             textures = {...}
---         }, 
---         vote = {}
---     }
---     return true
--- end
-
--- function VotableStatefulImageButton:SetState(state, non_vote_content, vote_content)
---     if not self:StateExists(state) then
---         return 
---     end 
---     self.states[state] = {
---         non_vote = non_vote_content,
---         vote = vote_content
---     }
---     return true
--- end
-
--- function VotableStatefulImageButton:SwitchToState(state, force_update)
---     if not self:StateExists(state) or (self.current_state == state and not force_update) then
---         return self.current_state
---     end
---     local nonvote, vote = self.states[state].non_vote, self.states[state].vote
---     -- replace the textures, onclick functions and hover texts
---     self._base.SetTexturesAtNormal(self, unpack(nonvote.textures))
---     if vote.textures then
---         self._base.SetTexturesAtVote(self, unpack(vote.textures)) 
---     end
---     self._base.SetOnClickAtNormal(self, nonvote.onclick)
---     self._base.SetOnClickAtVote(self, vote.onclick)
---     self._base.SetHoverTextAtNormal(self, nonvote.hover_text, nonvote.hover_text_params)
---     self._base.SetHoverTextAtVote(self, vote.hover_text, vote.hover_text_params) 
-
---     self.current_state = state
-
---     return state
--- end
-
-
--- -- goto the next state(the state order is unsequenced)
--- function VotableStatefulImageButton:NextState()
---     next_state = next(self.states, self.current_state) or next(self.states)
---     self:SwitchToState(next_state)
---     return next_state
--- end
-
--- -- use this function, button will ignore other onclick functions
--- function VotableStatefulImageButton:SetOnClick(fn)
---     self._base.SetOnClick(self, function(vote_state)
---         fn(vote_state, self.current_state)
---     end)
--- end
-
--- function VotableStatefulImageButton:SetStateHoverTextAtNormal(state, text, params)
---     if not self:StateExists(state) then
---         return
---     end
---     self.states[state].non_vote.hover_text = text
---     self.states[state].non_vote.hover_text_params = params
---     if state == self.current_state then
---         self._base.SetHoverTextAtNormal(self, text, params)
---     end
--- end
--- function VotableStatefulImageButton:SetStateHoverTextAtVote(state, text, params)
---     if not self:StateExists(state) then
---         return
---     end
---     self.states[state].vote.hover_text = text
---     self.states[state].vote.hover_text_params = params
-
---     if state == self.current_state then
---         self._base.SetHoverTextAtVote(self, text, params)
---     end
--- end
-
-
--- function VotableStatefulImageButton:SetHoverTextAtVote(text, params)
---     self:SetStateHoverTextAtNormal('default', text, params)
--- end
--- function VotableStatefulImageButton:SetHoverTextAtNormal(text, params)
---    self:SetStateHoverTextAtVote('default', text, params)
--- end
 
 -- a binary states button: ON(true)/OFF(false)
 local VotableImageSwitch = Class(ImageButton, function(self, on_state_res, off_state_res)

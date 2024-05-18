@@ -5,6 +5,7 @@ local M = manage_together
 local dbg, chain_get = M.dbg, M.chain_get
 
 local ServerInfoRecord = Class(function(self, inst)
+    dbg('ServerInfoRecord: init')
     -- inst is TheWorld.net, 'world_network'
     self.inst = inst
     self.world = TheWorld
@@ -13,26 +14,27 @@ local ServerInfoRecord = Class(function(self, inst)
     -- self.allow_incoming_conections = net_bool(inst.GUID, 'serverinforecord.allow_incoming_conections', 'player_joinability_changed')
 
     if TheWorld.ismastersim then
-        -- on server side
-        self.shard_serverinforecord = TheWorld.shard.components.shard_serverinforecord
-
-        -- alias
-        self.player_record = self.shard_serverinforecord.player_record
-        self.snapshot_info = self.shard_serverinforecord.snapshot_info
-
-        inst:ListenForEvent('ms_new_player_joinability_changed', function()
-            -- master netvar -> secondary netvar -> client netvar
-           self.allow_new_players_to_connect:set(
-                self.shard_serverinforecord:GetAllowNewPlayersToConnect()
-            ) 
-        end, self.shard_serverinforecord.inst)
-
+        inst:DoTaskInTime(0, function()
+            -- dbg('initing serverinforecord of server')
+            -- on server side
+            self.shard_serverinforecord = TheWorld.shard.components.shard_serverinforecord
+            
+            -- alias
+            self.player_record = self.shard_serverinforecord.player_record
+            self.snapshot_info = self.shard_serverinforecord.snapshot_info
+            
+            inst:ListenForEvent('ms_new_player_joinability_changed', function()
+                -- master netvar -> secondary netvar -> client netvar
+                self.allow_new_players_to_connect:set(
+                    self.shard_serverinforecord:GetAllowNewPlayersToConnect()
+                ) 
+            end, self.shard_serverinforecord.inst)
+        end)
     else
         -- on client side  
         self.player_record = {}
         self.snapshot_info = {}
 
-        self.total_player_record_num = 0
         self.has_more_player_records = true
     end
     
@@ -40,6 +42,8 @@ local ServerInfoRecord = Class(function(self, inst)
 end)
 
 function ServerInfoRecord:RegisterRPCs()
+    dbg('ServerInfoRecord:RegisterRPCs()')
+
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC, function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {
             netid = netid, 
@@ -64,10 +68,10 @@ function ServerInfoRecord:RegisterRPCs()
         self.inst:PushEvent('player_record_updated', userid)
     end)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED, function(total_player_record_num, has_more)
-        self.total_player_record_num = total_player_record_num
+    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED, function(has_more)
         self.has_more_player_records = has_more
-        self.inst:PushEvent('player_record_sync_completed', {total = total_player_record_num, has_more = has_more})
+        self.inst:PushEvent('player_record_sync_completed', has_more)
+        dbg('player record sync completed, has_more = ', has_more)
     end)
 
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC, function(index, snapshot_id, day, season)

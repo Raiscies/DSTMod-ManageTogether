@@ -47,7 +47,12 @@ end
 
 function M.moretostring(obj)
     if type(obj) == 'table' then
-        return '\n' .. PrintTable(obj)
+        if obj.is_a == nil then
+            return '\n' .. PrintTable(obj)
+        else
+            -- don't print a class instance like a table! or we are very possible to print a huge string and then OOM
+            return 'ClassInstance:' .. tostring(obj) 
+        end
     else
         return tostring(obj)
     end
@@ -103,7 +108,7 @@ end
 M.dbg = M.DEBUG and function(...)
     local s = ''
     for _, v in varg_pairs(...) do
-        s = s .. M.moretostring(v)
+        s = s .. ' ' .. M.moretostring(v)
     end
     print('[ManageTogether] ' .. s)
 end or function(...) end

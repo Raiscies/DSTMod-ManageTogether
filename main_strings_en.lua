@@ -137,5 +137,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
 
     FMT_CONFIRM_DIALOG_TITLE = '%s the player', 
     FMT_CONFIRM_DIALOG_DESC  = 'execute command to player %s, command is: %s%s', -- player name, action, COMFIRM_DIALOG_OFFLINE_PLAYER_DESC or ''
-    FMT_INPUT_TO_CONFIRM = 'input %s to confirm %s'
+    FMT_INPUT_TO_CONFIRM = 'input %s to confirm %s',
+
+    LOAD_MORE_HISTORY_PLAYERS = 'Load more player records...'
 }
