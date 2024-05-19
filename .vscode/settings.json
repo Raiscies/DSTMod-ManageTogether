@@ -73,6 +73,7 @@
         "SHARDID",
         "VerifySpawnNewPlayerOnServerRequest",
         "smallhash",
+        "Prefabs",
         "net_tinybyte",
         "net_byte",
         "NEWFONT",

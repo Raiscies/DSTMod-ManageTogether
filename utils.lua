@@ -113,8 +113,8 @@ M.dbg = M.DEBUG and function(...)
     print('[ManageTogether] ' .. s)
 end or function(...) end
 
-local dbg = M.dbg
-local log = M.log
+local dbg, log, chain_get = M.dbg, M.log, M.chain_get
+
 
 
 function M.announce(s, ...)
@@ -238,6 +238,41 @@ function M.EncodeToBase64(s)
     return concat(result)
 end
 
+function M.GetItemDictionaries()
+    if not (M.ITEM_PREFAB_DICTIONARY and M.ITEM_LOCAL_NAME_DICTIONARY and M.LOCAL_NAME_REFERENCES) then
+        
+        local names = STRINGS.NAMES
+        for prefab, _ in pairs(Prefabs) do
+            table.insert(M.ITEM_PREFAB_DICTIONARY, prefab)
+
+            local local_name = names[string.upper(prefab)]
+            table.insert(M.ITEM_LOCAL_DICTIONARY, local_name)
+            -- keep a reference from localized name to prefab name
+            M.LOCAL_NAME_REFERENCES[local_name] = prefab
+        end
+        
+    end
+    
+    return {M.ITEM_PREFAB_DICTIONARY, M.ITEM_LOCAL_NAME_DICTIONARY}
+end
+
+function M.ToPrefabName(s) 
+    -- a valid item representation is:
+    -- a item prefab;
+    -- a localized item name;
+    
+    -- try to generate the refs in case the tables haven't exist yet
+    M.GetItemDictionaries()
+    
+    if M.LOCAL_NAME_REFERENCES[s] then
+        return M.LOCAL_NAME_REFERENCES[s] --> prefab name
+    elseif Prefabs[s] then
+        return s
+    end
+
+    return nil
+end
+
 end -- is client
 
 -- some utils for server
@@ -287,7 +322,7 @@ function M.GetSnapshotPlayerData(userid, component_name)
         if not playerdata or not prefab or prefab == '' then return end
 
         if type(component_name) == 'string' then
-            data = playerdata[component_name]
+            data = playerdata.data[component_name] -- .data saves all of the components' OnSave() data
         else
             data = playerdata
         end
@@ -331,35 +366,132 @@ function M.RollbackBySnapshotID(snapshot_id, delay)
     end
 end
 
+-- we should correctly handle item containers, 
+-- but we don't hope to have a very deep recursion for iterate container chain(if it is possible)
+M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH = 3
+local function count_item_in_slots(itemslots, item, current_depth, has_deeper_container)
+    local count = 0
 
--- function MakeItemStatFromPlayerInventories(userid_list, prefab, session_id)
---     session_id = session_id or GLOBAL.TheNet:GetSessionIdentifier()
+    for _, item in pairs(itemslots) do
+        local stackable = item.components.stackable
+       
+        if item.prefab == item then
+            count = count + (stackable and stackable:StackSize() or 1)
+        end
+       
+        -- we always assume a container is impossible to be stackable, obviously :)
+        -- a container which is stackable is crazy!
+        if not stackable then
+            local container = item.components.container
+            if container then
+                -- this item is a container
+                if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
+                    local count_in_container
+                    count_in_container, has_deeper_container = count_item_in_slots(container.slots, item, current_depth + 1, has_deeper_container)
+                    count = count + count_in_container
+                else
+                    has_deeper_container = true
+                end
+            end
+        end
+    end
     
---     local stat = {}
---     local function count_items(userid, slots)
---         if not slots then return end
---         for k, v in slots do 
---             if v.prefab == prefab then
---                 local stacksize = chain_get(v, 'stackable', {'StackSize'})
---                 stat[userid] = stat[userid] + (stacksize or 1)
---             end
---         end
---     end
+    return count, has_deeper_container
+end
 
---     for _, userid in ipairs(userid_list) do
---         stat[userid] = 0
---         if M.IsPlayerOnline(userid) then
---             local itemslots = chain_get(M.GetPlayerFromUserid(userid), 'components', 'inventory', 'itemslots')
---             count_items(itemslots)
---         else
---             -- offline player
---             -- TODO
-             
---         end
---     end
---     return stat
--- end
+-- for online players in this shard
+function M.CountItemInPlayerInventory(player, item)
+    local inv = player.components.inventory
+    if not inv then return 0, false end
 
+    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots(inv.itemslots, item, 1, false)
+    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots(inv.equipslots, item, 1, false)
+    local activeitem_count, activeitem_has_deeper_container = 0, false
+    if inv.activeitem then
+        activeitem_count, activeitem_has_deeper_container = count_item_in_slots({inv.activeitem}, item, 1, false)
+    end
+    return itemslots_count + equipslots_count + activeitem_count, 
+        itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
+end
+
+-- for offline players in this shard
+function M.CountItemInOfflinePlayerInventory(player_userid, item)
+    local inv = M.GetSnapshotPlayerData(player_userid, 'inventory')
+    if not inv then return 0, false end
+
+    -- notice: slots names are different from online player's inventory
+    -- this inv comes from OnSave()
+    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots(inv.items, item, 1, false)
+    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots(inv.equip, item, 1, false)
+    local activeitem_count, activeitem_has_deeper_container = 0, false
+    if inv.activeitem then
+        activeitem_count, activeitem_has_deeper_container =count_item_in_slots({inv.activeitem}, item, 1, false)
+    end
+    return itemslots_count + equipslots_count + activeitem_count, 
+        itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
+end
+
+-- an expensive function!
+function M.MakeOnlinePlayerInventoriesItemStat(item)
+    local stat = {}
+    for _, player in ipairs(AllPlayers) do
+        local count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+        stat[player.userid] = {
+            count = count, 
+            has_deeper_container = has_deeper_container
+        }
+    end
+    return stat
+end
+
+-- another expensive function!
+-- for a list of players(by passing a table of userid)
+-- or a single player(by passing a userid)
+function M.MakePlayerInventoriesItemStat(userid_or_list, item)
+    if type(userid_or_list) == 'table' then
+        
+        local stat = {}
+        -- make a quick ref
+        local allplayers_by_userid_key = {}
+        for _, player in ipairs(AllPlayers) do
+            allplayers_by_userid_key[player.userid] = player
+        end
+        for _, userid in ipairs(userid_or_list) do
+            local player = allplayers_by_userid_key[userid]
+            local count, has_deeper_container
+            if player then
+                -- player is online
+                count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+            else
+                -- player is offline
+                count, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid, item)
+            end
+            stat[userid] = {
+                count = count, 
+                has_deeper_container = has_deeper_container
+            }
+        end
+        return stat
+    
+    elseif type(userid_or_list) == 'string' then
+        -- is a userid(single player)
+        local player
+        if M.IsPlayerOnline(userid_or_list) then
+            -- player is online
+            player = M.GetPlayerByUserid(userid_or_list)
+            if player then
+                local count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+                return {count = count, has_deeper_container = has_deeper_container}
+            end
+        end
+
+        -- player is offline
+        local count, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid_or_list, item)
+        return {count = count, has_deeper_container = has_deeper_container}
+    else
+        return nil
+    end
+end
 
 -- file created in this way will not be delete while world regenerating
 -- data: table, data will be serialize as a json file

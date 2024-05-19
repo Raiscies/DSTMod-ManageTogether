@@ -141,7 +141,7 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
             text = STRINGS.UI.PLAYERSTATUSSCREEN.OK, 
             cb = function() 
                 if self:Verify() then
-                    on_confirmed_fn()
+                    on_confirmed_fn(self:GetText())
                     TheFrontEnd:PopScreen() 
                 end
             end
@@ -176,6 +176,38 @@ end
 
 function InputVerificationDialog:Verify()
     return self.verify_fn(self:GetText())
+end
+
+
+local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc, on_submitted)
+    -- M.ToPrefabName: returns nil if the name is not valid or else returns non-nil item prefab name string
+    
+    local verify_fn = function(text)
+        self.the_item_prefab = M.ToPrefabName(text)
+        return self.the_item_prefab ~= nil
+    end
+    local submitted_fn = function()
+        on_submitted(self.the_item_prefab)
+    end
+    
+    InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
+    self.desc = desc
+
+    -- enable item text prediction
+    self.edit_text:EnableWordPrediction({width = 1000, mode = 'enter_tab'})
+
+    for _, dict in ipairs(M.GetItemDictionaries()) do
+        self.edit_text:AddWordPredictionDictionary({
+            words = dict, 
+            delim = '', 
+            postfix = '', 
+        })
+    end
+end)
+
+function ItemStatDialog:GetItemPrefab()
+    self:Verify()
+    return self.the_item_prefab
 end
 
 
