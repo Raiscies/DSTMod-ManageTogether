@@ -20,7 +20,7 @@ local ShardServerInfoRecord = Class(
         -- notice: order might change while world reload
         self.player_record_userid_list = {}
         -- send a block in each requestion
-        self.PLAYER_RECORD_BLOCK_SIZE = 6
+        self.PLAYER_RECORD_BLOCK_SIZE = 12
 
         self:InitNetVars()
         self:RegisterShardRPCs()
@@ -39,12 +39,11 @@ local ShardServerInfoRecord = Class(
         self.inst:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
         end, self.world)
-
   
 
         -- OnLoad will not be called if mod is firstly loaded 
         -- in this case, we should handle it properly
-        self.world:DoTaskInTime(3, function()
+        self.world:DoTaskInTime(0, function()
             if #self.snapshot_info.slots ~= 0 then
                 return
             end
@@ -68,6 +67,10 @@ end
 
 ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
+
+    -- update once
+    self:UpdateNewPlayerWallState()
+
     self.inst:ListenForEvent('ms_playercounts', function(src, data)
         self:UpdateNewPlayerWallState()
     end, self.world)
@@ -77,6 +80,8 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         dbg('event: ms_new_player_joinability_changed: ', allowed)
         TheNet:SetAllowNewPlayersToConnect(allowed)
     end)
+
+    self:SetAllowNewPlayersToConnect(TheNet:GetAllowNewPlayersToConnect(), true) -- force update
 
 end or function() end
 
@@ -226,9 +231,12 @@ function ShardServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
     ) 
 end
 
-function ShardServerInfoRecord:SetNetVar(name, value)
+function ShardServerInfoRecord:SetNetVar(name, value, force_update)
     -- must be set on master
     if TheShard:IsMaster() then
+        if force_update then
+            self.netvar[name]:set_local(value)
+        end
         self.netvar[name]:set(value)
     else
         SendModRPCToShard(
@@ -426,8 +434,8 @@ function ShardServerInfoRecord:GetIsRollingBack()
     return self.netvar.is_rolling_back:value()
 end
 
-function ShardServerInfoRecord:SetAllowNewPlayersToConnect(allowed)
-    self:SetNetVar('allow_new_players_to_connect', allowed)
+function ShardServerInfoRecord:SetAllowNewPlayersToConnect(allowed, force_update)
+    self:SetNetVar('allow_new_players_to_connect', allowed, force_update)
 end
 function ShardServerInfoRecord:GetAllowNewPlayersToConnect()
     return self.netvar.allow_new_players_to_connect:value()
@@ -477,8 +485,10 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         -- then auto new player wall state: not allow new players to join
         new_state = M.LevelHigherOrEqualThan(current_min_online_player_level, required_min_level)
     end
+    -- judge the new_state ended
+
     if old_state ~= new_state then
-        TheNet:SetAllowNewPlayersToConnect(new_state)
+        self:SetAllowNewPlayersToConnect(new_state)
     end
     
     self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})

@@ -31,8 +31,8 @@ STRINGS.UI.MANAGE_TOGETHER = {
 
     FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家自动过滤器, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
     FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家自动过滤器',
-    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已禁止新玩家加入服务器',
-    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已允许新玩家加入服务器',
+    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已自动禁止新玩家加入服务器',
+    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已自动允许新玩家加入服务器',
     
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
@@ -140,16 +140,18 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ADD_MODERATOR = '添加为监督员', 
     REMOVE_MODERATOR = '移除监督员',
 
-    SET_NEW_PLAYER_JOINABILITY_TITLE = '修改服务器新玩家连接性',
+    SET_NEW_PLAYER_JOINABILITY_TITLE = '切换新玩家可加入状态',
     SET_NEW_PLAYER_JOINABILITY = {
-        ALLOW_ALL_PLAYER = '允许新玩家加入', 
-        ALLOW_OLD_PLAYER = '禁止新玩家加入', 
+        ALLOW_ALL_PLAYER = '禁止新玩家加入\n当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '允许新玩家加入\n当前已禁止新玩家加入', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家变动时被覆盖',
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家数量变动时被覆盖',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 
     FMT_CONFIRM_DIALOG_TITLE = '%s玩家', 
     FMT_CONFIRM_DIALOG_DESC  = '将玩家%s %s%s',
-    FMT_INPUT_TO_CONFIRM = '输入%s以确认%s'
+    FMT_INPUT_TO_CONFIRM = '输入%s以确认%s',
+
+    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...'
 }

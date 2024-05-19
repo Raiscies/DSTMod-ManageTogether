@@ -128,8 +128,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = 'modify new player joinability',
     SET_NEW_PLAYER_JOINABILITY = {
-        ALLOW_ALL_PLAYER = 'allow new players to join the server', 
-        ALLOW_OLD_PLAYER = 'forbidden new players to join the server', 
+        ALLOW_ALL_PLAYER = 'forbidden new players to join the server\ncurrently allow new players to join', 
+        ALLOW_OLD_PLAYER = 'allow new players to join the server\nncurrently not allow new players to join', 
     },
     AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\nyour setting may be covered while server player state changes if server enabled auto new player filter',
 

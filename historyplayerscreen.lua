@@ -379,11 +379,11 @@ local function DoInitServerRelatedCommnadButtons(screen)
     CreateSwitchOfServer(screen, 'set_new_player_joinability', 'allow_all_player', 'allow_old_player',
         false, 
         function(current_state, vote_state)
-            local target_state_text = screen.set_new_player_joinability.state_res[not current_state].hover_text.text
+            local current_state_text = screen.set_new_player_joinability.state_res[current_state].hover_text.text
 
             PopupConfirmDialog(
                 (vote_state and S.START_A_VOTE or '') .. S.SET_NEW_PLAYER_JOINABILITY_TITLE, 
-                target_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
+                current_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
                 function() ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) end
             )
             M.dbg('current state: ', current_state, 'target state: ', not current_state, 'type of current state: ', type(current_state), 'target state: ', type(not current_state))
@@ -392,19 +392,13 @@ local function DoInitServerRelatedCommnadButtons(screen)
     -- modify 'disabled' texture
     screen.set_new_player_joinability.state_res[true].textures[4] = 'not_allow_all_select.tex'
     screen.set_new_player_joinability.state_res[false].textures[4] = 'not_allow_all_select.tex'
-    -- local new_player_joinability = self.recorder:GetPlayerJoinability()
-    local new_player_joinability = screen.recorder:GetAllowNewPlayersToConnect() 
+    local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
     if new_player_joinability then
         screen.set_new_player_joinability:TurnOn()
-        screen.set_new_player_joinability:Enable()
-    -- elseif new_player_joinability == 1 then
     else
         screen.set_new_player_joinability:TurnOff()
-        screen.set_new_player_joinability:Enable()
-    -- else
-    --     screen.set_new_player_joinability:Disable()
     end
-    
+
     CreateButtonOfServer(screen, 'vote', nil, false, function(vote_state)
         if vote_state then
             for _, btn in ipairs(screen.votable_buttons) do
@@ -465,6 +459,18 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
         M.dbg('on_server_data_updated')
         if self.shown then 
             self:DoInit()
+        end
+    end
+
+    self.on_new_player_joinability_updated = function()
+        M.dbg('on_new_player_joinability_updated')
+        if self.shown then
+            local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
+            if new_player_joinability then
+                self.set_new_player_joinability:TurnOn()
+            else
+                self.set_new_player_joinability:TurnOff()
+            end
         end
     end
 end)
@@ -549,6 +555,7 @@ function HistoryPlayerScreen:OnDestroy()
 
     if ThePlayer.player_classified then 
         self.owner:RemoveEventCallback('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
+        self.owner:RemoveEventCallback('new_player_joinability_changed', self.on_new_player_joinability_updated, ThePlayer.player_classified)
     end
     
     if self.onclosefn ~= nil then
@@ -771,12 +778,12 @@ function HistoryPlayerScreen:DoInit()
     self.server_group = TheNet:GetServerClanID()
 
     self:GenerateSortedKeyList()
+    
+    local num_online_players, num_all_players  = #GetPlayerClientTable(), #sorted_userkey_list
+
     if self.recorder:HasMorePlayerRecords() then 
         table.insert(sorted_userkey_list, LIST_IS_INCOMPLETE)
     end
-
-    local num_online_players, num_all_players  = #GetPlayerClientTable(), #sorted_userkey_list
-
 
     if not self.players_number then
         self.players_number = self.root:AddChild(Text(UIFONT, 25))
@@ -1279,6 +1286,7 @@ function HistoryPlayerScreen:DoInit()
 
     if ThePlayer.player_classified then 
         self.owner:ListenForEvent('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
+        self.owner:ListenForEvent('new_player_joinability_changed', self.on_new_player_joinability_updated, ThePlayer.player_classified)
     end
 
 end
@@ -1317,7 +1325,6 @@ function PlayerStatusScreen:DoInit(clients)
     
     -- once the request is sent, 
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
-    M.dbg('function HasPermission: ', ThePlayer.player_classified.HasPermission)
     if ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
         DoInitScreenToggleButton(self, 1)
     end

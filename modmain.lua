@@ -526,6 +526,9 @@ M.AddCommands(
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
         fn = function(doer, last_query_timestamp, block_index)
+            if not type(last_query_timestamp) == 'number' or not type(block_index) == 'number' then
+                return M.ERROR_CODE.BAD_ARGUMENT
+            end
             return GetServerInfoComponent():PushPlayerRecordTo(doer.userid, last_query_timestamp, block_index)
         end 
     },
@@ -539,7 +542,7 @@ M.AddCommands(
     {
         name = 'REFRESH_RECORDS', 
         permission = M.PERMISSION.ADMIN, 
-        fn = function(doer, _)
+        fn = function(doer)
             local comp = GetServerInfoComponent()
             if comp then
                 M.log('refreshing player records')
@@ -622,7 +625,7 @@ M.AddCommands(
     },
     {
         name = 'SAVE', 
-        fn = function(doer, _)
+        fn = function(doer)
             -- save the world
             GLOBAL.TheWorld:PushEvent('ms_save')
             M.announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
@@ -1054,6 +1057,10 @@ local function HasVotePermission(classified, cmd)
     return M.HasPermission(cmd, classified.vote_permission_mask) or false
 end
 
+local function GetAllowNewPlayersToConnect(classified)
+    return classified.allow_new_players_to_connect
+end
+
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
         GetTime() - classified.last_query_player_record_timestamp <= 3 then 
@@ -1146,16 +1153,19 @@ AddPrefabPostInit('player_classified', function(inst)
     -- lua integer size have 64 bits, however netver does not supports 64 bits integer type,
     -- so we should add 2 net_uint(32 bits) variables 
     inst.net_permission_masks = {
-        net_uint(inst.GUID, 'manage_together.permission_mask[1]', 'permission_mask_changed'),
-        net_uint(inst.GUID, 'manage_together.permission_mask[2]', 'permission_mask_changed')
+        net_uint(inst.GUID, 'manage_together.permission_masks[1]', 'permission_mask_changed'),
+        net_uint(inst.GUID, 'manage_together.permission_masks[2]', 'permission_mask_changed')
     }
     inst.net_vote_permission_masks = {
-        net_uint(inst.GUID, 'manage_together.vote_permission_mask[1]', 'vote_permission_mask_changed'),
-        net_uint(inst.GUID, 'manage_together.vote_permission_mask[2]', 'vote_permission_mask_changed')
+        net_uint(inst.GUID, 'manage_together.vote_permission_masks[1]', 'vote_permission_mask_changed'),
+        net_uint(inst.GUID, 'manage_together.vote_permission_masks[2]', 'vote_permission_mask_changed')
     }
+    inst.net_allow_new_players_to_connect = net_bool(inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed')
+
     inst.permission_level = M.PERMISSION.USER
     inst.permission_mask = 0
     inst.vote_permission_mask = 0
+    inst.allow_new_players_to_connect = false
     inst.last_query_player_record_timestamp = nil
     inst.next_query_player_record_block_index = 1
 
@@ -1171,6 +1181,12 @@ AddPrefabPostInit('player_classified', function(inst)
         inst.vote_permission_mask = M.concatbit32to64(inst.net_vote_permission_masks[1]:value(), inst.net_vote_permission_masks[2]:value())
     end)
     
+    inst:ListenForEvent('new_player_joinability_changed', function()
+        inst.allow_new_players_to_connect = inst.net_allow_new_players_to_connect:value()
+        dbg('player_classified: new_player_joinability_changed: ', inst.allow_new_players_to_connect)
+    end)
+
+
     if GLOBAL.TheWorld then
         inst:ListenForEvent('player_record_sync_completed', function(src, has_more)
             dbg('listened player_record_sync_completed, has_more = ', has_more, 'this index = ', inst.next_query_player_record_block_index)
@@ -1183,10 +1199,35 @@ AddPrefabPostInit('player_classified', function(inst)
                 inst.next_query_player_record_block_index = nil
             end
         end, GLOBAL.TheWorld)
+
+        if GLOBAL.TheWorld.ismastersim then
+            local recorder = GLOBAL.TheWorld.shard.components.shard_serverinforecord
+
+            inst:ListenForEvent('ms_new_player_joinability_changed', function()
+                dbg('player_classified: listened ms_new_player_joinability_changed: ', recorder:GetAllowNewPlayersToConnect())
+                if HasPermission(inst, M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
+                    inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
+                end
+            end, GLOBAL.TheWorld.shard)
+
+            -- update once
+            inst:DoTaskInTime(0, function()
+                dbg('player_classified: update new player joinability once: ', recorder:GetAllowNewPlayersToConnect())
+                local mask = M.PERMISSION_MASK[PermissionLevel(inst._parent.userid)]
+                dbg('inst._parent: ', inst._parent, 'userid: ', inst._parent.userid, 'mask: ', mask)
+                if M.HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, mask) then
+                    inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
+                    dbg('finished to set new player joinability')
+                end
+            end)
+        end
     end
+
+
 
     inst.HasPermission = HasPermission
     inst.HasVotePermission = HasVotePermission
+    inst.GetAllowNewPlayersToConnect = GetAllowNewPlayersToConnect
     inst.SetPermission = SetPermission
     inst.QueryHistoryPlayers = QueryHistoryPlayers
     inst.QuerySnapshotInformations = QuerySnapshotInformations
@@ -1198,8 +1239,9 @@ AddPrefabPostInit('player_classified', function(inst)
     
 end)
 
+
 AddPrefabPostInit('world', function(inst)
-    dbg('AddPrefabPostInit: world.net')
+    dbg('AddPrefabPostInit: world')
 
     inst:AddComponent('serverinforecord')
     

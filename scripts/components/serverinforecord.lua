@@ -6,12 +6,8 @@ local dbg, chain_get = M.dbg, M.chain_get
 
 local ServerInfoRecord = Class(function(self, inst)
     dbg('ServerInfoRecord: init')
-    -- inst is TheWorld.net, 'world_network'
     self.inst = inst
     self.world = TheWorld
-
-    self.allow_new_players_to_connect = net_bool(inst.GUID, 'serverinforecord.allow_new_players_to_connect', 'new_player_joinability_changed')
-    -- self.allow_incoming_conections = net_bool(inst.GUID, 'serverinforecord.allow_incoming_conections', 'player_joinability_changed')
 
     if TheWorld.ismastersim then
         inst:DoTaskInTime(0, function()
@@ -22,13 +18,7 @@ local ServerInfoRecord = Class(function(self, inst)
             -- alias
             self.player_record = self.shard_serverinforecord.player_record
             self.snapshot_info = self.shard_serverinforecord.snapshot_info
-            
-            inst:ListenForEvent('ms_new_player_joinability_changed', function()
-                -- master netvar -> secondary netvar -> client netvar
-                self.allow_new_players_to_connect:set(
-                    self.shard_serverinforecord:GetAllowNewPlayersToConnect()
-                ) 
-            end, self.shard_serverinforecord.inst)
+        
         end)
     else
         -- on client side  
@@ -91,11 +81,6 @@ function ServerInfoRecord:RegisterRPCs()
         self.inst:PushEvent('snapshot_info_updated', index)
     end)
 
-end
-
-
-function ServerInfoRecord:GetAllowNewPlayersToConnect()
-    return self.allow_new_players_to_connect:value()
 end
 
 if not TheWorld.ismastersim then
