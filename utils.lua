@@ -203,6 +203,9 @@ end
 
 function M.GetItemDictionaries()
     if not (M.ITEM_PREFAB_DICTIONARY and M.ITEM_LOCAL_NAME_DICTIONARY and M.LOCAL_NAME_REFERENCES) then
+        M.ITEM_PREFAB_DICTIONARY = {}
+        M.ITEM_LOCAL_DICTIONARY = {}
+        M.LOCAL_NAME_REFERENCES = {}
         
         local names = STRINGS.NAMES
         for prefab, _ in pairs(Prefabs) do
