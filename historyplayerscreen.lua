@@ -217,6 +217,8 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
     self.verify_fn = verify_fn
 
     self.bg:SetPosition(0, 20)
+    local width, height = self.bg:GetSize()
+    self.bg:SetSize(width, 120)
     
     self.bg.actions:DisableItem(1)
 end)
@@ -254,7 +256,19 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
     end
     
     InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
+    local width, height = self.bg:GetSize()
+    self.bg:SetSize(width, 170)
+    
     self.desc = desc
+    -- description text
+    self.text = self.proot:AddChild(Text(NEWFONT, 28))
+    self.text:SetPosition(5, -15, 0)
+    self.text:SetString(self.desc)
+    self.text:SetColour(0, 0, 0, 1)
+    self.text:EnableWordWrap(true)
+    self.text:SetRegionSize(500, 160)
+    -- self.text:SetVAlign(ANCHOR_LEFT)
+
 
     -- enable item text prediction
     self.edit_text:EnableWordPrediction({width = 1000, mode = 'enter_tab'})
