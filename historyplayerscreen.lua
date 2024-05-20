@@ -158,6 +158,17 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
     self.bg:SetSize(width, 120)
     
     self.bg.actions:DisableItem(1)
+
+
+    local edit_text_on_control = self.edit_text.OnControl
+    self.edit_text.OnControl = function(edit, control, down)
+        if self:Verify() then
+            self.bg.actions:EnableItem(1)
+        else
+            self.bg.actions:DisableItem(1)
+        end
+        return edit_text_on_control(edit, control, down)
+    end
 end)
 function InputVerificationDialog:OnControl(control, down)
     if self:Verify() then
@@ -165,15 +176,7 @@ function InputVerificationDialog:OnControl(control, down)
     else
         self.bg.actions:DisableItem(1)
     end
-    InputVerificationDialog._base.OnControl(self, control, down)
-end
-function InputVerificationDialog:OnTextInput(text)
-    if self:Verify() then
-        self.bg.actions:EnableItem(1)
-    else
-        self.bg.actions:DisableItem(1)
-    end
-    InputVerificationDialog._base.OnTextInput(self, text)
+    return InputVerificationDialog._base.OnControl(self, control, down)
 end
 
 function InputVerificationDialog:Verify()
