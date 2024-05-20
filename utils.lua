@@ -68,6 +68,13 @@ function M.tolinekvstring(tab)
     return string.format('{%s}', s)
 end
 
+-- string right trim
+function M.rtrim(s)
+    if type(s) ~= 'string' then
+        return nil
+    end
+    return string.match(s, '^(.-)%s*$')
+end
 function M.in_range(x, a, b)
     return type(x) == 'number' and
         a <= x and x <= b
@@ -114,6 +121,7 @@ M.dbg = M.DEBUG and function(...)
 end or function(...) end
 
 local dbg, log, chain_get = M.dbg, M.log, M.chain_get
+
 
 
 
@@ -241,21 +249,25 @@ end
 function M.GetItemDictionaries()
     if not (M.ITEM_PREFAB_DICTIONARY and M.ITEM_LOCAL_NAME_DICTIONARY and M.LOCAL_NAME_REFERENCES) then
         M.ITEM_PREFAB_DICTIONARY = {}
-        M.ITEM_LOCAL_DICTIONARY = {}
+        M.ITEM_LOCAL_NAME_DICTIONARY = {}
         M.LOCAL_NAME_REFERENCES = {}
         
         local names = STRINGS.NAMES
-        for prefab, _ in pairs(Prefabs) do
+        for prefab, _ in pairs(_G.Prefabs) do
             table.insert(M.ITEM_PREFAB_DICTIONARY, prefab)
 
-            local local_name = names[string.upper(prefab)]
-            table.insert(M.ITEM_LOCAL_DICTIONARY, local_name)
+            local local_name = names[prefab:upper()]
             -- keep a reference from localized name to prefab name
-            M.LOCAL_NAME_REFERENCES[local_name] = prefab
+            if local_name then
+                table.insert(M.ITEM_LOCAL_NAME_DICTIONARY, local_name)
+                M.LOCAL_NAME_REFERENCES[local_name] = prefab
+            end
         end
-        
     end
-    
+    -- dbg('#M.ITEM_PREFAB_DICTIONARY: ', #M.ITEM_PREFAB_DICTIONARY)
+    -- dbg('#M.ITEM_LOCAL_DICTIONARY: ', #M.ITEM_LOCAL_NAME_DICTIONARY )
+    -- dbg('M.LOCAL_NAME_REFERENCES ~= nil: ', M.LOCAL_NAME_REFERENCES ~= nil)
+
     return {M.ITEM_PREFAB_DICTIONARY, M.ITEM_LOCAL_NAME_DICTIONARY}
 end
 
@@ -269,7 +281,7 @@ function M.ToPrefabName(s)
     
     if M.LOCAL_NAME_REFERENCES[s] then
         return M.LOCAL_NAME_REFERENCES[s] --> prefab name
-    elseif Prefabs[s] then
+    elseif _G.Prefabs[s] then
         return s
     end
 
@@ -372,46 +384,89 @@ end
 -- we should correctly handle item containers, 
 -- but we don't hope to have a very deep recursion for iterate container chain(if it is possible)
 M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH = 3
-local function count_item_in_slots(itemslots, item, current_depth, has_deeper_container)
+local function count_item_in_slots_online(itemslots, target_item_prefab, current_depth, has_deeper_container)
     local count = 0
 
     for _, item in pairs(itemslots) do
-        local stackable = item.components.stackable
-       
-        if item.prefab == item then
-            count = count + (stackable and stackable:StackSize() or 1)
-        end
-       
-        -- we always assume a container is impossible to be stackable, obviously :)
-        -- a container which is stackable is crazy!
-        if not stackable then
-            local container = item.components.container
-            if container then
-                -- this item is a container
-                if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
-                    local count_in_container
-                    count_in_container, has_deeper_container = count_item_in_slots(container.slots, item, current_depth + 1, has_deeper_container)
-                    count = count + count_in_container
-                else
-                    has_deeper_container = true
+        -- dbg(item)
+        if not item.components then
+            if item.prefab == target_item_prefab then
+                count = count + 1
+            end
+        else
+            local stackable = item.components.stackable
+            -- M.dbg('in slot item: ', item)
+            if item.prefab == target_item_prefab then
+                count = count + (stackable and stackable:StackSize() or 1)
+            end
+            
+            -- we always assume a container is impossible to be stackable, obviously :)
+            -- a stackable container is crazy!
+            if not stackable then
+                local container = item.components.container
+                if container then
+                    -- this item is a container
+                    if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
+                        local count_in_container
+                        count_in_container, has_deeper_container = count_item_in_slots_online(container.slots, target_item_prefab, current_depth + 1, has_deeper_container)
+                        count = count + count_in_container
+                    else
+                        has_deeper_container = true
+                    end
                 end
             end
         end
     end
-    
     return count, has_deeper_container
 end
 
+local function count_item_in_slots_offline(itemslots, target_item_prefab, current_depth, has_deeper_container)
+    local count = 0
+
+    for _, item in pairs(itemslots) do
+
+        if not item.data then
+            if item.prefab == target_item_prefab then
+                count = count + 1
+            end
+        else
+            local stackable = item.data.stackable
+            if item.prefab == target_item_prefab then
+                count = count + (stackable and stackable.stack or 1)
+            end
+        
+            -- we always assume a container is impossible to be stackable, obviously :)
+            -- a stackable container is crazy!
+            if not stackable then
+                local container = item.data.container
+                if container then
+                    -- this item is a container
+                    if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
+                        local count_in_container
+                        count_in_container, has_deeper_container = count_item_in_slots_online(container.items, target_item_prefab, current_depth + 1, has_deeper_container)
+                        count = count + count_in_container
+                    else
+                        has_deeper_container = true
+                    end
+                end
+
+            end 
+        end
+    end
+    return count, has_deeper_container
+end
+
+
 -- for online players in this shard
-function M.CountItemInPlayerInventory(player, item)
+function M.CountItemInOnlinePlayerInventory(player, item)
     local inv = player.components.inventory
     if not inv then return 0, false end
 
-    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots(inv.itemslots, item, 1, false)
-    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots(inv.equipslots, item, 1, false)
+    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots_online(inv.itemslots, item, 1, false)
+    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots_online(inv.equipslots, item, 1, false)
     local activeitem_count, activeitem_has_deeper_container = 0, false
     if inv.activeitem then
-        activeitem_count, activeitem_has_deeper_container = count_item_in_slots({inv.activeitem}, item, 1, false)
+        activeitem_count, activeitem_has_deeper_container = count_item_in_slots_online({inv.activeitem}, item, 1, false)
     end
     return itemslots_count + equipslots_count + activeitem_count, 
         itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
@@ -424,11 +479,12 @@ function M.CountItemInOfflinePlayerInventory(player_userid, item)
 
     -- notice: slots names are different from online player's inventory
     -- this inv comes from OnSave()
-    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots(inv.items, item, 1, false)
-    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots(inv.equip, item, 1, false)
+    -- dbg(inv.items)
+    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots_offline(inv.items, item, 1, false)
+    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots_offline(inv.equip, item, 1, false)
     local activeitem_count, activeitem_has_deeper_container = 0, false
     if inv.activeitem then
-        activeitem_count, activeitem_has_deeper_container =count_item_in_slots({inv.activeitem}, item, 1, false)
+        activeitem_count, activeitem_has_deeper_container = count_item_in_slots_offline({inv.activeitem}, item, 1, false)
     end
     return itemslots_count + equipslots_count + activeitem_count, 
         itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
@@ -438,7 +494,7 @@ end
 function M.MakeOnlinePlayerInventoriesItemStat(item)
     local stat = {}
     for _, player in ipairs(AllPlayers) do
-        local count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+        local count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
         stat[player.userid] = {
             count = count, 
             has_deeper_container = has_deeper_container
@@ -464,7 +520,7 @@ function M.MakePlayerInventoriesItemStat(userid_or_list, item)
             local count, has_deeper_container
             if player then
                 -- player is online
-                count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+                count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
             else
                 -- player is offline
                 count, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid, item)
@@ -483,7 +539,7 @@ function M.MakePlayerInventoriesItemStat(userid_or_list, item)
             -- player is online
             player = M.GetPlayerByUserid(userid_or_list)
             if player then
-                local count, has_deeper_container = M.CountItemInPlayerInventory(player, item)
+                local count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
                 return {count = count, has_deeper_container = has_deeper_container}
             end
         end

@@ -36,10 +36,12 @@ STRINGS.UI.MANAGE_TOGETHER = {
     
     
     FMT_MAKE_ITEM_STAT_HEAD = '%s发起了物品栏统计请求', 
-    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s', 
-    MAKE_ITEM_STAT_ALL_ONLINE_PLAYERS = '所有在线玩家',
-    MAKE_ITEM_STAT_ALL_OFFLINE_PLAYERS = '所有记录的离线玩家',
-    MAKE_ITEM_STAT_ALL_PLAYERS = '所有记录的玩家', 
+    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s(%s)', 
+    MAKE_ITEM_STAT_OPTIONS = {
+        ALL_ONLINE_PLAYERS = '所有在线玩家',
+        ALL_OFFLINE_PLAYERS = '所有离线玩家',
+        ALL_PLAYERS = '所有玩家', 
+    }, 
     FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)拥有%d个%s;',
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无目标物品%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER = ', 该玩家存在未执行统计的深层容器',
@@ -102,7 +104,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
         },
         SET_NEW_PLAYER_JOINABILITY = {
             FMT_ANNOUNCE = '是否%s',
-            TITLE = '我们应该修改新玩家连接设置吗?'
+            TITLE = '我们应该修改新玩家可加入状态吗?'
         },
     }
 }
@@ -134,13 +136,14 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
     REGENERATE_WORLD = '重新生成世界',
-    REGENERATE_WORLD_DESC = '毁掉这个世界的一切, 然后生成一个新的',
+    REGENERATE_WORLD_DESC = '毁掉这个世界的一切, 然后生成一个新的. ',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = '服务器名称',
     VOTE = '发起投票...',
     NO_VOTE = '取消发起投票',
     START_A_VOTE = '发起投票: ',
-    MAKE_ITEM_STAT_TITLE = '执行物品栏单项物品统计', 
-    MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的单项物品\n',
+    MAKE_ITEM_STAT = '执行物品栏单项物品统计',
+    MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的单项物品\n搜索支持当前语言的物品名和物品预制件名. ',
+    MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
     REFRESH_RECORDS = '更新数据',
     REFRESH_RECORDS_DESC = '大多数时候你并不需要点击这个按钮, 但是如果发现有些显示数据有问题, 可以点一下试试', 
     -- player commands

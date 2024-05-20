@@ -253,7 +253,7 @@ end
 
 local function AnnounceItemStat(stat)
     for userid, v in pairs(stat) do
-        local name = GetPlayerRecord(userid).name
+        local name = GetPlayerRecord(userid).name or '???'
         if v.count == 0 then
             announce_fmt(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
                 name,
@@ -785,15 +785,13 @@ M.AddCommands(
             -- 2: all of the online & offline(recorded) players
 
             local target_players_string = {
-                [0] = S.MAKE_ITEM_STAT_ALL_ONLINE_PLAYERS, 
-                [1] = S.MAKE_ITEM_STAT_ALL_OFFLINE_PLAYERS,
-                [2] = S.MAKE_ITEM_STAT_ALL_PLAYERS
+                [0] = S.MAKE_ITEM_STAT_OPTIONS.ALL_ONLINE_PLAYERS, 
+                [1] = S.MAKE_ITEM_STAT_OPTIONS.ALL_OFFLINE_PLAYERS,
+                [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
             }
 
             if not type(item) == 'string' or
-                not IsUserid(userid_or_flag) or
-                not type(userid_or_flag) == 'number' or
-                not target_players_string[userid_or_flag]
+                not (IsUserid(userid_or_flag) or type(userid_or_flag) == 'number' and target_players_string[userid_or_flag])
             then
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
@@ -804,10 +802,10 @@ M.AddCommands(
                 if not record then return M.ERROR_CODE.BAD_TARGET end
                 
                 announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name, item)
             else
                 announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, target_players_string[userid_or_flag], item_name)
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, target_players_string[userid_or_flag], item_name, item)
             end
             BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, item)
         end

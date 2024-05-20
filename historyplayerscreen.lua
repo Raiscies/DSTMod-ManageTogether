@@ -8,6 +8,8 @@ if not TheNet:GetIsClient() then return end
 local M = manage_together
 local S = STRINGS.UI.HISTORYPLAYERSCREEN
 
+string.rtrim = M.rtrim
+
 require 'util'
 local Screen = require 'widgets/screen'
 local Widget = require 'widgets/widget'
@@ -35,6 +37,7 @@ local spinner_lean_images = {
 
 local Image = require 'widgets/image'
 local ImageButton = require 'widgets/imagebutton'
+local RadioButtons = require 'widgets/radiobuttons'
 local PlayerBadge = require 'widgets/playerbadge'
 local ScrollableList = require 'widgets/scrollablelist'
 
@@ -186,55 +189,102 @@ end
 
 local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc, on_submitted)
     -- M.ToPrefabName: returns nil if the name is not valid or else returns non-nil item prefab name string
-    
     local verify_fn = function(text)
-        self.the_item_prefab = M.ToPrefabName(text)
+        self.the_item_prefab = M.ToPrefabName(text:rtrim())
+        -- M.dbg('verify: text =', text, ', prefab =', self.the_item_prefab, '.')
         return self.the_item_prefab ~= nil
     end
     local submitted_fn = function()
-        on_submitted(self.the_item_prefab)
+        on_submitted(self.the_item_prefab, self.search_range)
     end
-    
     InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
     local width, height = self.bg:GetSize()
-    self.bg:SetSize(width, 170)
+    self.bg:SetSize(width, 250)
     
-    self.desc = desc
+    self.desc_text = desc
     -- description text
-    self.text = self.proot:AddChild(Text(NEWFONT, 28))
-    self.text:SetPosition(5, -15, 0)
-    self.text:SetString(self.desc)
-    self.text:SetColour(0, 0, 0, 1)
-    self.text:EnableWordWrap(true)
-    self.text:SetRegionSize(500, 160)
-    -- self.text:SetVAlign(ANCHOR_LEFT)
+    self.desc = self.proot:AddChild(Text(NEWFONT, 28))
+    self.desc:SetPosition(0, 110, 0)
+    self.desc:SetString(self.desc_text)
+    self.desc:SetColour(1, 1, 1, 1)
+    self.desc:EnableWordWrap(true)
+    self.desc:SetRegionSize(500, 160)
+    self.desc:SetVAlign(ANCHOR_MIDDLE)
 
+    local radio_button_settings = {
+        width = 170,
+        height = 40,
+        font = NEWFONT,
+        font_size = 23,
+        image_scale = 0.6,
+        atlas = "images/ui.xml",
+        on_image = "radiobutton_on.tex",
+        off_image = "radiobutton_off.tex",
+        normal_colour = {1, 1, 1, 1}, 
+        selected_colour = {1, 1, 1, 1},
+        hover_colour = {1, 1, 1, 1}
+    }
+    local radio_options = {
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_ONLINE_PLAYERS,  data = 0},
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_OFFLINE_PLAYERS, data = 1},
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS,         data = 2},
+    }
+    self.search_range = 0
+    self.search_range_ratio = self.proot:AddChild(RadioButtons(radio_options,  #radio_options * 170, 40, radio_button_settings, true))
+    self.search_range_ratio:SetPosition(-90, 70, 0)
+  
+    self.search_range_ratio:SetOnChangedFn(function(data)
+        self.search_range = data
+    end)
 
     -- enable item text prediction
-    self.edit_text:EnableWordPrediction({width = 1000, mode = 'enter_tab'})
+    self.edit_text:EnableWordPrediction({width = 800, mode = 'enter', pad_y = -75})
+    
+    
+    -- tweak the RefreshPredictions and Apply functions
+    -- add a implicit 'begin' character, to help the predictor correctly apply the predictted word to the textedit
+    local implicit_begin = '\0'
+    local OldRefreshPredictions = self.edit_text.prediction_widget.word_predictor.RefreshPredictions
+    self.edit_text.prediction_widget.word_predictor.RefreshPredictions = function(predictor, text, cursor_pos)
+        OldRefreshPredictions(predictor, implicit_begin .. text, cursor_pos + 1)
+    end
+    self.edit_text.prediction_widget.word_predictor.Apply = function(predictor, prediction_index)
+        local new_text = nil
+        local new_cursor_pos = nil
+        if predictor.prediction ~= nil then
+            local new_word = predictor.prediction.matches[math.clamp(prediction_index or 1, 1, #predictor.prediction.matches)]
 
+            -- no implicit_begin char in the application
+            new_text = new_word .. predictor.prediction.dictionary.postfix
+            new_cursor_pos = #new_text
+        end
+
+        predictor:Clear()
+        return new_text, new_cursor_pos
+    end
+    
     for _, dict in ipairs(M.GetItemDictionaries()) do
         self.edit_text:AddWordPredictionDictionary({
             words = dict, 
-            delim = '', 
+            delim = implicit_begin, 
             postfix = '', 
+            num_chars = 1,
+            GetDisplayString = function(word)
+                local detail_name =  not _G.Prefabs[word] and 
+                    M.LOCAL_NAME_REFERENCES[word] or -- local name -> prefab
+                    STRINGS.NAMES[word:upper()]      -- prefab -> local name
+                return detail_name and 
+                    word .. '(' .. detail_name .. ')' or 
+                    word
+            end
         })
     end
+
 end)
 
 function ItemStatDialog:GetItemPrefab()
     self:Verify()
     return self.the_item_prefab
-end
-
-
-local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
-    TheFrontEnd:PushScreen(InputVerificationDialog(
-        -- title
-        string.format(S.FMT_INPUT_TO_CONFIRM, required_text_tips, action_name),
-        verify_fn, 
-        on_confirmed_fn
-    ))
 end
 
 local function PopupDialog(title, text)
@@ -250,6 +300,19 @@ local function PopupDialog(title, text)
             }
         )
     )
+end
+
+local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
+    TheFrontEnd:PushScreen(InputVerificationDialog(
+        -- title
+        string.format(S.FMT_INPUT_TO_CONFIRM, required_text_tips, action_name),
+        verify_fn, 
+        on_confirmed_fn
+    ))
+end
+
+local function PopupItemStatDialog(title, desc, on_submitted_fn)
+    TheFrontEnd:PushScreen(ItemStatDialog(title, desc, on_submitted_fn))
 end
 
 
@@ -447,6 +510,19 @@ local function DoInitServerRelatedCommnadButtons(screen)
     else
         screen.set_new_player_joinability:TurnOff()
     end
+
+    CreateButtonOfServer(screen, 'make_item_stat', nil, false, function(vote_state)
+        PopupItemStatDialog(
+            vote_state and (S.START_A_VOTE .. S.MAKE_ITEM_STAT) or S.MAKE_ITEM_STAT, 
+            S.MAKE_ITEM_STAT_DESC, 
+            function(item_prefab, search_range)
+                -- on_submitted
+                M.dbg('make_item_stat: on_submitted: prefab = ', item_prefab, 'search_range = ', search_range)
+
+                ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, item_prefab)
+            end
+        )
+    end)
 
     CreateButtonOfServer(screen, 'vote', nil, false, function(vote_state)
         if vote_state then
