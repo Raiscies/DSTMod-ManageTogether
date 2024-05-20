@@ -139,6 +139,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     VOTE = '发起投票...',
     NO_VOTE = '取消发起投票',
     START_A_VOTE = '发起投票: ',
+    MAKE_ITEM_STAT_TITLE = '执行物品栏单项物品统计', 
+    MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的单项物品\n',
     REFRESH_RECORDS = '更新数据',
     REFRESH_RECORDS_DESC = '大多数时候你并不需要点击这个按钮, 但是如果发现有些显示数据有问题, 可以点一下试试', 
     -- player commands
