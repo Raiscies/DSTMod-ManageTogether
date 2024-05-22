@@ -8,7 +8,10 @@ local trans = ChooseTranslationTable({
 			大部分命令都可以作用于离线玩家;
 			部分设置如果没有你想要的选项, 请到存档的模组配置文件中修改.
 
-			*监督员投票选项中的'一致同意'指没有投票反对的玩家, 但是允许弃权.
+			* 如果模组没有记录到一个玩家的信息, 那么模组将不能对该玩家进行操作. 
+			  例如在一个已存在的存档中途启用本模组, 那么在启用本模组之前曾加入过服务器的玩家将不会被记录到.
+			  在启用模组之后玩家再加入服务器, 该玩家就会被成功记录.
+			* 监督员投票选项中的'一致同意'指没有投票反对的玩家, 但是允许弃权.
 		]],
 		options = {
 			yes = '是', 
@@ -45,6 +48,7 @@ local trans = ChooseTranslationTable({
 			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限' }, 
 			moderator_regenerate_world = {label = '允许监督员重新生成世界' },
 			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			moderator_make_item_stat_in_player_inventories = {label = '允许监督员执行物品栏单项物品统计'},
 			auto_control_title = '自动控制选项', 
 			user_elevate_in_age = {
 				label = '老玩家自动添加为监督员',
@@ -52,11 +56,11 @@ local trans = ChooseTranslationTable({
 				day = '天'
 			},
 			auto_new_player_wall_enabled = {
-				label = '启用新玩家过滤器', 
-				hover = '当在线玩家中不存在指定或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入\n新玩家指未曾加入过服务器的玩家, 曾加入过服务器的玩家不受限制' 
+				label = '启用新玩家连接性自动设置', 
+				hover = '当在线玩家中不存在指定或更高权限的玩家时自动禁止新玩家加入, 反之允许新玩家加入\n新玩家指未曾加入过服务器的玩家, 曾加入过服务器的玩家不受限制' 
 			},
 			auto_new_player_wall_min_level = {
-				label = '新玩家过滤器的条件',
+				label = '新玩家连接性自动设置的条件',
 				hover = '当在线玩家中不存在选项中的权限或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入', 
 				admin = '管理员不在线时',
 				moderator = '监督员和管理员都不在线时',
@@ -114,7 +118,8 @@ most of the commands are available applying to offline player.
 			moderator_add_moderator = {label = 'add another player to be moderator', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
 			moderator_remove_moderator = {label = 'remove another player\'s permission', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' }, 
 			moderator_regenerate_world = {label = 'regenerate world', hover = '投票中的一致同意指没有投票反对的玩家, 但是允许弃权' },
-			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			moderator_set_new_player_joinability = {label = 'set new player joinability', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			moderator_make_item_stat_in_player_inventories = {label = 'make item statistics'},
 			auto_control_title = 'Automatic Controls', 
 			user_elevate_in_age = {
 				label = 'auto add old player to be moderator',
@@ -268,6 +273,7 @@ configuration_options = {
 	moderator_option('moderator_remove_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true),
 	moderator_option('moderator_regenerate_world', NO),
 	moderator_option('moderator_set_new_player_joinability', VOTE_ONLY_AND_MAJORITY_YES),
+	moderator_option('moderator_make_item_stat_in_player_inventories', VOTE_ONLY_AND_MAJORITY_YES, nil),
 	title('auto_control_title'), 
 	option('user_elevate_in_age', nil, nil, {
 		{description =          trans.options.disabled, data = -1},

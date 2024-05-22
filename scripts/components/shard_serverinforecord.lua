@@ -652,6 +652,14 @@ function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
 end
 
+function ShardServerInfoRecord:SnapshotIDExists(snapshot_id)
+    for _, v in ipairs(self.snapshot_info.slots) do
+        if v.snapshot_id == snapshot_id then
+            return true
+        end
+    end
+    return false
+end
 
 function ShardServerInfoRecord:MakeModeratorUseridList()
     local result = {}

@@ -200,6 +200,8 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
     InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
     local width, height = self.bg:GetSize()
     self.bg:SetSize(width, 250)
+
+    self.edit_text:SetTextPrompt(S.MAKE_ITEM_STAT_TEXT_PROMPT, {0, 0, 0, .4})
     
     self.desc_text = desc
     -- description text

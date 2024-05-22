@@ -106,6 +106,10 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = '是否%s',
             TITLE = '我们应该修改新玩家可加入状态吗?'
         },
+        MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
+            FMT_ANNOUNCE = '是否对%s统计物品: %s(%s)',
+            TITLE = '我们应该执行物品栏单项物品统计吗?'
+        }
     }
 }
 
@@ -144,6 +148,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     MAKE_ITEM_STAT = '执行物品栏单项物品统计',
     MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的单项物品\n搜索支持当前语言的物品名和物品预制件名. ',
     MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
+    MAKE_ITEM_STAT_TEXT_PROMPT = '采下的草',
     REFRESH_RECORDS = '更新数据',
     REFRESH_RECORDS_DESC = '大多数时候你并不需要点击这个按钮, 但是如果发现有些显示数据有问题, 可以点一下试试', 
     -- player commands

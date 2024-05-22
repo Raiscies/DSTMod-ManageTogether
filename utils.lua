@@ -75,14 +75,33 @@ function M.rtrim(s)
     end
     return string.match(s, '^(.-)%s*$')
 end
-function M.in_range(x, a, b)
+function M.in_range(a, b, x)
     return type(x) == 'number' and
         a <= x and x <= b
 end
-function M.in_int_range(x, a, b)
+function M.in_int_range(a, b, x)
     return type(x) == 'number' and 
         math.type(x) == 'integer' and
         a <= x and x <= b
+end
+
+function M.in_table(tab, key) return tab[key] ~= nil end
+
+function M.partial(fn, ...)
+    local outter_args = {...}
+    return function(...)
+        fn(unpack(outter_args), ...)
+    end
+end
+
+function M.one_of(fn1, fn2, ...)
+    return fn1(...) or fn2(...)
+end
+function M.both_of(fn1, fn2, ...)
+    return fn1(...) and fn2(...)
+end
+function M.not_of(fn, ...)
+    return not fn(...)
 end
 
 -- little endian
@@ -383,8 +402,49 @@ end
 
 -- we should correctly handle item containers, 
 -- but we don't hope to have a very deep recursion for iterate container chain(if it is possible)
-M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH = 3
-local function count_item_in_slots_online(itemslots, target_item_prefab, current_depth, has_deeper_container)
+M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH = 4
+
+-- local function DefaultPreciseItemMatcher(keyword, item)
+--     return item.prefab == keyword
+-- end
+-- local function DefaultFuzzyItemMatcher(keyword, item)
+    
+--     -- return DefaultPreciseItemMatcher(keyword, item) or nil
+-- end
+
+-- M.ItemStator = Class(function(self, search_inv_range, keyword, is_online_inv, fuzzy_matching)
+--     self.range = search_inv_range
+--     self.keyword = keyword
+--     if fuzzy_matching ~= nil then
+--         self.fuzzy = fuzzy_matching
+--     else
+--         -- precise matching by default
+--         self.fuzzy = false
+--     end
+--     self:SetMatcher()
+--     self:SetMaxRecursionDepth()
+
+--     self.is_online_inv = is_online_inv
+-- end)
+
+-- function M.ItemStator:SetMatcher(matcher)
+--     if matcher then
+--         -- ignored self.fuzzy flag
+--         self.matcher = matcher
+--     else        
+--         self.matcher = self.fuzzy and DefaultFuzzyItemMatcher or DefaultPreciseItemMatcher
+--     end
+-- end
+-- function M.ItemStator:SetMaxSearchDepth(depth)
+--     self.max_search_depth = depth or M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH 
+-- end
+-- function Make()
+    
+-- end
+
+
+
+local function count_item_in_slots_online(itemslots, target_item_prefab, current_depth, has_deeper_container, matcher)
     local count = 0
 
     for _, item in pairs(itemslots) do
@@ -443,7 +503,7 @@ local function count_item_in_slots_offline(itemslots, target_item_prefab, curren
                     -- this item is a container
                     if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
                         local count_in_container
-                        count_in_container, has_deeper_container = count_item_in_slots_online(container.items, target_item_prefab, current_depth + 1, has_deeper_container)
+                        count_in_container, has_deeper_container = count_item_in_slots_offline(container.items, target_item_prefab, current_depth + 1, has_deeper_container)
                         count = count + count_in_container
                     else
                         has_deeper_container = true
