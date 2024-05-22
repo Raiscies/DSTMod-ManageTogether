@@ -590,7 +590,7 @@ M.AddCommands(
     {
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
-        checker = {        'number',             'uint'}, 
+        checker = {        'optnumber',             'optuint'}, 
         fn = function(doer, last_query_timestamp, block_index)
             return GetServerInfoComponent():PushPlayerRecordTo(doer.userid, last_query_timestamp, block_index)
         end 
