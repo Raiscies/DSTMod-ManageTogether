@@ -99,8 +99,6 @@ end
 function Functional.mid(f)
     return Function(function(...)
         local args = {...}
-        -- print(args[#args])
-        -- print(unpack(args, 1, #args - 1))
         return f(args[#args], unpack(args, 1, #args - 1))
     end)
 end
@@ -150,25 +148,16 @@ end
 
 
 local function pipline(f, g)
-    -- local f_type = type(f)
-    -- if f_type == 'string' then
-    --     -- unary operator
-    --     local operator = Functional.operator_map[f]
-    --     assert(operator ~= nil)
-    --     return operator.fn(g)
-    -- elseif f_type == 'table' and f.is_operator then
-    --     return f.fn(g)
-    -- end
-
-
     if is_operator(f) then
-        -- is unary operator, or the right hand side of a binary operator
-        -- eg:        NOT * g
+        -- is unary operator(must add a pair of brace), or the right hand side of a binary operator
+        -- eg:      (NOT * g)
         --     (f1 * ADD) * g
+
         return f.fn(g)
     elseif is_operator(g) then
         -- is binary operator
         -- eg: f1 * AND * f2
+        -- eg:  g * NOT
         return g.fn(f)
     else
         -- simple pipline 
@@ -179,33 +168,12 @@ local function pipline(f, g)
         ) 
     end
 
-
+    -- eg:
     --   f * AND * g     1 = fn, 2 = op
-    -- (f * ADD) * g     1 =   , 2 = fn
-    --       NOT * g     1 = op, 2 = fn
+    --   g * NOT         1 = fn, 2 = op
+    --      (NOT * g)    1 = op, 2 = fn
+    -- (f * ADD) * g     1 = op, 2 = fn
 
-    
-    -- _ = param(12) - fuck(inrange) * SUB * fuck(print)
-
-    -- if type(g) == 'string' then 
-    --     -- binary operator: left hand side
-    --     local operator = Functional.operator_map[g]
-    --     assert(operator ~= nil)
-    --     return operator.fn(f)
-    -- elseif type(f) == 'table' and f.binary_partial then 
-    --     -- binary operator: right hand side
-    --     return Function(
-    --         function(...)
-    --             return f(g)(...)
-    --         end
-    --     )
-    -- else
-    --     return Function(
-    --         function(...) 
-    --             return g(f(...)) 
-    --         end
-    --     ) 
-    -- end
 end
 
 
@@ -257,25 +225,10 @@ Functional.fuck  = Function
 Functional.param = Parameter
 Functional.from  = ParameterFrom
 Functional.op    = OperatorFrom
--- Functional.release = release
--- Functional.take = take
--- Functional.
--- Functional.mid   = mid
--- Functional.pl    = placeholder
--- Functional.
 
--- _ = puck('abc') - string.upper - (fuck(in_range)[12][100] + fuck(in_int_range)[-10][0])
-
--- puck(0) - (intable[tab] - 'or' - inrange[1][14])
-
---           let H(f, g)     equvalent to f - mid(H) - g
--- (checked) let H(f, g)     equvalent to f - 'op' - g
+-- (checked) let H(f, g)     equvalent to f - mid(H) - g
 -- (checked) let fun(x, ...) equvalent to x - mid(fun)[...]
--- (checked) let f(x)        equvalent to pack(x) - f
-
-
-
--- -- let H(f, g, ...) equvalent to a - mid(H) [b](...)
+-- (checked) let f(x)        equvalent to param(x) - f
 
 -- import functions
 function Functional.import(...)
@@ -290,13 +243,13 @@ function Functional.import(...)
     else
         local targets = {...}
         for _, fn_name in ipairs(targets) do
-            if Functional[fn_name] or Functional.builtin[fn_name] then
-                _G[fn_name] = Functional[fn_name] or Functional.builtin[fn_name]
+            if Functional[fn_name] then
+                _G[fn_name] = Functional[fn_name]
             end
         end
 
     end
 end
 
--- debug.debug()
+debug.debug()
 return Functional
