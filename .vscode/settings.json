@@ -90,7 +90,21 @@
         "log",
         "IsPlayerOnline",
         "announce_fmt",
-        "dbg"
+        "dbg",
+        "checkbool",
+        "checknumber",
+        "checkuint",
+        "checkstring",
+        "optbool",
+        "optnumber",
+        "optuint",
+        "optstring",
+        "CHECKERS",
+        "varg_pairs",
+        "announce",
+        "select_one",
+        "chain_get",
+        "key_exists"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
@@ -98,7 +112,7 @@
         "unused-function",
         "deprecated",
         "lowercase-global",
-        "undefined-global",
+        // "undefined-global",
         "undefined-field"
     ]
 }

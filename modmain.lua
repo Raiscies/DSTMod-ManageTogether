@@ -101,8 +101,8 @@ local function InitConfigs()
         modimport(localization_lang[M.LANGUAGE])
 
         -- set metatables, so we can display default language strings while localized strings are missing
-        setmetatable(STRINGS.UI.MANAGE_TOGETHER, { __index = STRINGS.UI.MANAGE_TOGETHER_DEFAULT})
-        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, { __index = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT})
+        setmetatable(STRINGS.UI.MANAGE_TOGETHER, { __index = STRINGS.UI.MANAGE_TOGETHER_DEFAULT })
+        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, { __index = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT })
     else
         -- alias
         STRINGS.UI.MANAGE_TOGETHER = STRINGS.UI.MANAGE_TOGETHER_DEFAULT
@@ -119,12 +119,6 @@ modimport('utils')
 local Functional = require 'functional.lua'
 
 M.using_namespace(M, GLOBAL, Functional)
-
-
--- local varg_pairs, dbg, chain_get, select_one, in_range, in_int_range, in_table = 
---     M.varg_pairs, M.dbg, M.chain_get, M.select_one, M.in_range, M.in_int_range, M.in_table
--- local announce, announce_fmt = M.announce, M.announce_fmt
--- local IsPlayerOnline = M.IsPlayerOnline
 
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
@@ -375,8 +369,6 @@ local function DefaultUserTargettedArgsDescription(userid, ...)
     end
 function M.AddCommand(info_table, command_fn, regen_permission_mask)
     assert(M.COMMAND_NUM < 64, 'error: the number of commands exceeded limitation(64)')
-    
-    -- local name, permission, player_targeted = info_table.name, info_table.permission, info_table.player_targeted
 
     local name, permission, args_description, checker, can_vote, user_targetted = 
         info_table.name, info_table.permission, info_table.args_description, info_table.checker, info_table.can_vote, info_table.user_targetted
@@ -527,77 +519,40 @@ end
 -- type checker
 
 
-M.CHECKER_TYPES = {
-    bool = GLOBAL.checkbool, 
-    number = GLOBAL.checknumber, 
-    uint = GLOBAL.checkuint, 
-    string = GLOBAL.checkstring,
-    optbool = GLOBAL.optbool,
-    optnumber = GLOBAL.optnumber, 
-    optuint = GLOBAL.optuint, 
-    optstring = GLOBAL.optstring,
+M.CHECKERS = {
+    bool      = checkbool, 
+    number    = checknumber, 
+    uint      = checkuint, 
+    string    = checkstring,
+    optbool   = optbool,
+    optnumber = optnumber, 
+    optuint   = optuint, 
+    optstring = optstring,
     
     userid_recorded = function(val) return GetPlayerRecord(val) ~= nil end, 
     -- unfortunately, lua's regex does not support repeat counting syntex like [%w%-_]{8}, 
     -- so we have to write it manually
-    userid_like = function(val) return GLOBAL.checkstring(val) and val:match('^KU_[%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_]$') ~= nil end, 
+    userid_like = function(val) return checkstring(val) and val:match('^KU_[%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_]$') ~= nil end, 
 
-    snapshot_id_like    = function(val) return GLOBAL.checkuint(val) and val > 0 end,
-    snapshot_id_existed = function(val) return GLOBAL.checkuint(val) and GetServerInfoComponent():SnapshotIDExists(val) end,
+    snapshot_id_like    = function(val) return checkuint(val) and val > 0 end,
+    snapshot_id_existed = function(val) return checkuint(val) and GetServerInfoComponent():SnapshotIDExists(val) end,
     
+    command_enum = function(val) return M.COMMAND[val] ~= nil end,
+    error_code   = function(val)  
+        if not checkuint(val) then return false end
+        for _, v in pairs(M.ERROR_CODE) do
+            if v == val then
+                return true
+            end
+        end
+        return false
+    end,
+
     ['nil'] = function(val) return val == nil end, 
     any = function() return true end,
 }
-M.CHECKER_TYPES.userid = M.CHECKER_TYPES.userid_like
-M.CHECKER_TYPES.none   = M.CHECKER_TYPES['nil']
-
-local function IsCommandEnum(cmd)
-    return type(cmd) == 'number' and M.COMMAND[cmd] ~= nil
-end
-
-local function IsPermissionLevel(level)
-    return type(level) == 'number' and table.contains(M.PERMISSION, level)
-end
-
-local function IsPermissionMask(mask)
-    return type(mask) == 'number' and 0 <= mask and mask <= M.PERMISSION_MASK[M.PERMISSION.ADMIN]
-end
-
-local function IsUserid(userid)
-    -- TODO: check if the string is actually a vaild user id
-    return type(userid) == 'string'
-end
-
-local function IsRollbackNumber(num)
-    if GLOBAL.TheNet:GetIsServer() then
-        local max_roll_count = #GetSnapshotInfo().slots
-        return type(num) == 'number' and (num <= max_roll_count or -num < max_roll_count)
-    else
-        return type(num) == 'number'
-    end
-end
-
-local function IsErrorCode(error_code)
-    if type(error_code) ~= 'number' then return false end
-    for _, v in pairs(M.ERROR_CODE) do
-        if v == error_code then
-            return true
-        end
-    end
-    return false
-end
-
-local function IsDay(day)
-    return type(day) == 'number' and (day >= -1)
-end
-
-local function IsSeason(season)
-    return type(season) == 'number' and 1 <= season and season <= 4
-end
-
-local function IsSnapshotID(id)
-    return type(id) == 'number' and id > 0
-end
+M.CHECKERS.userid = M.CHECKERS.userid_like
+M.CHECKERS.none   = M.CHECKERS['nil']
 
 local function PermissionLevel(userid)
     local record = GetPlayerRecord(userid)
@@ -615,7 +570,7 @@ M.AddCommands(
     {
         name = 'QUERY_HISTORY_PLAYERS', 
         permission = M.PERMISSION.MODERATOR, 
-        checker = {        'optnumber',             'optuint'}, 
+        checker = {        'optnumber',          'optuint'}, 
         fn = function(doer, last_query_timestamp, block_index)
             return GetServerInfoComponent():PushPlayerRecordTo(doer.userid, last_query_timestamp, block_index)
         end 
@@ -649,13 +604,13 @@ M.AddCommands(
         -- permission = M.PERMISSION.MODERATOR
         user_targetted = true, 
         can_vote = true, 
-        checker = { fun(M.CHECKER_TYPES.userid_recorded) *AND* IsPlayerOnline },
+        checker = {         IsPlayerOnline },
         fn = function(doer, target_userid)
             -- kick a player
             -- don't need to check target_userid, which has been checked on ExecuteCommand
-            if doer.userid == target_userid then
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            -- if doer.userid == target_userid then
+            --     return M.ERROR_CODE.BAD_TARGET
+            -- end
 
             GLOBAL.TheNet:Kick(target_userid)
             announce_fmt(S.FMT_KICKED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
@@ -669,9 +624,9 @@ M.AddCommands(
             -- kill a player, and let it drop everything
 
             -- check if the target exists
-            if doer.userid == target_userid then
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            -- if doer.userid == target_userid then
+            --     return M.ERROR_CODE.BAD_TARGET
+            -- end
 
             BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
         end
@@ -680,30 +635,32 @@ M.AddCommands(
         name = 'BAN',
         user_targetted = true, 
         can_vote = true,  
+        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.USER_BANNED end },
         fn = function(doer, target_userid)
             -- ban a player
-            local record = GetPlayerRecord(target_userid)
-            if doer.userid == target_userid or record.permission_level == M.PERMISSION.USER_BANNED then
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            -- local record = GetPlayerRecord(target_userid)
+            -- if record.permission_level == M.PERMISSION.USER_BANNED then
+            --     return M.ERROR_CODE.BAD_TARGET
+            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             GLOBAL.TheNet:Ban(target_userid)
-            announce_fmt(S.FMT_BANNED_PLAYER, record.name, target_userid)
+            announce_fmt(S.FMT_BANNED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
         end
     },
     {
         name = 'KILLBAN', 
         user_targetted = true, 
         can_vote = true, 
+        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.USER_BANNED end },
         fn = function(doer, target_userid)
             -- kill and ban a player
-            local record = GetPlayerRecord(target_userid)
+            -- local record = GetPlayerRecord(target_userid)
 
             -- check if the target exists
-            if not record or doer.userid == target_userid and record.permission_level == M.PERMISSION.USER_BANNED then
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            -- if record.permission_level == M.PERMISSION.USER_BANNED then
+            --     return M.ERROR_CODE.BAD_TARGET
+            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             BroadcastShardCommand(M.COMMAND_ENUM.KILLBAN, target_userid)
@@ -728,9 +685,7 @@ M.AddCommands(
         end,
         fn = function(doer, target_snapshot_id)
             local comp = GetServerInfoComponent()
-            if not IsSnapshotID(target_snapshot_id) then
-                return M.ERROR_CODE.BAD_ARGUMENT
-            elseif comp:GetIsRollingBack() then
+            if comp:GetIsRollingBack() then
                 announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
@@ -768,45 +723,34 @@ M.AddCommands(
         name = 'ADD_MODERATOR', 
         can_vote = true, 
         user_targetted = true, 
+        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.MODERATOR end},
         fn = function(doer, target_userid)
             -- add a player as moderator
-            local target_record = GetPlayerRecord(target_userid)
-            if target_record.permission_level == M.PERMISSION.MODERATOR then
-                -- target is alreay a moderator
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
-            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
-
-            -- if IsPlayerOnline(target_userid) then
-            --     GLOBAL.TheWorld:DoTaskInTime(1, function()
-            --         local permission_level = PermissionLevel(target_userid)
-            --         M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
-            --     end)
+            -- local target_record = GetPlayerRecord(target_userid)
+            -- if target_record.permission_level == M.PERMISSION.MODERATOR then
+            --     -- target is alreay a moderator
+            --     return M.ERROR_CODE.BAD_TARGET
             -- end
-
+            
+            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
+            
         end
     },
     {
         name = 'REMOVE_MODERATOR', 
         can_vote = true,
         user_targetted = true,
+        checker = {         function(userid) return PermissionLevel(userid) == M.PERMISSION.MODERATOR end},
         fn = function(doer, target_userid)
             -- remove a moderator 
-            local target_record = GetPlayerRecord(target_userid)
-            if target_record.permission_level ~= M.PERMISSION.MODERATOR then
-                -- target is not a moderator
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            -- local target_record = GetPlayerRecord(target_userid)
+            -- if target_record.permission_level ~= M.PERMISSION.MODERATOR then
+            --     -- target is not a moderator
+            --     return M.ERROR_CODE.BAD_TARGET
+            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
-            -- if M.IsPlayerOnline(target_userid) then
-            --     GLOBAL.TheWorld:DoTaskInTime(1, function()
-            --         local permission_level = PermissionLevel(target_userid)
-            --         M.COMMAND[M.COMMAND_ENUM.QUERY_PERMISSION].fn(doer, nil)
-            --     end)
-            -- end
         end
     }, 
     {
@@ -826,12 +770,8 @@ M.AddCommands(
     {
         name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
-        checker = {         'bool',  fun(in_table)[M.PERMISSION_ORDER]}, 
+        checker = {         'bool',  fun(key_exists)[M.PERMISSION_ORDER]}, 
         fn = function(doer, enabled, min_online_player_level)
-
-            -- if not M.PERMISSION_ORDER[min_online_player_level] then
-            --     return M.ERROR_CODE.BAD_ARGUMENT
-            -- end
 
             -- only admin can set min_online_player_level
             -- moderator's argument of this will be ignore
@@ -849,7 +789,7 @@ M.AddCommands(
         can_vote = true, 
         checker = {
             -- param userid_or_flag
-            fun(M.CHECKER_TYPES.userid_recorded) *OR* fun(in_table)[ITEM_STAT_CATEGORY],
+            fun(M.CHECKERS.userid_recorded) *OR* fun(key_exists)[ITEM_STAT_CATEGORY],
             -- param item_prefab
             'string'
         },
@@ -872,11 +812,6 @@ M.AddCommands(
             --     [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
             -- }
 
-            -- if not type(item) == 'string' or
-            --     not (IsUserid(userid_or_flag) or type(userid_or_flag) == 'number' and ITEM_STAT_CATEGORY[userid_or_flag])
-            -- then
-            --     return M.ERROR_CODE.BAD_ARGUMENT
-            -- end
             -- do announce
             local item_name = GLOBAL.STRINGS.NAMES[string.upper(item)] or GLOBAL.STRINGS.NAMES.UNKNOWN
             if type(userid_or_flag) == 'string' then
@@ -939,9 +874,8 @@ M.SHARD_COMMAND = {
     end,
     [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, item)
         
-        if IsUserid(userid_or_flag) then
-            local record = GetPlayerRecord(userid_or_flag)
-            if not record or not record.in_this_shard then return end
+        if M.CHECKERS.userid_recorded(userid_or_flag) then
+            if not GetPlayerRecord(userid_or_flag).in_this_shard then return end
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item))
             return
         end
@@ -1056,22 +990,22 @@ local function RegisterRPCs()
 
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND, 
     function(cmd, result) 
-        if IsCommandEnum(cmd) and IsErrorCode(result) then
+        -- if IsCommandEnum(cmd) and IsErrorCode(result) then
+        if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
             dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
         else
             dbg('received from server(send command): server drunk')
         end
-    end
-    )
+    end)
+
     AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND, 
     function(cmd, result) 
-        if IsCommandEnum(cmd) and IsErrorCode(result) then
+        if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
             dbg('received from server(send vote command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
         else
             dbg('received from server(send vote command): server drunk')
         end
-    end
-    )
+    end)
     
     -- shard rpcs
 
@@ -1124,7 +1058,7 @@ end
 
 function M.CheckArgs(checkers, ...)
     local checkertype = type(checkers)
-    local checkertypes_category = M.CHECKER_TYPES
+    local checkertypes_category = M.CHECKERS
     if checkertype == 'table' then
         for i, v in varg_pairs(...) do
             local the_checker = checkers[i]
@@ -1157,18 +1091,19 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
     end
 
     -- check data validity: cmd, args
-    if not IsCommandEnum(cmd) then
+    if not CHECKERS.command_enum(cmd) then
         -- bad command type
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
-    elseif M.COMMAND[cmd].player_targeted then
+    elseif M.COMMAND[cmd].user_targetted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = GetPlayerRecord(select_one(1, ...))
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
         elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
             -- permission is not allowed if theirs level are the same
+            -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
     end
@@ -1186,19 +1121,20 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
 end
 function M.StartCommandVote(executor, cmd, ...)
     local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
-    if not IsCommandEnum(cmd) then
+    if not CHECKERS.command_enum(cmd) then
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
     elseif not M.COMMAND[cmd].can_vote then
         return M.ERROR_CODE.COMMAND_NOT_VOTABLE
-    elseif M.COMMAND[cmd].player_targeted then
+    elseif M.COMMAND[cmd].user_targetted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = GetPlayerRecord(select_one(1, ...))
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
         elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
             -- permission is not allowed if theirs level are the same
+            -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
     end
