@@ -101,8 +101,8 @@ local function InitConfigs()
         modimport(localization_lang[M.LANGUAGE])
 
         -- set metatables, so we can display default language strings while localized strings are missing
-        setmetatable(STRINGS.UI.MANAGE_TOGETHER, STRINGS.UI.MANAGE_TOGETHER_DEFAULT)
-        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT)
+        setmetatable(STRINGS.UI.MANAGE_TOGETHER, { __index = STRINGS.UI.MANAGE_TOGETHER_DEFAULT})
+        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, { __index = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT})
     else
         -- alias
         STRINGS.UI.MANAGE_TOGETHER = STRINGS.UI.MANAGE_TOGETHER_DEFAULT
@@ -168,6 +168,13 @@ local function GenerateCommandRPCName(tab)
         M.RPC[v] = v
     end
 end
+
+setmetatable(M.RPC, {
+    __index = function(t, k)
+        
+    end
+})
+
 GenerateCommandRPCName({
     -- 'QUERY_PERMISSION', 
     'SEND_COMMAND', 

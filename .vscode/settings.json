@@ -98,6 +98,7 @@
         "unused-function",
         "deprecated",
         "lowercase-global",
+        "undefined-global",
         "undefined-field"
     ]
 }
