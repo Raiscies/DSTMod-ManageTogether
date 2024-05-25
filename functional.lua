@@ -16,7 +16,7 @@ Functional.category = {
     BINARY_OPERATOR = 2
 }
 
-local Function, Parameter, ParameterFrom, is_functional_object, is_parameter_object
+local Function, Parameter, ParameterFrom, OperatorFrom, is_functional_object, is_parameter_object
 
 local function apply(f, ...)
     if type(f) == 'function' then
@@ -126,16 +126,20 @@ Functional.operator_map = {}
 Functional.operator = {}
 
 local operators = {
-    make_operator(                            function(g) return Function(function(...) return         -   g(...) end) end     , {'NEG', 'neg', '-'} ),
-    make_operator(                            function(g) return Function(function(...) return         not g(...) end) end     , {'NOT', 'not', '!'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) and g(...) end) end) end, {'AND', 'and', '&'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) or  g(...) end) end) end, {'OR' , 'or' , '|'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) +   g(...) end) end) end, {'ADD', 'add', '+'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) -   g(...) end) end) end, {'SUB', 'sub', '-'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) *   g(...) end) end) end, {'MUL', 'mul', '*'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) /   g(...) end) end) end, {'DIV', 'div', '/'} ),
-    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) %   g(...) end) end) end, {'MOD', 'mod', '%'} ),
+    make_operator(                            function(g) return Function(function(...) return         -   g(...) end) end     , {'NEG', 'neg', '-' }),
+    make_operator(                            function(g) return Function(function(...) return         not g(...) end) end     , {'NOT', 'not', '!' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) and g(...) end) end) end, {'AND', 'and', '&' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) or  g(...) end) end) end, {'OR' , 'or' , '|' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) +   g(...) end) end) end, {'ADD', 'add', '+' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) -   g(...) end) end) end, {'SUB', 'sub', '-' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) *   g(...) end) end) end, {'MUL', 'mul', '*' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) /   g(...) end) end) end, {'DIV', 'div', '/' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) %   g(...) end) end) end, {'MOD', 'mod', '%' }),
     make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) ..  g(...) end) end) end, {'CON', 'con', '..'}),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) <   g(...) end) end) end, {'LES', 'les', '<' }),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) <=  g(...) end) end) end, {'LEQ', 'leq', '<='}),
+    make_operator(function(f) return Operator(function(g) return Function(function(...) return  f(...) ==  g(...) end) end) end, {'EQU', 'equ', '=='}),
+
 }
 for _, v in ipairs(operators) do
     for _, alias in ipairs(v.alias) do
@@ -244,10 +248,15 @@ ParameterFrom = function(tab)
     end
     return setmetatable({args = tab}, ParameterMeta)
 end
+OperatorFrom = function(op)
+    return Functional.operator_map[op]
+end
+
 Functional.fun   = Function
 Functional.fuck  = Function
 Functional.param = Parameter
 Functional.from  = ParameterFrom
+Functional.op    = OperatorFrom
 -- Functional.release = release
 -- Functional.take = take
 -- Functional.
