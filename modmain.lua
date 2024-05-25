@@ -633,7 +633,7 @@ M.AddCommands(
         name = 'BAN',
         user_targetted = true, 
         can_vote = true,  
-        checker = {         fun(PermissionLevel) * (NOT * fun(LevelSameAs)[M.PERMISSION.USER_BANNED]) },
+        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- ban a player
 
@@ -646,7 +646,7 @@ M.AddCommands(
         name = 'KILLBAN', 
         user_targetted = true, 
         can_vote = true, 
-        checker = {          fun(PermissionLevel) * (NOT * fun(LevelSameAs)[M.PERMISSION.USER_BANNED])  },
+        checker = {          fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- kill and ban a player
 
