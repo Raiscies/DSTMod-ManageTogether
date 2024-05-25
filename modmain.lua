@@ -41,8 +41,14 @@ function M.LevelHigherThan(a_lvl, b_lvl)
 
     return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
 end
-function M.LevelHigherOrEqualThan(a_lvl, b_lvl)
+function M.LevelHigherThanOrEqual(a_lvl, b_lvl)
     return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
+end
+function M.LevelEqual(a_lvl, b_lvl)
+    return M.PERMISSION_ORDER[a_lvl] == M.PERMISSION_ORDER[b_lvl]
+end
+function M.LevelSameAs(a_lvl, b_lvl)
+    return a_lvl == b_lvl
 end
 
 -- configs
@@ -440,7 +446,7 @@ function M.GeneratePermissionBitMasks()
     for cmd_name, cmd_enum in pairs(M.COMMAND_ENUM) do
 
         for perm_name, perm_lvl in pairs(M.PERMISSION) do
-            if M.LevelHigherOrEqualThan(perm_lvl, M.COMMAND[cmd_enum].permission) then
+            if M.LevelHigherThanOrEqual(perm_lvl, M.COMMAND[cmd_enum].permission) then
                 
                 if not M.IsVotePermissionLevel(perm_name) or M.COMMAND[cmd_enum].can_vote then
                     -- 1. permission level is not a vote permission level
@@ -608,9 +614,6 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kick a player
             -- don't need to check target_userid, which has been checked on ExecuteCommand
-            -- if doer.userid == target_userid then
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
 
             GLOBAL.TheNet:Kick(target_userid)
             announce_fmt(S.FMT_KICKED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
@@ -623,11 +626,6 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
-            -- check if the target exists
-            -- if doer.userid == target_userid then
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
-
             BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
         end
     },
@@ -635,13 +633,9 @@ M.AddCommands(
         name = 'BAN',
         user_targetted = true, 
         can_vote = true,  
-        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.USER_BANNED end },
+        checker = {         fun(PermissionLevel) * (NOT * fun(LevelSameAs)[M.PERMISSION.USER_BANNED]) },
         fn = function(doer, target_userid)
             -- ban a player
-            -- local record = GetPlayerRecord(target_userid)
-            -- if record.permission_level == M.PERMISSION.USER_BANNED then
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             GLOBAL.TheNet:Ban(target_userid)
@@ -652,15 +646,9 @@ M.AddCommands(
         name = 'KILLBAN', 
         user_targetted = true, 
         can_vote = true, 
-        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.USER_BANNED end },
+        checker = {          fun(PermissionLevel) * (NOT * fun(LevelSameAs)[M.PERMISSION.USER_BANNED])  },
         fn = function(doer, target_userid)
             -- kill and ban a player
-            -- local record = GetPlayerRecord(target_userid)
-
-            -- check if the target exists
-            -- if record.permission_level == M.PERMISSION.USER_BANNED then
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             BroadcastShardCommand(M.COMMAND_ENUM.KILLBAN, target_userid)
@@ -723,15 +711,10 @@ M.AddCommands(
         name = 'ADD_MODERATOR', 
         can_vote = true, 
         user_targetted = true, 
-        checker = {         function(userid) return PermissionLevel(userid) ~= M.PERMISSION.MODERATOR end},
+        checker = {         fun(LevelHigherThan)[M.PERMISSION.MODERATOR] * PermissionLevel},
         fn = function(doer, target_userid)
             -- add a player as moderator
-            -- local target_record = GetPlayerRecord(target_userid)
-            -- if target_record.permission_level == M.PERMISSION.MODERATOR then
-            --     -- target is alreay a moderator
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
-            
+
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
             
         end
@@ -740,14 +723,9 @@ M.AddCommands(
         name = 'REMOVE_MODERATOR', 
         can_vote = true,
         user_targetted = true,
-        checker = {         function(userid) return PermissionLevel(userid) == M.PERMISSION.MODERATOR end},
+        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.MODERATOR]},
         fn = function(doer, target_userid)
             -- remove a moderator 
-            -- local target_record = GetPlayerRecord(target_userid)
-            -- if target_record.permission_level ~= M.PERMISSION.MODERATOR then
-            --     -- target is not a moderator
-            --     return M.ERROR_CODE.BAD_TARGET
-            -- end
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
 
@@ -795,9 +773,9 @@ M.AddCommands(
         },
         args_description = function(userid_or_flag, item_prefab)
             return 
-                type(userid_or_flag) == 'number' and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name,  
-                (STRINGS.NAMES[item_prefab:upper()] or STRINGS.NAMES.UNKNOWN), 
-                item_prefab
+                CHECKERS.uint(userid_or_flag) and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name,  -- target string
+                (STRINGS.NAMES[item_prefab:upper()] or STRINGS.NAMES.UNKNOWN),                                                 -- item name string
+                item_prefab                                                                                                    -- item prefab string
         end,
         fn = function(doer, userid_or_flag, item)
             -- userid_or_flag: a target userid or a flag
@@ -805,12 +783,6 @@ M.AddCommands(
             -- 0: all of the online players
             -- 1: all of the offline players(recorded offline players)
             -- 2: all of the online & offline(recorded) players
-
-            -- local target_players_string = {
-            --     [0] = S.MAKE_ITEM_STAT_OPTIONS.ALL_ONLINE_PLAYERS, 
-            --     [1] = S.MAKE_ITEM_STAT_OPTIONS.ALL_OFFLINE_PLAYERS,
-            --     [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
-            -- }
 
             -- do announce
             local item_name = GLOBAL.STRINGS.NAMES[string.upper(item)] or GLOBAL.STRINGS.NAMES.UNKNOWN
@@ -1109,7 +1081,7 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
     end
 
     local checker = M.COMMAND[cmd].checker
-    if checker and not M.CheckArgs(checker, ...) then
+    if checker and not CheckArgs(checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
@@ -1140,7 +1112,7 @@ function M.StartCommandVote(executor, cmd, ...)
     end
     
     local checker = M.COMMAND[cmd].checker
-    if checker and not M.CheckArgs(checker, ...) then
+    if checker and not CheckArgs(checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
@@ -1199,7 +1171,7 @@ if GLOBAL.TheNet:GetIsClient() then
 M.ATLAS = 'images/manage_together_integrated.xml'
 Assets = {
     Asset('ATLAS', M.ATLAS), 
-    Asset('IMAGE', 'images/manage_together_integrated.tex')
+    Asset('IMAGE', M.ATLAS:gsub('%.xml$', '%.tex'))
 }
 
 modimport('historyplayerscreen')

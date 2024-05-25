@@ -483,7 +483,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
 
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
-        new_state = M.LevelHigherOrEqualThan(current_min_online_player_level, required_min_level)
+        new_state = M.LevelHigherThanOrEqual(current_min_online_player_level, required_min_level)
     end
     -- judge the new_state ended
 

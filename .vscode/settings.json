@@ -104,7 +104,14 @@
         "announce",
         "select_one",
         "chain_get",
-        "key_exists"
+        "key_exists",
+        "EQU",
+        "NOT",
+        "LevelSame",
+        "LevelSameAs",
+        "mid",
+        "LevelHigherThan",
+        "CheckArgs"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
