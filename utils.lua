@@ -1,10 +1,29 @@
 
-GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
 
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
-local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
+GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+
+function M.using_namespace(...)
+    local oldmetatable = getmetatable(env)
+    local nss = {...}
+    setmetatable(env, {
+        __index = function(t, k)
+            for _, ns in ipairs(nss) do
+                local from_ns = ns.__index(t, k)
+                if from_ns ~= nil then
+                    return from_ns
+                end
+            end
+            return oldmetatable.__index(t, k)
+        end
+    })
+end
+
+M.using_namespace(M)
+
+local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
 local insert, concat = table.insert, table.concat
 local byte = string.byte
 
@@ -16,10 +35,10 @@ function M.varg_iter(arr, i)
 end
 
 function M.varg_pairs(...)
-    return M.varg_iter, {n = select('#', ...), ...}, 0
+    return varg_iter, {n = select('#', ...), ...}, 0
 end
 
-local varg_pairs = M.varg_pairs
+-- local varg_pairs = M.varg_pairs
 
 function M.chain_get(root, ...) 
 
@@ -87,23 +106,6 @@ end
 
 function M.key_exists(tab, key) return tab[key] ~= nil end
 
-function M.partial(fn, ...)
-    local outter_args = {...}
-    return function(...)
-        fn(unpack(outter_args), ...)
-    end
-end
-
-function M.one_of(fn1, fn2, ...)
-    return fn1(...) or fn2(...)
-end
-function M.both_of(fn1, fn2, ...)
-    return fn1(...) and fn2(...)
-end
-function M.not_of(fn, ...)
-    return not fn(...)
-end
-
 -- little endian
 function M.concatbit32to64(low32, high32)
     -- low32 | high32 << 32
@@ -139,9 +141,7 @@ M.dbg = M.DEBUG and function(...)
     print('[ManageTogether] ' .. s)
 end or function(...) end
 
-local dbg, log, chain_get = M.dbg, M.log, M.chain_get
-
-
+-- local dbg, log, chain_get = M.dbg, M.log, M.chain_get
 
 
 function M.announce(s, ...)
@@ -149,14 +149,14 @@ function M.announce(s, ...)
 end
 
 function M.announce_fmt(pattern, ...)
-    M.announce(string.format(pattern, ...))
+    announce(string.format(pattern, ...))
 end
 
 function M.announce_vote(s)
-    M.announce(s, nil, nil, 'vote')
+    announce(s, nil, nil, 'vote')
 end
 function M.announce_vote_fmt(pattern, ...)
-    M.announce(string.format(pattern, ...), nil, nil, 'vote')
+    announce(string.format(pattern, ...), nil, nil, 'vote')
 end
 
 function M.IsPlayerOnline(userid)
@@ -194,7 +194,7 @@ function M.BuildSeasonString(season_enum)
 end
 
 function M.BuildDaySeasonString(day, season_enum)
-    return M.BuildDayString(day) .. '-' .. M.BuildSeasonString(season_enum)
+    return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
 end
 
 function M.IsNewestRollbackSlotValid()
@@ -296,7 +296,7 @@ function M.ToPrefabName(s)
     -- a localized item name;
     
     -- try to generate the refs in case the tables haven't exist yet
-    M.GetItemDictionaries()
+    GetItemDictionaries()
     
     if M.LOCAL_NAME_REFERENCES[s] then
         return M.LOCAL_NAME_REFERENCES[s] --> prefab name
