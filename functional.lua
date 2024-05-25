@@ -1,4 +1,11 @@
 
+
+if not _G then
+    _G = GLOBAL
+    
+    GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+end
+
 local unpack = table.unpack and table.unpack or _G.unpack
 
 Functional = {}
@@ -237,6 +244,7 @@ ParameterFrom = function(tab)
     end
     return setmetatable({args = tab}, ParameterMeta)
 end
+Functional.fun   = Function
 Functional.fuck  = Function
 Functional.param = Parameter
 Functional.from  = ParameterFrom
@@ -281,5 +289,5 @@ function Functional.import(...)
     end
 end
 
-debug.debug()
+-- debug.debug()
 return Functional

@@ -105,12 +105,15 @@ InitConfigs()
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
 modimport('utils')
+local Functional = require 'functional.lua'
 
-local varg_pairs, dbg, chain_get, select_one, partial, in_range, in_int_range, in_table = 
-    M.varg_pairs, M.dbg, M.chain_get, M.select_one, M.partial, M.in_range, M.in_int_range, M.in_table
-local one_of, both_of, not_of = M.one_of, M.both_of, M.not_of
-local announce, announce_fmt = M.announce, M.announce_fmt
-local IsPlayerOnline = M.IsPlayerOnline
+M.using_namespace(M, GLOBAL, Functional)
+
+
+-- local varg_pairs, dbg, chain_get, select_one, in_range, in_int_range, in_table = 
+--     M.varg_pairs, M.dbg, M.chain_get, M.select_one, M.in_range, M.in_int_range, M.in_table
+-- local announce, announce_fmt = M.announce, M.announce_fmt
+-- local IsPlayerOnline = M.IsPlayerOnline
 
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
@@ -509,14 +512,12 @@ M.CHECKER_TYPES = {
     optnumber = GLOBAL.optnumber, 
     optuint = GLOBAL.optuint, 
     optstring = GLOBAL.optstring,
-
     
     userid_recorded = function(val) return GetPlayerRecord(val) ~= nil end, 
     -- unfortunately, lua's regex does not support repeat counting syntex like [%w%-_]{8}, 
     -- so we have to write it manually
     userid_like = function(val) return GLOBAL.checkstring(val) and val:match('^KU_[%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_]$') ~= nil end, 
 
-    
     snapshot_id_like    = function(val) return GLOBAL.checkuint(val) and val > 0 end,
     snapshot_id_existed = function(val) return GLOBAL.checkuint(val) and GetServerInfoComponent():SnapshotIDExists(val) end,
     
@@ -624,7 +625,7 @@ M.AddCommands(
         -- permission = M.PERMISSION.MODERATOR
         user_targetted = true, 
         can_vote = true, 
-        checker = {         function(val) return M.CHECKER_TYPES.userid_recorded(val) and IsPlayerOnline(val) end},
+        checker = { fun(M.CHECKER_TYPES.userid_recorded) *AND* IsPlayerOnline },
         fn = function(doer, target_userid)
             -- kick a player
             -- don't need to check target_userid, which has been checked on ExecuteCommand
@@ -654,7 +655,7 @@ M.AddCommands(
     {
         name = 'BAN',
         user_targetted = true, 
-        can_vote = true, 
+        can_vote = true,  
         fn = function(doer, target_userid)
             -- ban a player
             local record = GetPlayerRecord(target_userid)
@@ -801,7 +802,7 @@ M.AddCommands(
     {
         name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
-        checker = {         'bool',  partial(in_table, M.PERMISSION_ORDER)}, 
+        checker = {         'bool',  fun(in_table)[M.PERMISSION_ORDER]}, 
         fn = function(doer, enabled, min_online_player_level)
 
             -- if not M.PERMISSION_ORDER[min_online_player_level] then
@@ -822,7 +823,12 @@ M.AddCommands(
     {
         name = 'MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES', 
         can_vote = true, 
-        checker = { partial(one_of, M.CHECKER_TYPES.userid_recorded, partial(in_table, ITEM_STAT_CATEGORY)), 'string'},
+        checker = {
+            -- param userid_or_flag
+            fun(M.CHECKER_TYPES.userid_recorded) *OR* fun(in_table)[ITEM_STAT_CATEGORY],
+            -- param item_prefab
+            'string'
+        },
         args_description = function(userid_or_flag, item_prefab)
             return 
                 type(userid_or_flag) == 'number' and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name,  

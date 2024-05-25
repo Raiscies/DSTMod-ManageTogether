@@ -78,7 +78,16 @@
         "net_byte",
         "NEWFONT",
         "GetTick",
-        "net_uint"
+        "net_uint",
+        "fuck",
+        "OR",
+        "fun",
+        "AND",
+        "bit",
+        "log",
+        "IsPlayerOnline",
+        "announce_fmt",
+        "dbg"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

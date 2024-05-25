@@ -1,5 +1,5 @@
 
-GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+-- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
 
 -- GUI - clients only
 if not TheNet:GetIsClient() then return end
@@ -7,6 +7,8 @@ if not TheNet:GetIsClient() then return end
 -- shortened aliasis
 local M = manage_together
 local S = STRINGS.UI.HISTORYPLAYERSCREEN
+
+M.using_namespace(M, GLOBAL)
 
 string.rtrim = M.rtrim
 
