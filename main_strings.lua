@@ -1,7 +1,7 @@
 GLOBAL.setmetatable(env,{__index=function(t,k) return GLOBAL.rawget(GLOBAL,k) end})
 
 -- string constants
-STRINGS.UI.MANAGE_TOGETHER = {
+STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     
     -- announcement
     ANNOUNCE_PREFIX = '[共同管理] ',
@@ -113,7 +113,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     }
 }
 
-STRINGS.UI.HISTORYPLAYERSCREEN = {
+STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ADMIN = '管理员',
     MODERATOR = '监督员', 
     TOGGLE_BUTTON_TEXT = {

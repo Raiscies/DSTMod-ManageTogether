@@ -1,3 +1,27 @@
+
+-- option enum constants 
+local NO, YES, VOTE_ONLY_AND_MAJORITY_YES, VOTE_ONLY_AND_UNANIMOUS_YES = 0, 1, 2, 3
+
+default_permission_configs = {
+	moderator_save = YES,
+	moderator_rollback = YES,
+	moderator_kick = YES,
+	moderator_kill = VOTE_ONLY_AND_MAJORITY_YES,
+	moderator_ban = VOTE_ONLY_AND_MAJORITY_YES,
+	moderator_killban = VOTE_ONLY_AND_MAJORITY_YES,
+	moderator_add_moderator = VOTE_ONLY_AND_UNANIMOUS_YES,
+	moderator_remove_moderator = VOTE_ONLY_AND_UNANIMOUS_YES,
+	moderator_regenerate_world = NO,
+	moderator_set_new_player_joinability = VOTE_ONLY_AND_MAJORITY_YES,
+	moderator_make_item_stat_in_player_inventories = VOTE_ONLY_AND_MAJORITY_YES,
+
+}
+
+if LOAD_FOR_DEFAULT_PERMISSION_CONFIG then
+	return
+end
+
+
 local trans = ChooseTranslationTable({
 	{
 		name = '共同管理-历史玩家信息(GUI)',
@@ -181,13 +205,12 @@ local function title(field_name, label)
 end
 
 
--- option enum constants 
-local NO, YES, VOTE_ONLY_AND_MAJORITY_YES, VOTE_ONLY_AND_UNANIMOUS_YES = 0, 1, 2, 3
 
-local function binary_option(name, default_selection, label, hover)
+local function binary_option(name, label, hover)
+	default_selection = default_permission_configs[name]
 	-- handle boolean input
-	if default_selection == nil or default_selection == false then 
-		default_selection = NO 
+	if default_selection == nil or default_selection == false then
+		default_selection = NO
 	elseif default_selection == true then
 		default_selection = YES
 	end
@@ -204,8 +227,9 @@ local function binary_option(name, default_selection, label, hover)
 	}
 end
 
-local function moderator_option(name, default_selection, label, hover, disable_yes_option)
-	if default_selection == nil then default_selection = NO end
+local function moderator_option(name, label, hover, disable_yes_option)
+	-- if default_selection == nil then default_selection = NO end
+	default_selection = default_permission_configs[name] or NO
 	local options = {
 		{description = opt(name, 'vote_only_and_majority_yes', trans.options.vote_only_and_majority_yes), data = VOTE_ONLY_AND_MAJORITY_YES},
 		{description = opt(name, 'vote_only_and_unanimous_yes', trans.options.vote_only_and_unanimous_yes), data = VOTE_ONLY_AND_UNANIMOUS_YES},
@@ -263,17 +287,17 @@ configuration_options = {
 		{description = '12', data = 12},
 	}, 3),
 	title('moderator_title'),
-	binary_option('moderator_save', YES), 
-	moderator_option('moderator_rollback', YES), 
-	moderator_option('moderator_kick', YES),
-	moderator_option('moderator_kill', VOTE_ONLY_AND_MAJORITY_YES), 
-	moderator_option('moderator_ban', VOTE_ONLY_AND_MAJORITY_YES), 
-	moderator_option('moderator_killban', VOTE_ONLY_AND_MAJORITY_YES),
-	moderator_option('moderator_add_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true), 
-	moderator_option('moderator_remove_moderator', VOTE_ONLY_AND_UNANIMOUS_YES, nil, nil, true),
-	moderator_option('moderator_regenerate_world', NO),
-	moderator_option('moderator_set_new_player_joinability', VOTE_ONLY_AND_MAJORITY_YES),
-	moderator_option('moderator_make_item_stat_in_player_inventories', VOTE_ONLY_AND_MAJORITY_YES, nil),
+	binary_option('moderator_save'), 
+	moderator_option('moderator_rollback'), 
+	moderator_option('moderator_kick'),
+	moderator_option('moderator_kill'), 
+	moderator_option('moderator_ban'), 
+	moderator_option('moderator_killban'),
+	moderator_option('moderator_add_moderator', nil, nil, true), 
+	moderator_option('moderator_remove_moderator', nil, nil, true),
+	moderator_option('moderator_regenerate_world'),
+	moderator_option('moderator_set_new_player_joinability'),
+	moderator_option('moderator_make_item_stat_in_player_inventories', nil),
 	title('auto_control_title'), 
 	option('user_elevate_in_age', nil, nil, {
 		{description =          trans.options.disabled, data = -1},
@@ -301,4 +325,3 @@ configuration_options = {
 	title('others_title'),
 	binary_option('debug', NO), 
 }
-

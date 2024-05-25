@@ -92,17 +92,28 @@ local function InitConfigs()
         M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
     end
 
+    modimport('main_strings')
     M.LANGUAGE = GetModConfigData('language')
-    if M.LANGUAGE == 'en' then
-        modimport('main_strings_en')
+    local localization_lang = {
+        en = 'main_strings_en'   
+    }
+    if localization_lang[M.LANGUAGE] then
+        modimport(localization_lang[M.LANGUAGE])
+
+        -- set metatables, so we can display default language strings while localized strings are missing
+        setmetatable(STRINGS.UI.MANAGE_TOGETHER, STRINGS.UI.MANAGE_TOGETHER_DEFAULT)
+        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT)
     else
-        modimport('main_strings')
+        -- alias
+        STRINGS.UI.MANAGE_TOGETHER = STRINGS.UI.MANAGE_TOGETHER_DEFAULT
+        STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
+
 end
 InitConfigs()
 
 
-local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
+local S = STRINGS.UI.MANAGE_TOGETHER
 
 modimport('utils')
 
@@ -126,7 +137,13 @@ M.ERROR_CODE.SUCCESS = 0
 
 
 local function moderator_config(name)
-    local conf = GetModConfigData('moderator_' .. string.lower(name))
+    config_name = 'moderator_' .. string.lower(name)
+    local conf = GetModConfigData(config_name)
+    if conf == nil then
+        -- missing config, try to get default config from modinfo
+        conf = M.LoadModInfoDefaultPermissionConfigs()[config_name]
+    end
+
     -- forwarding compatible
     if conf == true then 
         conf = M.EXECUTION_CATEGORY.YES

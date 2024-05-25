@@ -78,7 +78,10 @@
         "net_byte",
         "NEWFONT",
         "GetTick",
-        "net_uint"
+        "net_uint",
+        "kleiloadlua",
+        "MODROOT",
+        "RunInEnvironment"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

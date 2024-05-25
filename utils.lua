@@ -85,7 +85,7 @@ function M.in_int_range(a, b, x)
         a <= x and x <= b
 end
 
-function M.in_table(tab, key) return tab[key] ~= nil end
+function M.key_exists(tab, key) return tab[key] ~= nil end
 
 function M.partial(fn, ...)
     local outter_args = {...}
@@ -638,6 +638,26 @@ function M.ReadModeratorDataFromPersistentFile()
         end
     end)
     return result_list or {}
+end
+
+function M.LoadModInfoDefaultPermissionConfigs()
+    if not M.DEFAULT_PERMISSION_CONFIGS then
+        local modinfo_env = {
+            LOAD_FOR_DEFAULT_PERMISSION_CONFIG = true
+        }
+        local fn = kleiloadlua(MODROOT .. 'modinfo.lua')
+        if not fn or type(fn) == 'string' then
+            log('error: failed to load modinfo for default permission configs')
+            return
+        end
+        local status, r = RunInEnvironment(fn, modinfo_env)
+        if not status then
+            log('error failed to run modinfo file for default permission configs')
+            return
+        end
+        M.DEFAULT_PERMISSION_CONFIGS = modinfo_env.default_permission_configs
+    end
+    return M.DEFAULT_PERMISSION_CONFIGS
 end
 
 
