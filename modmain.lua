@@ -554,11 +554,12 @@ M.CHECKERS = {
         return false
     end,
 
-    ['nil'] = function(val) return val == nil end, 
+    ['nil'] = function(val) return val == nil end, -- 'nil' is same as nil
     any = function() return true end,
 }
 M.CHECKERS.userid = M.CHECKERS.userid_like
 M.CHECKERS.none   = M.CHECKERS['nil']
+M.CHECKERS.same   = 1 -- apply the last checkers to all of the varargs
 
 local function PermissionLevel(userid)
     local record = GetPlayerRecord(userid)
@@ -623,6 +624,7 @@ M.AddCommands(
         name = 'KILL', 
         user_targetted = true,
         can_vote = true,
+        checker = {        'any' }, -- userid will be check on ExecuteCommand, so we don't need to check again
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
@@ -646,7 +648,7 @@ M.AddCommands(
         name = 'KILLBAN', 
         user_targetted = true, 
         can_vote = true, 
-        checker = {          fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
+        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- kill and ban a player
 
@@ -1032,21 +1034,42 @@ function M.CheckArgs(checkers, ...)
     local checkertype = type(checkers)
     local checkertypes_category = M.CHECKERS
     if checkertype == 'table' then
+
+        local last_checker_fn = checkertypes_category.none
+        local same_as_below = false
         for i, v in varg_pairs(...) do
             local the_checker = checkers[i]
-            -- checker[i] is nil means don't check the type
-            if the_checker then
-                if type(the_checker) == 'function' and not the_checker(v) then
+            
+            -- if the_checker then
+            if the_checker == checkertypes_category.same then
+                -- set flag
+                same_as_below = true
+            end
+            if same_as_below then
+                -- ignore the tailing checkers
+                the_checker = last_checker_fn
+            end
+
+            if the_checker == nil and v ~= nil then
+                -- this arg should be nil
+                return false
+            elseif type(the_checker) == 'function' then
+                if not the_checker(v) then
                     -- bad argument 
                     return false
-                elseif type(the_checker) == 'string' then
-                    local the_cheker_fn = checkertypes_category[the_checker]
-                    -- bad argument 
-                    if the_cheker_fn and not the_cheker_fn(v) then
-                        return false
-                    end
-                end 
+                end
+                last_checker_fn = the_checker
+            elseif type(the_checker) == 'string' then
+                local the_checker_fn = checkertypes_category[the_checker]
+                assert(the_checker_fn ~= nil)
+
+                -- bad argument 
+                if not the_checker_fn(v) then
+                    return false
+                end
+                last_checker_fn = the_checker_fn
             end
+
         end
         return true
     elseif checkertype == 'function' then
