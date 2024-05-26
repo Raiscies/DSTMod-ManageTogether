@@ -36,17 +36,21 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     
     
     FMT_MAKE_ITEM_STAT_HEAD = '%s发起了物品栏统计请求', 
-    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s(%s)', 
+    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s', 
     MAKE_ITEM_STAT_OPTIONS = {
         ALL_ONLINE_PLAYERS = '所有在线玩家',
         ALL_OFFLINE_PLAYERS = '所有离线玩家',
         ALL_PLAYERS = '所有玩家', 
     }, 
-    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)拥有%d个%s;',
-    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无目标物品%s;',
-    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER = ', 该玩家存在未执行统计的深层容器',
+    --                           player(userid)[存在..., ]拥有: 
+    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)%s拥有: ',
+    --                       name(prefab) × counts
+    FMT_SINGLE_ITEM_RESULT = '%s(%s) × %d; ',
+    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无任何目标物品%s;',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
+    MAKE_ITEM_STAT_DELIM = '',
     -- unused: MAKE_ITEM_STAT_END = '物品栏统计结束',
-
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
 
@@ -107,8 +111,8 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
             TITLE = '我们应该修改新玩家可加入状态吗?'
         },
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
-            FMT_ANNOUNCE = '是否对%s统计物品: %s(%s)',
-            TITLE = '我们应该执行物品栏单项物品统计吗?'
+            FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
+            TITLE = '我们应该执行物品栏物品统计吗?'
         }
     }
 }
@@ -166,7 +170,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
         ALLOW_ALL_PLAYER = '禁止新玩家加入\n当前已允许新玩家加入', 
         ALLOW_OLD_PLAYER = '允许新玩家加入\n当前已禁止新玩家加入', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家连接性自动控制, 那么你的设置将可能在玩家数量变动时被覆盖',
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家数量变动时被覆盖',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 
