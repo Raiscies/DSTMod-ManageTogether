@@ -1395,13 +1395,18 @@ AddPrefabPostInit('player_classified', function(inst)
             end, GLOBAL.TheWorld.shard)
 
             -- update once
-            inst:DoTaskInTime(0, function()
+            inst:DoTaskInTime(1, function()
                 dbg('player_classified: update new player joinability once: ', recorder:GetAllowNewPlayersToConnect())
-                local mask = M.PERMISSION_MASK[PermissionLevel(inst._parent.userid)]
-                dbg('inst._parent: ', inst._parent, 'userid: ', inst._parent.userid, 'mask: ', mask)
-                if M.HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, mask) then
-                    inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
-                    dbg('finished to set new player joinability')
+
+                if inst._parent then
+                    local mask = M.PERMISSION_MASK[PermissionLevel(inst._parent.userid)]
+                    dbg('inst._parent: ', inst._parent, 'userid: ', inst._parent.userid, 'mask: ', mask)
+                    if M.HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, mask) then
+                        inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
+                        dbg('finished to set new player joinability')
+                    end
+                else
+                    dbg('error at player_classified: inst._parent is nil')
                 end
             end)
         end
