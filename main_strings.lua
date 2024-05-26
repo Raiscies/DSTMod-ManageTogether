@@ -166,7 +166,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
         ALLOW_ALL_PLAYER = '禁止新玩家加入\n当前已允许新玩家加入', 
         ALLOW_OLD_PLAYER = '允许新玩家加入\n当前已禁止新玩家加入', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家自动控制, 那么你的设置将可能在玩家数量变动时被覆盖',
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家连接性自动控制, 那么你的设置将可能在玩家数量变动时被覆盖',
 
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 

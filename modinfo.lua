@@ -70,7 +70,7 @@ local trans = ChooseTranslationTable({
 			moderator_add_moderator = {label = '允许监督员添加其它玩家为监督员' },
 			moderator_remove_moderator = {label = '允许监督员移除其他监督员的权限' }, 
 			moderator_regenerate_world = {label = '允许监督员重新生成世界' },
-			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家过滤器, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
+			moderator_set_new_player_joinability = {label = '允许监督员设置新玩家是否可加入', hover = '如果启用了新玩家连接性自动设置, 则执行的命令将于在线玩家状态改变时被覆盖' }, 
 			moderator_make_item_stat_in_player_inventories = {label = '允许监督员执行物品栏单项物品统计'},
 			auto_control_title = '自动控制选项', 
 			user_elevate_in_age = {

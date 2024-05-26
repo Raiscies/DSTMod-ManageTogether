@@ -568,7 +568,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
 
     CreateButtonOfServer(screen, 'make_item_stat_in_player_inventories', 'make_item_stat', false, function(vote_state)
         PopupItemStatDialog(
-            vote_state and (S.START_A_VOTE .. S.MAKE_ITEM_STAT) or S.MAKE_ITEM_STAT, 
+            vote_state and (S.START_A_VOTE .. S.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES) or S.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, 
             S.MAKE_ITEM_STAT_DESC, 
             -- on_submitted
             function(item_prefabs, search_range)
