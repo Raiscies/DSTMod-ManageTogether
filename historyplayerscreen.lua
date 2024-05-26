@@ -1,16 +1,15 @@
 
--- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-
 -- GUI - clients only
 if not TheNet:GetIsClient() then return end
 
 -- shortened aliasis
-local M = manage_together
-local S = STRINGS.UI.HISTORYPLAYERSCREEN
+
+local M = GLOBAL.manage_together
+local S = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN
 
 M.using_namespace(M, GLOBAL)
 
-string.rtrim = M.rtrim
+string.trim = M.trim
 
 require 'util'
 local Screen = require 'widgets/screen'
@@ -192,12 +191,38 @@ end
 local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc, on_submitted)
     -- M.ToPrefabName: returns nil if the name is not valid or else returns non-nil item prefab name string
     local verify_fn = function(text)
-        self.the_item_prefab = M.ToPrefabName(text:rtrim())
-        -- M.dbg('verify: text =', text, ', prefab =', self.the_item_prefab, '.')
-        return self.the_item_prefab ~= nil
+        -- eg1: prefab1, prefab2, prefab3
+        local target_prefabs = {}
+        for _, word in ipairs(text:split(',')) do
+            word = word:trim()
+            -- dbg('word = ', word)
+            local result = ToPrefabName(word)
+            if result then
+                if type(result) == 'string' then
+                    -- table.insert(self.the_item_prefabs, result)
+                    target_prefabs[result] = true
+                else
+                    -- result is a table
+                    for _, v in ipairs(result) do
+                        target_prefabs[v] = true
+                    end
+                end
+            else
+                -- this word is bad
+                return false
+            end
+        end
+        
+        self.the_item_prefabs = {}
+        for prefab, _ in pairs(target_prefabs) do
+            table.insert(self.the_item_prefabs, prefab)
+        end
+        -- self.the_item_prefabs = M.ToPrefabName(text:rtrim())
+        -- dbg('verify: text =', text, ', prefabs = ', self.the_item_prefabs)
+        return #self.the_item_prefabs ~= 0
     end
     local submitted_fn = function()
-        on_submitted(self.the_item_prefab, self.search_range)
+        on_submitted(self.the_item_prefabs, self.search_range)
     end
     InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
     local width, height = self.bg:GetSize()
@@ -234,10 +259,10 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
         {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS,         data = 2},
     }
     self.search_range = 0
-    self.search_range_ratio = self.proot:AddChild(RadioButtons(radio_options,  #radio_options * 170, 40, radio_button_settings, true))
-    self.search_range_ratio:SetPosition(-90, 70, 0)
+    self.search_range_radio = self.proot:AddChild(RadioButtons(radio_options,  #radio_options * 170, 40, radio_button_settings, true))
+    self.search_range_radio:SetPosition(-90, 70, 0)
   
-    self.search_range_ratio:SetOnChangedFn(function(data)
+    self.search_range_radio:SetOnChangedFn(function(data)
         self.search_range = data
     end)
 
@@ -259,7 +284,7 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
             local new_word = predictor.prediction.matches[math.clamp(prediction_index or 1, 1, #predictor.prediction.matches)]
 
             -- no implicit_begin char in the application
-            new_text = new_word .. predictor.prediction.dictionary.postfix
+            new_text = predictor.text:sub(2, predictor.prediction.start_pos) .. new_word .. ','
             new_cursor_pos = #new_text
         end
 
@@ -267,28 +292,46 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
         return new_text, new_cursor_pos
     end
     
+    local get_display_string = function(word)
+        if _G.Prefabs[word] then
+            -- word is a prefab string
+            local name = STRINGS.NAMES[word:upper()] 
+            return name and (word .. '(' .. name .. ')') or word
+        else
+            local prefab_names = M.LOCAL_NAME_REFERENCES[word]
+            if prefab_names then
+                if type(prefab_names) == 'table' then
+                    prefab_names = table.concat(prefab_names, ', ')
+                end
+                return word .. '(' .. prefab_names .. ')'
+            else
+                return name
+            end
+        end
+    end
+    
     for _, dict in ipairs(M.GetItemDictionaries()) do
         self.edit_text:AddWordPredictionDictionary({
             words = dict, 
             delim = implicit_begin, 
-            postfix = '', 
             num_chars = 1,
-            GetDisplayString = function(word)
-                local detail_name =  not _G.Prefabs[word] and 
-                    M.LOCAL_NAME_REFERENCES[word] or -- local name -> prefab
-                    STRINGS.NAMES[word:upper()]      -- prefab -> local name
-                return detail_name and 
-                    word .. '(' .. detail_name .. ')' or 
-                    word
-            end
+            skip_pre_delim_check = true, 
+            GetDisplayString = get_display_string
+        })
+        self.edit_text:AddWordPredictionDictionary({
+            words = dict, 
+            delim = ',', 
+            num_chars = 1, 
+            skip_pre_delim_check = true, 
+            GetDisplayString = get_display_string
         })
     end
 
 end)
 
-function ItemStatDialog:GetItemPrefab()
+function ItemStatDialog:GetItemPrefabs()
     self:Verify()
-    return self.the_item_prefab
+    return self.the_item_prefabs
 end
 
 local function PopupDialog(title, text)
@@ -300,7 +343,7 @@ local function PopupDialog(title, text)
             text,
             -- buttons
             {
-                {text=STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
+                {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
             }
         )
     )
@@ -333,6 +376,14 @@ local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, com
                 name .. '_hover.tex', 
                 name .. '_select.tex', -- disabled.tex 
                 name .. '_select.tex'
+            }
+        elseif type(img_src) == 'string' then
+            img_src = {
+                M.ATLAS,
+                img_src .. '_normal.tex', 
+                img_src .. '_hover.tex', 
+                img_src .. '_select.tex', -- disabled.tex 
+                img_src .. '_select.tex'
             }
         end
         --                                                        atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
@@ -515,15 +566,15 @@ local function DoInitServerRelatedCommnadButtons(screen)
         screen.set_new_player_joinability:TurnOff()
     end
 
-    CreateButtonOfServer(screen, 'make_item_stat', nil, false, function(vote_state)
+    CreateButtonOfServer(screen, 'make_item_stat_in_player_inventories', 'make_item_stat', false, function(vote_state)
         PopupItemStatDialog(
             vote_state and (S.START_A_VOTE .. S.MAKE_ITEM_STAT) or S.MAKE_ITEM_STAT, 
             S.MAKE_ITEM_STAT_DESC, 
-            function(item_prefab, search_range)
-                -- on_submitted
-                M.dbg('make_item_stat: on_submitted: prefab = ', item_prefab, 'search_range = ', search_range)
+            -- on_submitted
+            function(item_prefabs, search_range)
+                M.dbg('make_item_stat: on_submitted: prefab = ', item_prefabs, 'search_range = ', search_range)
 
-                ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, item_prefab)
+                ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, unpack(item_prefabs))
             end
         )
     end)

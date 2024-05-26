@@ -2,7 +2,6 @@
 GLOBAL.manage_together = {}
 local M = GLOBAL.manage_together
 
-local lshift, rshift, bitor, bitand = GLOBAL.bit.lshift, GLOBAL.bit.rshift, GLOBAL.bit.bor, GLOBAL.bit.band
 local UserCommands = require("usercommands")
 local VoteUtil = require("voteutil")
 
@@ -107,24 +106,26 @@ local function InitConfigs()
         modimport(localization_lang[M.LANGUAGE])
 
         -- set metatables, so we can display default language strings while localized strings are missing
-        setmetatable(STRINGS.UI.MANAGE_TOGETHER, { __index = STRINGS.UI.MANAGE_TOGETHER_DEFAULT })
-        setmetatable(STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT, { __index = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT })
+        setmetatable(GLOBAL.STRINGS.UI.MANAGE_TOGETHER, { __index = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT })
+        setmetatable(GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN, { __index = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT })
     else
         -- alias
-        STRINGS.UI.MANAGE_TOGETHER = STRINGS.UI.MANAGE_TOGETHER_DEFAULT
-        STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
+        GLOBAL.STRINGS.UI.MANAGE_TOGETHER = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT
+        GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
 
 end
 InitConfigs()
 
 
-local S = STRINGS.UI.MANAGE_TOGETHER
+local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
 modimport('utils')
-local Functional = require 'functional.lua'
+local Functional = require 'functional'
 
 M.using_namespace(M, GLOBAL, Functional)
+
+local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
 
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
@@ -144,7 +145,7 @@ local function moderator_config(name)
     local conf = GetModConfigData(config_name)
     if conf == nil then
         -- missing config, try to get default config from modinfo
-        conf = M.LoadModInfoDefaultPermissionConfigs()[config_name]
+        conf = LoadModInfoDefaultPermissionConfigs()[config_name]
     end
 
     -- forwarding compatible
@@ -169,14 +170,7 @@ local function GenerateCommandRPCName(tab)
     end
 end
 
-setmetatable(M.RPC, {
-    __index = function(t, k)
-        
-    end
-})
-
 GenerateCommandRPCName({
-    -- 'QUERY_PERMISSION', 
     'SEND_COMMAND', 
     'SEND_VOTE_COMMAND', 
     'SHARD_SEND_COMMAND', 
@@ -184,16 +178,15 @@ GenerateCommandRPCName({
     'SHARD_RECORD_ONLINE_PLAYERS',
     'SHARD_SET_PLAYER_PERMISSION',
     'SHARD_SET_NET_VAR',
-
-    -- 'RESULT_QUERY_PERMISSION', 
+    
     'RESULT_SEND_COMMAND', 
     'RESULT_SEND_VOTE_COMMAND',
-
+    
     'OFFLINE_PLAYER_RECORD_SYNC', 
     'ONLINE_PLAYER_RECORD_SYNC', 
     'PLAYER_RECORD_SYNC_COMPLETED',
     'SNAPSHOT_INFO_SYNC',
-
+    
 })
 
 M.PERMISSION_MASK = {}
@@ -281,24 +274,53 @@ end
 
 
 local function AnnounceItemStat(stat)
+    dbg('stat: ', stat)
     for userid, v in pairs(stat) do
         local name = GetPlayerRecord(userid).name or '???'
-        if v.count == 0 then
-            announce_fmt(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
+
+        if GetTableSize(v.counts) == 0 then
+            announce_fmt_no_head(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
                 name,
                 userid, 
-                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''    
+                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 or ''    
             )
         else
-            announce_fmt(S.FMT_MAKE_ITEM_STAT_HAS_ITEM, 
+            -- title
+            local announcement_head = S.FMT_MAKE_ITEM_STAT_HAS_ITEM:format( 
                 name, 
                 userid, 
-                v.count, 
-                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER or ''
+                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 or ''
             )
+            -- details
+            -- announce format:
+            -- Name(Userid) have: 
+            -- item1(prefab1): 1; item2(prefab2): 3;
+            -- item3(prefab3): 3; ...
+            local n = 0 -- for line feed
+            local details = {}
+            local line = ''
+            for item, count in pairs(v.counts) do
+                n = n + 1
+
+                line = line .. S.FMT_SINGLE_ITEM_RESULT:format(STRINGS.NAMES[item:upper()] or STRINGS.NAMES.UNKNOWN, item, count)
+                if n % 2 == 0 then
+                    table.insert(details, line)
+                    line = ''
+                end
+            end
+            if n % 2 ~= 0 then
+                table.insert(details, line)
+            end
+            -- an offical typo bug cause there is no length limitation of one single announcement, 
+            -- I decide to abuse it😈
+            local detail_string = table.concat(details, '\n')
+            -- dbg(detail_string)
+            announce_no_head(announcement_head .. '\n' .. detail_string)
         end
+        -- dbg('itemstat: userid = ', userid, ', result = ', v)
     end
 end
+
 
 -- for the argument of command MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES 
 local ITEM_STAT_CATEGORY = {
@@ -341,15 +363,15 @@ local function AddOfficalVoteCommand(name, voteresultfn)
         votecanstartfn = VoteUtil.DefaultCanStartVote,
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
         serverfn = function(fucking_useless_params, fucking_nil_caller_param)
-            M.dbg('passed vote: serverfn')
+            dbg('passed vote: serverfn')
             GLOBAL.TheWorld:DoTaskInTime(5, function()
                 local env = M.GetVoteEnv()
                 if not env then
-                    M.log('error: failed to execute vote command: command arguments lost')
+                    log('error: failed to execute vote command: command arguments lost')
                     return
                 end
                 local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
-                M.log('executed vote command: cmd = ', name, 'args = ', M.tolinekvstring(env.args), ', result = ', result)
+                log('executed vote command: cmd = ', name, 'args = ', M.tolinekvstring(env.args), ', result = ', result)
                 M.ResetVoteEnv()
             end)
         end,
@@ -559,7 +581,7 @@ M.CHECKERS = {
 }
 M.CHECKERS.userid = M.CHECKERS.userid_like
 M.CHECKERS.none   = M.CHECKERS['nil']
-M.CHECKERS.same   = 1 -- apply the last checkers to all of the varargs
+M.CHECKERS.same   = 'same' -- apply the last checkers to all of the varargs
 
 local function PermissionLevel(userid)
     local record = GetPlayerRecord(userid)
@@ -595,12 +617,12 @@ M.AddCommands(
         fn = function(doer)
             local comp = GetServerInfoComponent()
             if comp then
-                M.log('refreshing player records')
+                log('refreshing player records')
                 comp:RecordOnlinePlayers()
                 comp:LoadSaveInfo()
                 comp:LoadModeratorFile()
             else
-                M.log('world not exists or historyplayerrecord component not exists')
+                log('world not exists or historyplayerrecord component not exists')
                 return M.ERROR_CODE.DATA_NOT_PRESENT
             end
         end
@@ -769,36 +791,50 @@ M.AddCommands(
         can_vote = true, 
         checker = {
             -- param userid_or_flag
-            fun(M.CHECKERS.userid_recorded) *OR* fun(key_exists)[ITEM_STAT_CATEGORY],
+            fun(CHECKERS.userid_recorded) *OR* fun(key_exists)[ITEM_STAT_CATEGORY],
             -- param item_prefab
-            'string'
+            'string', 
+            'same'
         },
-        args_description = function(userid_or_flag, item_prefab)
+        args_description = function(userid_or_flag, ...)
+            local item_names = {}
+            for _, prefab in varg_pairs(...) do
+                table.insert(item_names, (STRINGS.NAMES[prefab:upper()] or STRINGS.NAMES.UNKNOWN) .. '(' .. prefab .. ')')
+            end
             return 
-                CHECKERS.uint(userid_or_flag) and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name,  -- target string
-                (STRINGS.NAMES[item_prefab:upper()] or STRINGS.NAMES.UNKNOWN),                                                 -- item name string
-                item_prefab                                                                                                    -- item prefab string
+                -- target string
+                CHECKERS.uint(userid_or_flag) and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name, 
+                table.concat(item_names, ', ')
         end,
-        fn = function(doer, userid_or_flag, item)
+        fn = function(doer, userid_or_flag, ...)
             -- userid_or_flag: a target userid or a flag
             -- flag representation:
             -- 0: all of the online players
             -- 1: all of the offline players(recorded offline players)
             -- 2: all of the online & offline(recorded) players
 
+            local item_prefabs = {...}
+
             -- do announce
-            local item_name = GLOBAL.STRINGS.NAMES[string.upper(item)] or GLOBAL.STRINGS.NAMES.UNKNOWN
-            if type(userid_or_flag) == 'string' then
-                local record = GetPlayerRecord(userid_or_flag)
-                if not record then return M.ERROR_CODE.BAD_TARGET end
-                
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, string.format('%s(%s)', record.name, userid_or_flag), item_name, item)
-            else
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
-                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, ITEM_STAT_CATEGORY[userid_or_flag], item_name, item)
+
+            local item_names = {}
+            for _, prefab in ipairs(item_prefabs) do
+               table.insert(item_names, (STRINGS.NAMES[string.upper(prefab)] or GLOBAL.STRINGS.NAMES.UNKNOWN) .. '(' .. prefab .. ')')
             end
-            BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, item)
+
+            announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
+            if type(userid_or_flag) == 'string' then
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, 
+                    string.format('%s(%s)', GetPlayerRecord(userid_or_flag).name, userid_or_flag), 
+                    table.concat(item_names, ', ')
+                )
+            else
+                announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, 
+                    ITEM_STAT_CATEGORY[userid_or_flag], 
+                    table.concat(item_names, ', ')
+                )
+            end
+            BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...)
         end
     }
 )
@@ -846,11 +882,11 @@ M.SHARD_COMMAND = {
             end
         end
     end,
-    [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, item)
-        
-        if M.CHECKERS.userid_recorded(userid_or_flag) then
+    [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, ...)
+        local item_prefabs = {...}
+        if CHECKERS.userid_recorded(userid_or_flag) then
             if not GetPlayerRecord(userid_or_flag).in_this_shard then return end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item))
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item_prefabs))
             return
         end
 
@@ -859,7 +895,7 @@ M.SHARD_COMMAND = {
         if userid_or_flag == 0 then
             -- all of the online players
             -- iterate AllPlayers list
-            AnnounceItemStat(M.MakeOnlinePlayerInventoriesItemStat(item))
+            AnnounceItemStat(M.MakeOnlinePlayerInventoriesItemStat(item_prefabs))
         
         elseif userid_or_flag == 1 then
             -- all of the offline player
@@ -867,7 +903,7 @@ M.SHARD_COMMAND = {
             for userid, record in pairs(GetPlayerRecords()) do
                 if record.in_this_shard and IsPlayerOnline(userid) then table.insert(userid_list, userid) end
             end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item))
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
         
         elseif userid_or_flag == 2 then
             -- all of the recorded player
@@ -875,7 +911,7 @@ M.SHARD_COMMAND = {
             for userid, record in pairs(GetPlayerRecords()) do
                 if record.in_this_shard then table.insert(userid_list, userid) end
             end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item))
+            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
         
         end
     end,
@@ -930,7 +966,6 @@ M.SHARD_COMMAND = {
         dbg('Intent to Start a Vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
     end
 }
-
 local function RegisterRPCs()
 
     -- server rpcs
@@ -1032,16 +1067,15 @@ end
 
 function M.CheckArgs(checkers, ...)
     local checkertype = type(checkers)
-    local checkertypes_category = M.CHECKERS
     if checkertype == 'table' then
 
-        local last_checker_fn = checkertypes_category.none
+        local last_checker_fn = CHECKERS.none
         local same_as_below = false
         for i, v in varg_pairs(...) do
             local the_checker = checkers[i]
             
             -- if the_checker then
-            if the_checker == checkertypes_category.same then
+            if the_checker == CHECKERS.same then
                 -- set flag
                 same_as_below = true
             end
@@ -1060,7 +1094,7 @@ function M.CheckArgs(checkers, ...)
                 end
                 last_checker_fn = the_checker
             elseif type(the_checker) == 'string' then
-                local the_checker_fn = checkertypes_category[the_checker]
+                local the_checker_fn = CHECKERS[the_checker]
                 assert(the_checker_fn ~= nil)
 
                 -- bad argument 
@@ -1109,7 +1143,7 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
     end
     
     local result = M.COMMAND[cmd].fn(executor, ...)
-    M.dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
+    dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
     -- nil(by default) means success
     return result == nil and M.ERROR_CODE.SUCCESS or result
     
@@ -1164,7 +1198,7 @@ if TheShard:IsMaster() then
 -- listen for newplayerwall state change
 AddPrefabPostInit('world', function(inst)
     inst:ListenForEvent('master_newplayerwallupdate', function(src, data)
-        
+        dbg('listened master_newplayerwallupdate, data = ', data)
         -- redirect MINIMUM level to USER
         local required_min_level = data.required_min_level == M.PERMISSION.MINIMUM and M.PERMISSION.USER or data.required_min_level
         if data.old_state == data.new_state then return end

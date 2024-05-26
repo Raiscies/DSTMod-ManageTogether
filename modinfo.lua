@@ -87,7 +87,7 @@ local trans = ChooseTranslationTable({
 				label = '新玩家连接性自动设置的条件',
 				hover = '当在线玩家中不存在选项中的权限或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入', 
 				admin = '管理员不在线时',
-				moderator = '监督员和管理员都不在线时',
+				moderator = '监督员/管理员都不在线时',
 				user = '任意玩家都不在线时',
 			},
 			others_title = '其它',
@@ -105,7 +105,7 @@ there will be a button on the left top side of scoreboard screen, click it to op
 you can manage server and online/offline player in this screen by using command buttons.
 most of the commands are available applying to offline player.
 
-*'Vote' options of the moderator config means moderator can start a vote, but is not allowed to execute command directly. 
+* 'Vote' options of the moderator config means moderator can start a vote, but is not allowed to execute command directly. 
 		]],
 		options = {
 			yes = 'Yes', 
@@ -206,9 +206,12 @@ end
 
 
 
-local function binary_option(name, label, hover)
-	default_selection = default_permission_configs[name]
-	-- handle boolean input
+local function binary_option(name, default_selection, label, hover)
+	if default_selection == nil then	
+		default_selection = default_permission_configs[name]
+	end
+	
+	-- handle boolean input	
 	if default_selection == nil or default_selection == false then
 		default_selection = NO
 	elseif default_selection == true then
@@ -297,7 +300,7 @@ configuration_options = {
 	moderator_option('moderator_remove_moderator', nil, nil, true),
 	moderator_option('moderator_regenerate_world'),
 	moderator_option('moderator_set_new_player_joinability'),
-	moderator_option('moderator_make_item_stat_in_player_inventories', nil),
+	moderator_option('moderator_make_item_stat_in_player_inventories'),
 	title('auto_control_title'), 
 	option('user_elevate_in_age', nil, nil, {
 		{description =          trans.options.disabled, data = -1},

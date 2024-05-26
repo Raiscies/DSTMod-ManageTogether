@@ -464,6 +464,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         return
     end
     
+    dbg('updating new player wall state...')
     local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
     local old_state = TheNet:GetAllowNewPlayersToConnect()
     local new_state
@@ -490,7 +491,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
     if old_state ~= new_state then
         self:SetAllowNewPlayersToConnect(new_state)
     end
-    
+    dbg('finished to update new player wall state, old_state = ', old_state, ', new_state = ', new_state, ', required_min_level = ', required_min_level)
     self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function() end

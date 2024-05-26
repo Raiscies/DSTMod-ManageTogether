@@ -3,25 +3,36 @@
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
-GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+-- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
 
 function M.using_namespace(...)
-    local oldmetatable = getmetatable(env)
+    -- local oldmetatable = GLOBAL.getmetatable(env)
     local nss = {...}
-    setmetatable(env, {
+
+    
+    local newmetatable = GLOBAL.setmetatable({
         __index = function(t, k)
             for _, ns in ipairs(nss) do
-                local from_ns = ns.__index(t, k)
+
+                -- print('indexing: ', ns, ', key = ', k)
+                local from_ns = GLOBAL.rawget(ns, k)
                 if from_ns ~= nil then
+                    -- print('got from ns: ', 
+                    --     ns == M and 'M' or
+                    --     ns == GLOBAL and 'GLOBAL' or
+                    --     ns
+                    -- , 'key = ', k)
                     return from_ns
                 end
             end
-            return oldmetatable.__index(t, k)
+            -- print('failed to index, key = ', k)
+            return nil
         end
-    })
+    }, GLOBAL.getmetatable(env))
+    GLOBAL.setmetatable(env, newmetatable)
 end
 
-M.using_namespace(M)
+M.using_namespace(M, GLOBAL)
 
 local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
 local insert, concat = table.insert, table.concat
@@ -89,11 +100,12 @@ end
 
 -- string right trim
 function M.rtrim(s)
-    if type(s) ~= 'string' then
-        return nil
-    end
-    return string.match(s, '^(.-)%s*$')
+    return s:match('^(.-)%s*$')
 end
+function M.trim(s)
+    return s:match('^%s*(.-)%s*$')
+end
+
 function M.in_range(a, b, x)
     return type(x) == 'number' and
         a <= x and x <= b
@@ -138,14 +150,18 @@ M.dbg = M.DEBUG and function(...)
     for _, v in varg_pairs(...) do
         s = s .. ' ' .. M.moretostring(v)
     end
-    print('[ManageTogether] ' .. s)
+    print('[ManageTogetherDBG] ' .. s)
 end or function(...) end
-
--- local dbg, log, chain_get = M.dbg, M.log, M.chain_get
-
 
 function M.announce(s, ...)
     TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
+end
+
+function M.announce_no_head(s, ...)
+    TheNet:Announce(s, ...)
+end
+function M.announce_fmt_no_head(pattern, ...)
+    announce_no_head(string.format(pattern, ...))
 end
 
 function M.announce_fmt(pattern, ...)
@@ -207,6 +223,26 @@ function M.IsNewestRollbackSlotValid()
     end
 end
 
+function M.LoadModInfoDefaultPermissionConfigs()
+    if not M.DEFAULT_PERMISSION_CONFIGS then
+        log('loading modinfo configs...')
+        local modinfo_env = {
+            LOAD_FOR_DEFAULT_PERMISSION_CONFIG = true
+        }
+        local fn = kleiloadlua(MODROOT .. 'modinfo.lua')
+        if not fn or type(fn) == 'string' then
+            log('error: failed to load modinfo for default permission configs')
+            return
+        end
+        local status, r = RunInEnvironment(fn, modinfo_env)
+        if not status then
+            log('error failed to run modinfo file for default permission configs')
+            return
+        end
+        M.DEFAULT_PERMISSION_CONFIGS = modinfo_env.default_permission_configs
+    end
+    return M.DEFAULT_PERMISSION_CONFIGS
+end
 
 
 -- some utils for client
@@ -278,8 +314,15 @@ function M.GetItemDictionaries()
             local local_name = names[prefab:upper()]
             -- keep a reference from localized name to prefab name
             if local_name then
-                table.insert(M.ITEM_LOCAL_NAME_DICTIONARY, local_name)
-                M.LOCAL_NAME_REFERENCES[local_name] = prefab
+                this_ref = M.LOCAL_NAME_REFERENCES[local_name]
+                if not this_ref then
+                    table.insert(M.ITEM_LOCAL_NAME_DICTIONARY, local_name)
+                    M.LOCAL_NAME_REFERENCES[local_name] = prefab
+                elseif type(this_ref) == 'string' then
+                    M.LOCAL_NAME_REFERENCES[local_name] = {this_ref, prefab}
+                else
+                    table.insert(this_ref, prefab)
+                end
             end
         end
     end
@@ -299,7 +342,7 @@ function M.ToPrefabName(s)
     GetItemDictionaries()
     
     if M.LOCAL_NAME_REFERENCES[s] then
-        return M.LOCAL_NAME_REFERENCES[s] --> prefab name
+        return M.LOCAL_NAME_REFERENCES[s] --> prefab names, a string or a table
     elseif _G.Prefabs[s] then
         return s
     end
@@ -365,7 +408,7 @@ function M.GetSnapshotPlayerData(userid, component_name)
     return data
 end
 
-function M.RollbackBySnapshotID(snapshot_id, delay)
+function M.RollbackBySnapshotID(snapshot_id)
     local current_id = TheNet:GetCurrentSnapshot()
     if snapshot_id > current_id then
         -- bad snapshot id
@@ -404,159 +447,132 @@ end
 -- but we don't hope to have a very deep recursion for iterate container chain(if it is possible)
 M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH = 4
 
--- local function DefaultPreciseItemMatcher(keyword, item)
---     return item.prefab == keyword
--- end
--- local function DefaultFuzzyItemMatcher(keyword, item)
+local function is_item_stat_target(item, target_items) 
+    return target_items[item.prefab] and item.prefab or nil
+end
+
+local function merge_item_stat_tables(dist, src)
+    for item, count in pairs(src) do
+        dist[item] = count + (dist[item] or 0)
+    end
+    return dist
+end
+
+
+
+-- for online players in this shard
+function M.CountItemInOnlinePlayerInventory(player, target_items)
+    local inv = player.components.inventory
+    if not inv then return {}, false end
+
+    local has_deeper_container = false
+    local function count_item_in_slots_online(itemslots, current_depth)
+        -- local count = 0
+        local counts = {}
     
---     -- return DefaultPreciseItemMatcher(keyword, item) or nil
--- end
-
--- M.ItemStator = Class(function(self, search_inv_range, keyword, is_online_inv, fuzzy_matching)
---     self.range = search_inv_range
---     self.keyword = keyword
---     if fuzzy_matching ~= nil then
---         self.fuzzy = fuzzy_matching
---     else
---         -- precise matching by default
---         self.fuzzy = false
---     end
---     self:SetMatcher()
---     self:SetMaxRecursionDepth()
-
---     self.is_online_inv = is_online_inv
--- end)
-
--- function M.ItemStator:SetMatcher(matcher)
---     if matcher then
---         -- ignored self.fuzzy flag
---         self.matcher = matcher
---     else        
---         self.matcher = self.fuzzy and DefaultFuzzyItemMatcher or DefaultPreciseItemMatcher
---     end
--- end
--- function M.ItemStator:SetMaxSearchDepth(depth)
---     self.max_search_depth = depth or M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH 
--- end
--- function Make()
-    
--- end
-
-
-
-local function count_item_in_slots_online(itemslots, target_item_prefab, current_depth, has_deeper_container, matcher)
-    local count = 0
-
-    for _, item in pairs(itemslots) do
-        -- dbg(item)
-        if not item.components then
-            if item.prefab == target_item_prefab then
-                count = count + 1
-            end
-        else
-            local stackable = item.components.stackable
-            -- M.dbg('in slot item: ', item)
-            if item.prefab == target_item_prefab then
-                count = count + (stackable and stackable:StackSize() or 1)
+        for _, item in pairs(itemslots) do
+            -- dbg(item)
+            local matched = is_item_stat_target(item, target_items)
+            local stackable = item.components and item.components.stackable
+            if matched then
+                counts[matched] = (counts[matched] or 0) + (stackable and stackable:StackSize() or 1)
             end
             
             -- we always assume a container is impossible to be stackable, obviously :)
             -- a stackable container is crazy!
             if not stackable then
-                local container = item.components.container
+                local container = item.components and item.components.container
                 if container then
                     -- this item is a container
                     if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
-                        local count_in_container
-                        count_in_container, has_deeper_container = count_item_in_slots_online(container.slots, target_item_prefab, current_depth + 1, has_deeper_container)
-                        count = count + count_in_container
+                        local counts_in_container = count_item_in_slots_online(container.slots, current_depth + 1)
+                        merge_item_stat_tables(counts, counts_in_container)
+                        -- count = count + count_in_container
                     else
                         has_deeper_container = true
                     end
                 end
+    
             end
         end
+        return counts
     end
-    return count, has_deeper_container
-end
-
-local function count_item_in_slots_offline(itemslots, target_item_prefab, current_depth, has_deeper_container)
-    local count = 0
-
-    for _, item in pairs(itemslots) do
-
-        if not item.data then
-            if item.prefab == target_item_prefab then
-                count = count + 1
-            end
-        else
-            local stackable = item.data.stackable
-            if item.prefab == target_item_prefab then
-                count = count + (stackable and stackable.stack or 1)
-            end
-        
-            -- we always assume a container is impossible to be stackable, obviously :)
-            -- a stackable container is crazy!
-            if not stackable then
-                local container = item.data.container
-                if container then
-                    -- this item is a container
-                    if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
-                        local count_in_container
-                        count_in_container, has_deeper_container = count_item_in_slots_offline(container.items, target_item_prefab, current_depth + 1, has_deeper_container)
-                        count = count + count_in_container
-                    else
-                        has_deeper_container = true
-                    end
-                end
-
-            end 
-        end
-    end
-    return count, has_deeper_container
-end
-
-
--- for online players in this shard
-function M.CountItemInOnlinePlayerInventory(player, item)
-    local inv = player.components.inventory
-    if not inv then return 0, false end
-
-    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots_online(inv.itemslots, item, 1, false)
-    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots_online(inv.equipslots, item, 1, false)
-    local activeitem_count, activeitem_has_deeper_container = 0, false
+    
+    local itemslots_counts = count_item_in_slots_online(inv.itemslots, 1)
+    local equipslots_counts = count_item_in_slots_online(inv.equipslots, 1)
+    local activeitem_counts = {}
     if inv.activeitem then
-        activeitem_count, activeitem_has_deeper_container = count_item_in_slots_online({inv.activeitem}, item, 1, false)
+        activeitem_counts = count_item_in_slots_online({inv.activeitem}, 1)
     end
-    return itemslots_count + equipslots_count + activeitem_count, 
-        itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
+
+    merge_item_stat_tables(itemslots_counts, equipslots_counts)
+    merge_item_stat_tables(itemslots_counts, activeitem_counts)
+
+    return itemslots_counts, has_deeper_container
+
 end
 
 -- for offline players in this shard
-function M.CountItemInOfflinePlayerInventory(player_userid, item)
+function M.CountItemInOfflinePlayerInventory(player_userid, target_items)
     local inv = M.GetSnapshotPlayerData(player_userid, 'inventory')
-    if not inv then return 0, false end
+    if not inv then return {}, false end
+
+    local has_deeper_container = false
+    local function count_item_in_slots_offline(itemslots, current_depth)
+
+        local counts = {}
+    
+        for _, item in pairs(itemslots) do
+            -- dbg(item)
+            local matched = is_item_stat_target(item, target_items)
+            local stackable = item.data and item.data.stackable
+            if matched then
+                counts[matched] = (counts[matched] or 0) + (stackable and stackable.stack or 1)
+            end
+            
+            -- we always assume a container is impossible to be stackable, obviously :)
+            -- a stackable container is crazy!
+            if not stackable then
+                local container = item.data and item.data.container
+                if container then
+                    -- this item is a container
+                    if current_depth <= M.STAT_ITEM_CONTAINER_MAX_RECURSION_DEPTH then
+                        local counts_in_container = count_item_in_slots_offline(container.items, current_depth + 1)
+                        merge_item_stat_tables(counts, counts_in_container)
+                        -- count = count + count_in_container
+                    else
+                        has_deeper_container = true
+                    end
+                end
+    
+            end
+        end
+        return counts
+    end
 
     -- notice: slots names are different from online player's inventory
     -- this inv comes from OnSave()
     -- dbg(inv.items)
-    local itemslots_count, itemslots_has_deeper_container = count_item_in_slots_offline(inv.items, item, 1, false)
-    local equipslots_count, equipslots_has_deeper_container = count_item_in_slots_offline(inv.equip, item, 1, false)
-    local activeitem_count, activeitem_has_deeper_container = 0, false
+    local itemslots_counts = count_item_in_slots_offline(inv.items, 1)
+    local equipslots_counts = count_item_in_slots_offline(inv.equip, 1)
+    local activeitem_counts = {}
     if inv.activeitem then
-        activeitem_count, activeitem_has_deeper_container = count_item_in_slots_offline({inv.activeitem}, item, 1, false)
+        activeitem_counts = count_item_in_slots_offline({inv.activeitem}, 1)
     end
-    return itemslots_count + equipslots_count + activeitem_count, 
-        itemslots_has_deeper_container or equipslots_has_deeper_container or activeitem_has_deeper_container
+    merge_item_stat_tables(itemslots_counts, equipslots_counts)
+    merge_item_stat_tables(itemslots_counts, activeitem_counts)
+    return itemslots_counts, has_deeper_container
 end
 
 -- an expensive function!
-function M.MakeOnlinePlayerInventoriesItemStat(item)
+-- items: a table of item prefabs(string)
+function M.MakeOnlinePlayerInventoriesItemStat(items)
+    items = table.invert(items) -- key is item prefab
     local stat = {}
     for _, player in ipairs(AllPlayers) do
-        local count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
+        local counts, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, items)
         stat[player.userid] = {
-            count = count, 
+            counts = counts, 
             has_deeper_container = has_deeper_container
         }
     end
@@ -566,7 +582,9 @@ end
 -- another expensive function!
 -- for a list of players(by passing a table of userid)
 -- or a single player(by passing a userid)
-function M.MakePlayerInventoriesItemStat(userid_or_list, item)
+-- items: a table of item prefabs(string)
+function M.MakePlayerInventoriesItemStat(userid_or_list, items)
+    items = table.invert(items)
     if type(userid_or_list) == 'table' then
         
         local stat = {}
@@ -577,16 +595,16 @@ function M.MakePlayerInventoriesItemStat(userid_or_list, item)
         end
         for _, userid in ipairs(userid_or_list) do
             local player = allplayers_by_userid_key[userid]
-            local count, has_deeper_container
+            local counts, has_deeper_container
             if player then
                 -- player is online
-                count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
+                counts, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, items)
             else
                 -- player is offline
-                count, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid, item)
+                counts, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid, items)
             end
             stat[userid] = {
-                count = count, 
+                counts = counts, 
                 has_deeper_container = has_deeper_container
             }
         end
@@ -599,14 +617,17 @@ function M.MakePlayerInventoriesItemStat(userid_or_list, item)
             -- player is online
             player = M.GetPlayerByUserid(userid_or_list)
             if player then
-                local count, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, item)
-                return {count = count, has_deeper_container = has_deeper_container}
+                local counts, has_deeper_container = M.CountItemInOnlinePlayerInventory(player, items)
+                return {counts = counts, has_deeper_container = has_deeper_container}
             end
         end
 
         -- player is offline
-        local count, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid_or_list, item)
-        return {count = count, has_deeper_container = has_deeper_container}
+        local counts, has_deeper_container = M.CountItemInOfflinePlayerInventory(userid_or_list, items)
+        return {
+            counts = counts, 
+            has_deeper_container = has_deeper_container
+        }
     else
         return nil
     end
@@ -639,26 +660,5 @@ function M.ReadModeratorDataFromPersistentFile()
     end)
     return result_list or {}
 end
-
-function M.LoadModInfoDefaultPermissionConfigs()
-    if not M.DEFAULT_PERMISSION_CONFIGS then
-        local modinfo_env = {
-            LOAD_FOR_DEFAULT_PERMISSION_CONFIG = true
-        }
-        local fn = kleiloadlua(MODROOT .. 'modinfo.lua')
-        if not fn or type(fn) == 'string' then
-            log('error: failed to load modinfo for default permission configs')
-            return
-        end
-        local status, r = RunInEnvironment(fn, modinfo_env)
-        if not status then
-            log('error failed to run modinfo file for default permission configs')
-            return
-        end
-        M.DEFAULT_PERMISSION_CONFIGS = modinfo_env.default_permission_configs
-    end
-    return M.DEFAULT_PERMISSION_CONFIGS
-end
-
 
 end -- is server

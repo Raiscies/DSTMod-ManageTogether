@@ -111,7 +111,17 @@
         "LevelSameAs",
         "mid",
         "LevelHigherThan",
-        "CheckArgs"
+        "CheckArgs",
+        "GetItemDictionaries",
+        "varg_iter",
+        "BuildDayString",
+        "BuildSeasonString",
+        "ToPrefabName",
+        "LoadModInfoDefaultPermissionConfigs",
+        "LOAD_FOR_DEFAULT_PERMISSION_CONFIG",
+        "ChooseTranslationTable",
+        "announce_no_head",
+        "announce_fmt_no_head"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
