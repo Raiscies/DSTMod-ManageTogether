@@ -314,10 +314,10 @@ local function AnnounceItemStat(stat)
             -- an offical typo bug cause there is no length limitation of one single announcement, 
             -- I decide to abuse it😈
             local detail_string = table.concat(details, '\n')
-            -- dbg(detail_string)
+             
             announce_no_head(announcement_head .. '\n' .. detail_string)
         end
-        -- dbg('itemstat: userid = ', userid, ', result = ', v)
+         
     end
 end
 
@@ -761,8 +761,6 @@ M.AddCommands(
         checker = {                'bool'},
         args_description = function(allowed) return allowed and S.ALLOW_NEW_PLAYER_JOIN or S.NOT_ALLOW_NEW_PLAYER_JOIN end,
         fn = function(doer, allowed)
-
-            dbg('type of allowed: ', type(allowed), 'value: ', allowed)
             if allowed ~= nil and type(allowed) ~= 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
             allowed = not not allowed
             GetServerInfoComponent():SetAllowNewPlayersToConnect(allowed)
@@ -1408,8 +1406,6 @@ AddPrefabPostInit('player_classified', function(inst)
             end)
         end
     end
-
-
 
     inst.HasPermission = HasPermission
     inst.HasVotePermission = HasVotePermission

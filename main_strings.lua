@@ -36,21 +36,17 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     
     
     FMT_MAKE_ITEM_STAT_HEAD = '%s发起了物品栏统计请求', 
-    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s', 
+    FMT_MAKE_ITEM_STAT_HEAD2 = '目标玩家: %s, 目标物品: %s(%s)', 
     MAKE_ITEM_STAT_OPTIONS = {
         ALL_ONLINE_PLAYERS = '所有在线玩家',
         ALL_OFFLINE_PLAYERS = '所有离线玩家',
         ALL_PLAYERS = '所有玩家', 
     }, 
-    --                           player(userid)[存在..., ]拥有: 
-    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)%s拥有: ',
-    --                       name(prefab) × counts
-    FMT_SINGLE_ITEM_RESULT = '%s(%s) × %d; ',
-    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无任何目标物品%s;',
-    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
-    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)拥有%d个%s;',
+    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无目标物品%s;',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER = ', 该玩家存在未执行统计的深层容器',
     -- unused: MAKE_ITEM_STAT_END = '物品栏统计结束',
+
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
 
@@ -111,8 +107,8 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
             TITLE = '我们应该修改新玩家可加入状态吗?'
         },
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
-            FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
-            TITLE = '我们应该执行物品栏物品统计吗?'
+            FMT_ANNOUNCE = '是否对%s统计物品: %s(%s)',
+            TITLE = '我们应该执行物品栏单项物品统计吗?'
         }
     }
 }
@@ -149,10 +145,10 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     VOTE = '发起投票...',
     NO_VOTE = '取消发起投票',
     START_A_VOTE = '发起投票: ',
-    MAKE_ITEM_STAT = '执行物品栏物品统计',
-    MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的物品(只有模组被记录过的玩家才能被搜索)\n搜索支持当前语言的物品名和物品预制件名. ',
-    MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER_DEFAULT.MAKE_ITEM_STAT_OPTIONS,
-    MAKE_ITEM_STAT_TEXT_PROMPT = '采下的草,yellowstaff',
+    MAKE_ITEM_STAT = '执行物品栏单项物品统计',
+    MAKE_ITEM_STAT_DESC = '在所有(在线/离线)玩家的物品栏中搜索并统计指定的单项物品\n搜索支持当前语言的物品名和物品预制件名. ',
+    MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
+    MAKE_ITEM_STAT_TEXT_PROMPT = '采下的草',
     REFRESH_RECORDS = '更新数据',
     REFRESH_RECORDS_DESC = '大多数时候你并不需要点击这个按钮, 但是如果发现有些显示数据有问题, 可以点一下试试', 
     -- player commands

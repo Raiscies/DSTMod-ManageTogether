@@ -1,5 +1,3 @@
-
-
 if not _G then
     _G = GLOBAL
     

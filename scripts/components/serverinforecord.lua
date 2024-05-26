@@ -11,7 +11,7 @@ local ServerInfoRecord = Class(function(self, inst)
 
     if TheWorld.ismastersim then
         inst:DoTaskInTime(0, function()
-            -- dbg('initing serverinforecord of server')
+             
             -- on server side
             self.shard_serverinforecord = TheWorld.shard.components.shard_serverinforecord
             

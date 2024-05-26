@@ -195,7 +195,7 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
         local target_prefabs = {}
         for _, word in ipairs(text:split(',')) do
             word = word:trim()
-            -- dbg('word = ', word)
+             
             local result = ToPrefabName(word)
             if result then
                 if type(result) == 'string' then
@@ -218,7 +218,7 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
             table.insert(self.the_item_prefabs, prefab)
         end
         -- self.the_item_prefabs = M.ToPrefabName(text:rtrim())
-        -- dbg('verify: text =', text, ', prefabs = ', self.the_item_prefabs)
+         
         return #self.the_item_prefabs ~= 0
     end
     local submitted_fn = function()
@@ -517,8 +517,8 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                    M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
-                    M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data])
+                     
+                     
 
                     ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
@@ -553,7 +553,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 current_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
                 function() ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) end
             )
-            M.dbg('current state: ', current_state, 'target state: ', not current_state, 'type of current state: ', type(current_state), 'target state: ', type(not current_state))
+             
         end
     )
     -- modify 'disabled' texture
@@ -572,7 +572,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
             S.MAKE_ITEM_STAT_DESC, 
             -- on_submitted
             function(item_prefabs, search_range)
-                M.dbg('make_item_stat: on_submitted: prefab = ', item_prefabs, 'search_range = ', search_range)
+                 
 
                 ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, unpack(item_prefabs))
             end
@@ -629,21 +629,21 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     end
 
     self.on_snapshot_info_updated = function()
-        M.dbg('on_snapshot_info_updated')
+         
         if self.shown then 
             self:DoInitRollbackSpinner()
         end
     end
 
     self.on_server_data_updated = function()
-        M.dbg('on_server_data_updated')
+         
         if self.shown then 
             self:DoInit()
         end
     end
 
     self.on_new_player_joinability_updated = function()
-        M.dbg('on_new_player_joinability_updated')
+         
         if self.shown then
             local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
             if new_player_joinability then

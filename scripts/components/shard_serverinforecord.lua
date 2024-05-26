@@ -32,7 +32,7 @@ local ShardServerInfoRecord = Class(
             self:RecordPlayer(player.userid)
         end, self.world)
         -- self.world:ListenForEvent('ms_playerdespawn', function(src, player)
-            -- dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
+             
 
         -- end)
 
@@ -531,7 +531,7 @@ function ShardServerInfoRecord:LoadSaveInfo()
                 dbg('failed to run the world file')
                 return
             end
-            -- dbg('slot: ', slot, ', savedata: ', savedata)
+             
             
             -- this is for loading the whole world file
             -- if savedata.world_network then
@@ -548,7 +548,7 @@ function ShardServerInfoRecord:LoadSaveInfo()
     local index = ShardGameIndex
     -- I don't know why, but it just works...
     local snapshot_info = TheNet:ListSnapshots(index.session_id, index.server.online_mode, 10)
-    -- dbg('list snapshots end, info: ', snapshot_info)
+     
     self.snapshot_info = {
         session_id = index.session_id, 
         slots = {}

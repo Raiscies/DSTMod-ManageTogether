@@ -326,9 +326,9 @@ function M.GetItemDictionaries()
             end
         end
     end
-    -- dbg('#M.ITEM_PREFAB_DICTIONARY: ', #M.ITEM_PREFAB_DICTIONARY)
-    -- dbg('#M.ITEM_LOCAL_DICTIONARY: ', #M.ITEM_LOCAL_NAME_DICTIONARY )
-    -- dbg('M.LOCAL_NAME_REFERENCES ~= nil: ', M.LOCAL_NAME_REFERENCES ~= nil)
+     
+     
+     
 
     return {M.ITEM_PREFAB_DICTIONARY, M.ITEM_LOCAL_NAME_DICTIONARY}
 end
@@ -471,7 +471,7 @@ function M.CountItemInOnlinePlayerInventory(player, target_items)
         local counts = {}
     
         for _, item in pairs(itemslots) do
-            -- dbg(item)
+             
             local matched = is_item_stat_target(item, target_items)
             local stackable = item.components and item.components.stackable
             if matched then
@@ -523,7 +523,7 @@ function M.CountItemInOfflinePlayerInventory(player_userid, target_items)
         local counts = {}
     
         for _, item in pairs(itemslots) do
-            -- dbg(item)
+             
             local matched = is_item_stat_target(item, target_items)
             local stackable = item.data and item.data.stackable
             if matched then
@@ -552,7 +552,7 @@ function M.CountItemInOfflinePlayerInventory(player_userid, target_items)
 
     -- notice: slots names are different from online player's inventory
     -- this inv comes from OnSave()
-    -- dbg(inv.items)
+     
     local itemslots_counts = count_item_in_slots_offline(inv.items, 1)
     local equipslots_counts = count_item_in_slots_offline(inv.equip, 1)
     local activeitem_counts = {}
