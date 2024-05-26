@@ -193,6 +193,7 @@ local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc
     local verify_fn = function(text)
         -- eg1: prefab1, prefab2, prefab3
         local target_prefabs = {}
+        text = text:trim()
         for _, word in ipairs(text:split(',')) do
             word = word:trim()
              
