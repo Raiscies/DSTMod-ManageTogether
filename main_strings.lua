@@ -31,8 +31,8 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
 
     FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家连接性自动控制, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
     FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家连接性自动控制',
-    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已自动禁止新玩家加入服务器',
-    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已自动允许新玩家加入服务器',
+    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已禁止新玩家加入服务器',
+    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已允许新玩家加入服务器',
     
     
     FMT_MAKE_ITEM_STAT_HEAD = '%s发起了物品栏统计请求', 

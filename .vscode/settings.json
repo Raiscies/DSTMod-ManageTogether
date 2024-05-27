@@ -122,7 +122,8 @@
         "ChooseTranslationTable",
         "announce_no_head",
         "announce_fmt_no_head",
-        "IsTableEmpty"
+        "IsTableEmpty",
+        "net_event"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
