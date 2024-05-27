@@ -121,7 +121,8 @@
         "LOAD_FOR_DEFAULT_PERMISSION_CONFIG",
         "ChooseTranslationTable",
         "announce_no_head",
-        "announce_fmt_no_head"
+        "announce_fmt_no_head",
+        "IsTableEmpty"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

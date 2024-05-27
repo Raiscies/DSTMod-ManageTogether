@@ -85,7 +85,7 @@ local function InitConfigs()
     M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
-
+    M.CLEANER_ITEM_STAT_ANNOUNCEMENT = is_config_enabled('cleaner_item_stat_announcement')
 
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
     if type(auto_new_player_wall_min_level) == 'string' then
@@ -278,12 +278,14 @@ local function AnnounceItemStat(stat)
     for userid, v in pairs(stat) do
         local name = GetPlayerRecord(userid).name or '???'
 
-        if GetTableSize(v.counts) == 0 then
-            announce_fmt_no_head(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
-                name,
-                userid, 
-                v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 or ''    
-            )
+        if IsTableEmpty(v.counts) then
+            if not M.CLEANER_ITEM_STAT_ANNOUNCEMENT then     
+                announce_fmt_no_head(S.FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM, 
+                    name,
+                    userid, 
+                    v.has_deeper_container and S.MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 or ''    
+                )
+            end
         else
             -- title
             local announcement_head = S.FMT_MAKE_ITEM_STAT_HAS_ITEM:format( 
@@ -312,12 +314,12 @@ local function AnnounceItemStat(stat)
                 table.insert(details, line)
             end
             -- an offical typo bug cause there is no length limitation of one single announcement, 
-            -- I decide to abuse it😈
+            -- bug is reported, 
+            -- but I decide to abuse it😈 cuz klei probaly would not fix it
             local detail_string = table.concat(details, '\n')
              
             announce_no_head(announcement_head .. '\n' .. detail_string)
-        end
-         
+        end  
     end
 end
 

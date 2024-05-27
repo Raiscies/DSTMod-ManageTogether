@@ -31,10 +31,6 @@ local ShardServerInfoRecord = Class(
             dbg('ms_playerjoined:', player.userid)
             self:RecordPlayer(player.userid)
         end, self.world)
-        -- self.world:ListenForEvent('ms_playerdespawn', function(src, player)
-             
-
-        -- end)
 
         self.inst:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
@@ -69,11 +65,15 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
 
     -- update once
+    dbg('set once new player wall')
     self:UpdateNewPlayerWallState()
 
-    self.inst:ListenForEvent('ms_playercounts', function(src, data)
+    self.inst:ListenForEvent('ms_playerjoined', function(src, player)
         self:UpdateNewPlayerWallState()
     end, self.world)
+    self.inst:ListenForEvent('ms_playerdespawn', function(src, player)
+        self:UpdateNewPlayerWallState()
+    end)
 
     self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
         local allowed = not not self.netvar.allow_new_players_to_connect:value()
@@ -474,17 +474,17 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         new_state = true
     else
         
-        local current_min_online_player_level = M.PERMISSION.MINIMUM
+        local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local level = self.player_record[client.userid].permission_level
-            if M.LevelHigherThan(level, current_min_online_player_level) then
-                current_min_online_player_level = level
+            if M.LevelHigherThan(level, current_highest_online_player_level) then
+                current_highest_online_player_level = level
             end
         end
 
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
-        new_state = M.LevelHigherThanOrEqual(current_min_online_player_level, required_min_level)
+        new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
     end
     -- judge the new_state ended
 

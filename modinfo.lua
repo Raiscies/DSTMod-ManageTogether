@@ -60,6 +60,10 @@ local trans = ChooseTranslationTable({
 				hover = '如果同意的玩家总人数低于该指定值, 那么投票无论如何都不会通过, 并且若当前在线的玩家总人数已经不满足该条件, 那么投票将不会被发起',
 				any = '任意'
 			},
+			cleaner_item_stat_announcement = {
+				label = '干净的物品栏统计公告',
+				hover = '不公告未搜索出任何目标物品的玩家, 使聊天栏更干净清晰一些'
+			},
 			moderator_title = '监督员可用命令', 
 			moderator_save     = { label = '允许监督员存档' }, 
 			moderator_rollback = { label = '允许监督员回档' },
@@ -130,6 +134,10 @@ most of the commands are available applying to offline player.
 				label = 'minimum player number of agree a vote ', 
 				hover = '如果同意的玩家总人数低于该指定值, 那么投票无论如何都不会通过, 并且若当前在线的玩家总人数已经不满足该条件, 那么投票将不会被发起',
 				any = 'Any'
+			},
+			cleaner_item_stat_announcement = {
+				label = 'cleaner item stat announcement',
+				hover = '不公告未搜索出任何物品的玩家, 使聊天栏更干净清晰一些'
 			},
 			moderator_title = 'Moderator Commands', 
 			moderator_save     = { label = 'save' }, 
@@ -288,6 +296,7 @@ configuration_options = {
 		{description = '11', data = 11},
 		{description = '12', data = 12},
 	}, 3),
+	binary_option('cleaner_item_stat_announcement', NO),
 	title('moderator_title'),
 	binary_option('moderator_save'), 
 	moderator_option('moderator_rollback'), 
