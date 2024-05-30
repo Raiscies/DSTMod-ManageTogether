@@ -735,6 +735,18 @@ M.AddCommands(
         end
     },
     {
+        name = 'SHUTDOWN', 
+        can_vote = true, 
+        permission = M.PERMISSION.ADMIN,
+        checker = {        'number',      'optstring'},
+        fn = function(doer, delay_seconds, reason)
+            if delay_seconds < 0 then
+                delay_seconds = 5
+            end
+
+        end
+    },
+    {
         name = 'ADD_MODERATOR', 
         can_vote = true, 
         user_targetted = true, 
@@ -1186,6 +1198,26 @@ function M.StartCommandVote(executor, cmd, ...)
     return M.ERROR_CODE.SUCCESS
 end
 
+function M.ExecuteCommandFromServer(cmd, start_vote, ...)
+    local client_table = TheNet:GetClientTable()
+    if not client_table then
+        log('failed to execute a command from server: client table is nil, command =', M.CommandEnumToName(cmd))
+        return
+    end
+    -- host client object should be the first element of the client table
+    local admin_host = client_table[1]
+    if not (admin_host and admin_host.admin and admin_host.userid and admin_host.name) then
+        log('failed to execute a command from server: host object is bad, command =', M.CommandEnumToName(cmd))
+        return
+    end 
+    local result
+    if start_vote then
+        result = StartCommandVote(admin_host, cmd, ...)
+    else
+        result = ExecuteCommand(admin_host, cmd, false, ...)
+    end
+    log('executed a command from server, command =', M.CommandEnumToName(cmd), ', result =', M.ErrorCodeToName(result))
+end
 
 AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then

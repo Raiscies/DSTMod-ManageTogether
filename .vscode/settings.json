@@ -123,7 +123,9 @@
         "announce_no_head",
         "announce_fmt_no_head",
         "IsTableEmpty",
-        "net_event"
+        "net_event",
+        "ExecuteCommand",
+        "StartCommandVote"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
