@@ -49,8 +49,6 @@ function M.varg_pairs(...)
     return varg_iter, {n = select('#', ...), ...}, 0
 end
 
--- local varg_pairs = M.varg_pairs
-
 function M.chain_get(root, ...) 
 
     if not root then return nil, root end
@@ -154,7 +152,7 @@ M.dbg = M.DEBUG and function(...)
 end or function(...) end
 
 
-function M.HookIndepVar(fn, varname_or_table, new_var, new_env)
+function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
     if type(varname_or_table) == 'table' then
         new_env = varname_or_table
         setfenv(fn,  
@@ -169,7 +167,7 @@ function M.HookIndepVar(fn, varname_or_table, new_var, new_env)
     end
     return fn
 end
-function M.UnhookIndepVar(fn, new_env)
+function M.unhook_indep_var(fn, new_env)
     setfenv(fn, new_env or GLOBAL)
 end
 
