@@ -153,6 +153,26 @@ M.dbg = M.DEBUG and function(...)
     print('[ManageTogetherDBG] ' .. s)
 end or function(...) end
 
+
+function M.HookIndepVar(fn, varname_or_table, new_var, new_env)
+    if type(varname_or_table) == 'table' then
+        new_env = varname_or_table
+        setfenv(fn,  
+            setmetatable(varname_or_table, { __index = new_env or GLOBAL })
+        )
+    else
+        setfenv(fn,  
+            setmetatable({ [varname_or_table] = new_var }, 
+                { __index = new_env or GLOBAL }
+            )
+        )
+    end
+    return fn
+end
+function M.UnhookIndepVar(fn, new_env)
+    setfenv(fn, new_env or GLOBAL)
+end
+
 function M.announce(s, ...)
     TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
 end
