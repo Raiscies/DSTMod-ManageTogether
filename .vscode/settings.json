@@ -125,7 +125,9 @@
         "IsTableEmpty",
         "net_event",
         "hook_indep_var",
-        "Networking_ModOutOfDateAnnouncement"
+        "Networking_ModOutOfDateAnnouncement",
+        "ExecuteCommand",
+        "StartCommandVote"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
