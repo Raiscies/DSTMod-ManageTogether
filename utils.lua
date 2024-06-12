@@ -156,12 +156,12 @@ function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
     if type(varname_or_table) == 'table' then
         new_env = varname_or_table
         setfenv(fn,  
-            setmetatable(varname_or_table, { __index = new_env or GLOBAL })
+            setmetatable(varname_or_table, { __index = new_env or getfenv(fn) })
         )
     else
         setfenv(fn,  
             setmetatable({ [varname_or_table] = new_var }, 
-                { __index = new_env or GLOBAL }
+                { __index = new_env or getfenv(fn) }
             )
         )
     end
@@ -679,49 +679,5 @@ function M.ReadModeratorDataFromPersistentFile()
     return result_list or {}
 end
 
-function M.InitModOutOfDateListener(call_origin_func)
-    M.OnModOutofDate = {}
-    -- server will announce by this function while mod is out of date
-    -- Networking_ModOutOfDateAnnouncement
-    local origin = call_origin_func and GLOBAL.Networking_ModOutOfDateAnnouncement or function(...)end
-    local trigged_once = false
-    GLOBAL.Networking_ModOutOfDateAnnouncement = function(mod)
-        origin(mod)
-
-        if TheWorld then
-            TheWorld:PushEvent('ms_modoutofdate', mod)
-        end
-
-        for _, v in ipairs(M.on_mod_out_of_date) do
-            if v.once then
-                if not trigged_once then
-                    v.fn(mod)
-                end
-            else
-                v.fn(mod)
-            end
-        end
-
-        if not trigged_once then
-            trigged_once = true
-        end
-    end
-end
-
-function M.AddModOutOfDateHandler(fn, once)
-    table.insert(M.OnModOutofDate, {
-        fn = fn,
-        once = once
-    })
-end
-
-function M.RemoveModOutOfDateHandler(fn)
-    for i, v in ipairs(M.OnModOutofDate) do
-        if v.fn == fn then
-            table.remove(M.OnModOutofDate, i)
-            return
-        end
-    end
-end
 
 end -- is server

@@ -66,6 +66,73 @@ local ShardServerInfoRecord = Class(
     end
 )
 
+function ShardServerInfoRecord:InitModOutOfDateHandler()
+    self.mod_out_of_date_handler = Class(function(self)
+
+        self.callback = {}
+        self.suppress_announcement = false
+
+        original_callback = GLOBAL.Networking_ModOutOfDateAnnouncement
+        trigged_once = false
+        is_recovered = false
+        
+        function self:Add(fn, once)
+            table.insert(self.callback, {fn = fn, once = once})
+            return self
+        end
+        function self:Remove(fn)
+            for i, v in ipairs(M.ModOutOfDateHandler) do
+                if v.fn == fn then
+                    return table.remove(M.ModOutOfDateHandler, i)
+                end
+            end
+        end
+        function self:SetSuppressAnnouncement(val)
+            self.suppress_announcement = val or false
+        end
+        function self:GetSuppressAnnouncement()
+            return self.suppress_announcement
+        end
+        function self:IsTrigged()
+            return trigged_once
+        end
+        function self:GetOriginalCallback()
+            return original_callback
+        end
+
+        function self:RecoverOriginalCallback()
+            _G.Networking_ModOutOfDateAnnouncement = original_callback
+            is_recovered = true
+            -- handler is stopped
+            -- until you re-init another handler
+        end
+        function self:IsRecovered()
+            return is_recovered
+        end
+
+        _G.Networking_ModOutOfDateAnnouncement = function(mod)
+            if not self.suppress_announcement then
+                original_callback(mod)
+            end
+
+            if TheWorld then
+                TheWorld:PushEvent('ms_modoutofdated', mod)
+            end
+
+            for _, v in ipairs(self.callback) do
+                if not (v.once and trigged_once) then
+                    v.fn(mod)
+                end
+            end
+
+            trigged_once = true
+        end
+    end)(
+        -- a sigleton instance
+    )
+
+end
+
 -- add a time stamp field, to optimize record data transmission costs between server & client 
 -- everytime the function is called, timestamp will update
 function ShardServerInfoRecord:ShardUpdateRecordTimeStamp(userid)
@@ -98,6 +165,10 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         dbg('update once new player wall')
         self:UpdateNewPlayerWallState()
     end)
+
+    if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+        self:InitModOutOfDateHandler()
+    end
 
 end or function() end
 
@@ -706,5 +777,6 @@ function ShardServerInfoRecord:MakeModeratorUseridList()
     end
     return result
 end
+
 
 return ShardServerInfoRecord

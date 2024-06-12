@@ -86,6 +86,8 @@ local function InitConfigs()
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
     M.CLEANER_ITEM_STAT_ANNOUNCEMENT = is_config_enabled('cleaner_item_stat_announcement')
+    M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('mod_out_of_date_handler')
+    M.MOD_OUTOFDATE_REVOTE_MINUTE = GetModConfigData('mod_out_of_date_revote_minute') or 5
 
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
     if type(auto_new_player_wall_min_level) == 'string' then
@@ -113,7 +115,6 @@ local function InitConfigs()
         GLOBAL.STRINGS.UI.MANAGE_TOGETHER = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT
         GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
-
 end
 InitConfigs()
 
@@ -338,11 +339,13 @@ local ITEM_STAT_CATEGORY = {
     [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
 }
 
-local function AddOfficalVoteCommand(name, voteresultfn)
+local function AddOfficalVoteCommand(name, voteresultfn, command_name, options)
     
     -- register vote commands
-    -- this shouldn't be use directly
-    AddUserCommand('manage_together_' .. name,  {
+    if not command_name then
+        command_name = name
+    end
+    AddUserCommand('MANAGE_TOGETHER_' .. name,  {
         prettyname = nil, 
         desc = nil,
         permission = COMMAND_PERMISSION.ADMIN, -- command shouldn't be use directly
@@ -357,7 +360,7 @@ local function AddOfficalVoteCommand(name, voteresultfn)
         voteminpasscount = M.VOTE_MIN_PASSED_COUNT ~= 0 and M.VOTE_MIN_PASSED_COUNT or nil, -- default is 3
         votecountvisible = true,
         voteallownotvoted = true,
-        voteoptions = nil, -- { "Yes", "No" }
+        voteoptions = options or nil, -- { "Yes", "No" }
 
         votenamefmt = chain_get(S.VOTE, string.upper(name), 'FMT_NAME'),
         votetitlefmt = chain_get(S.VOTE, string.upper(name), 'TITLE'),
@@ -373,8 +376,8 @@ local function AddOfficalVoteCommand(name, voteresultfn)
                     log('error: failed to execute vote command: command arguments lost')
                     return
                 end
-                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
-                log('executed vote command: cmd = ', name, 'args = ', M.tolinekvstring(env.args), ', result = ', result)
+                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[command_name], true, unpack(env.args)))
+                log('executed vote command: cmd =', command_name, 'args =', M.tolinekvstring(env.args), ', result =', result)
                 M.ResetVoteEnv()
             end)
         end,
@@ -547,8 +550,8 @@ function M.IsVotePermissionLevel(lvl)
     end 
 end
 
--- type checker
 
+-- type checker
 
 M.CHECKERS = {
     bool      = checkbool, 
@@ -738,10 +741,23 @@ M.AddCommands(
         name = 'SHUTDOWN', 
         can_vote = true, 
         permission = M.PERMISSION.ADMIN,
-        checker = {        'number',      'optstring'},
+        checker = {        'optnumber',      'optstring'},
         fn = function(doer, delay_seconds, reason)
-            if delay_seconds < 0 then
+            if not delay_seconds then
+                delay_seconds = 0
+            elseif delay_seconds < 0 then
                 delay_seconds = 5
+            end
+            if reason then
+                announce(reason)
+            end
+            if TheWorld then
+                TheWorld:DoTaskInTime(delay_seconds, function()
+                    c_shutdown()
+                end)
+            else
+                log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
+                c_shutdown()
             end
 
         end
@@ -1225,6 +1241,32 @@ AddPrefabPostInit('shard_network', function(inst)
     end
 end)
 
+if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+    M.TheModOutOfDateHandler = M.ModOutOfDateHandler(false)
+    local handler = M.TheModOutOfDateHandler
+
+    AddOfficalVoteCommand('MODOUTOFDATE', VoteUtil.DefaultMajorityVote, 'SHUTDOWN', {
+        -- vote options:
+        --  1. shutdown in ? minutes/shutdown immediactly while server is empty;
+        S.MODOUTOFDATE_VOTE.SHUTDOWN, 
+
+        --  2. do not shutdown, and suppress the announcement
+        S.MODOUTOFDATE_VOTE.SUPPRESS_ANNOUNCEMENT,
+        
+        --  3. do not shutdown, and start a vote again in ? minutes
+        S.MODOUTOFDATE_VOTE.DELAY
+        
+        --  (no explicit option) 4. do nothing
+
+    })
+
+    handler:Add(function(mod)
+        ExecuteCommandFromServer
+    end, true)
+
+end
+
+
 -- master only
 if TheShard:IsMaster() then
 
@@ -1247,6 +1289,7 @@ AddPrefabPostInit('world', function(inst)
         end
     end)
 end)
+
 
 end
 
@@ -1282,7 +1325,7 @@ end
 
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
-        GetTime() - classified.last_query_player_record_timestamp <= 3 then 
+        GetTime() - classified.last_query_player_record_timestamp <= 1 then 
         dbg('Current Time: ', GetTime(), 'Last Query Time: ', classified.last_query_player_record_timestamp)
         dbg('ignored a request for query history record, because one request has just sended')
         return

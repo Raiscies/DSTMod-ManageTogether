@@ -127,7 +127,9 @@
         "hook_indep_var",
         "Networking_ModOutOfDateAnnouncement",
         "ExecuteCommand",
-        "StartCommandVote"
+        "StartCommandVote",
+        "c_shutdown",
+        "InitModOutOfDateListener"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
