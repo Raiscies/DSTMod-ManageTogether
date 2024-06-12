@@ -27,14 +27,21 @@ local ShardServerInfoRecord = Class(
         self:MasterOnlyInit()
 
         -- register event listeners
+
+        -- ms_playerjoined is always push to master while 
+        -- player is joining on the server, no metter they spawns on master or secondary shards 
+        -- cuz they will migrate from master to secondary shard when join  
         self.inst:ListenForEvent('ms_playerjoined', function(src, player)
             dbg('ms_playerjoined:', player.userid)
             self:RecordPlayer(player.userid)
         end, self.world)
-        -- self.world:ListenForEvent('ms_playerdespawn', function(src, player)
-            -- dbg('ms_playerdespawn: player == nil: ', player == nil, ', player.userid: ', player and player.userid or '--')
 
-        -- end)
+        -- ms_playerleft will be push only when player is left from master,
+        -- but not left from secondary shard, so we should handle propaly
+        self.inst:ListenForEvent('ms_playerleft', function(src, player)
+            dbg('ms_playerleft')
+            self:PushNetEvent('playerleft_from_a_shard')
+        end, self.world)
 
         self.inst:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
@@ -68,12 +75,15 @@ end
 ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
 
-    -- update once
-    self:UpdateNewPlayerWallState()
-
-    self.inst:ListenForEvent('ms_playercounts', function(src, data)
+    self.inst:ListenForEvent('ms_playerjoined', function(src, player)
+        dbg('ms_playerjoined on master')
         self:UpdateNewPlayerWallState()
     end, self.world)
+
+    self.inst:ListenForEvent('ms_playerleft_from_a_shard', function()
+        dbg('ms_playerleft_from_a_shard on master')
+        self:UpdateNewPlayerWallState()
+    end)
 
     self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
         local allowed = not not self.netvar.allow_new_players_to_connect:value()
@@ -82,6 +92,12 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     end)
 
     self:SetAllowNewPlayersToConnect(TheNet:GetAllowNewPlayersToConnect(), true) -- force update
+
+    self.world:DoTaskInTime(0, function()
+          -- update once
+        dbg('update once new player wall')
+        self:UpdateNewPlayerWallState()
+    end)
 
 end or function() end
 
@@ -242,7 +258,19 @@ function ShardServerInfoRecord:SetNetVar(name, value, force_update)
         SendModRPCToShard(
             GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR),
             SHARDID.MASTER, 
-            name, value
+            name, value, force_update
+        )
+    end
+end
+function ShardServerInfoRecord:PushNetEvent(name)
+    -- must be set on master
+    if TheShard:IsMaster() then
+        self.netvar[name]:push()
+    else
+        SendModRPCToShard(
+            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT),
+            SHARDID.MASTER, 
+            name
         )
     end
 end
@@ -409,8 +437,11 @@ function ShardServerInfoRecord:RegisterShardRPCs()
         self:ShardSetPermission(userid, permission_level)
     end)
 
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value)
-        self.netvar[name]:set(value)
+    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
+        self:SetNetVar(name, value, force_update)
+    end)
+    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
+        self:PushNetEvent(name)
     end)
 end
 
@@ -419,7 +450,9 @@ function ShardServerInfoRecord:InitNetVars()
         is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back'),
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level'), 
         auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled'),
-        allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_changed')
+        allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_changed'),
+        
+        playerleft_from_a_shard = net_event(self.inst.GUID, 'ms_playerleft_from_a_shard')
     }
 
 end
@@ -464,6 +497,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         return
     end
     
+    dbg('updating new player wall state...')
     local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
     local old_state = TheNet:GetAllowNewPlayersToConnect()
     local new_state
@@ -472,25 +506,27 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         -- auto new player wall state: allow new players to join
         new_state = true
     else
-        
-        local current_min_online_player_level = M.PERMISSION.MINIMUM
+        dbg('judging...')
+        local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local level = self.player_record[client.userid].permission_level
-            if M.LevelHigherThan(level, current_min_online_player_level) then
-                current_min_online_player_level = level
+            dbg('client: ', client, ', level: ', level)
+            if M.LevelHigherThan(level, current_highest_online_player_level) then
+                current_highest_online_player_level = level
             end
+            dbg('current_highest_online_player_level: ', current_highest_online_player_level)
         end
-
+        dbg('required_min_level:', required_min_level)
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
-        new_state = M.LevelHigherOrEqualThan(current_min_online_player_level, required_min_level)
+        new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
     end
     -- judge the new_state ended
 
     if old_state ~= new_state then
         self:SetAllowNewPlayersToConnect(new_state)
     end
-    
+    dbg('finished to update new player wall state, old_state = ', old_state, ', new_state = ', new_state, ', required_min_level = ', required_min_level)
     self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function() end
@@ -530,7 +566,7 @@ function ShardServerInfoRecord:LoadSaveInfo()
                 dbg('failed to run the world file')
                 return
             end
-            -- dbg('slot: ', slot, ', savedata: ', savedata)
+             
             
             -- this is for loading the whole world file
             -- if savedata.world_network then
@@ -547,7 +583,7 @@ function ShardServerInfoRecord:LoadSaveInfo()
     local index = ShardGameIndex
     -- I don't know why, but it just works...
     local snapshot_info = TheNet:ListSnapshots(index.session_id, index.server.online_mode, 10)
-    -- dbg('list snapshots end, info: ', snapshot_info)
+     
     self.snapshot_info = {
         session_id = index.session_id, 
         slots = {}
@@ -652,6 +688,14 @@ function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
 end
 
+function ShardServerInfoRecord:SnapshotIDExists(snapshot_id)
+    for _, v in ipairs(self.snapshot_info.slots) do
+        if v.snapshot_id == snapshot_id then
+            return true
+        end
+    end
+    return false
+end
 
 function ShardServerInfoRecord:MakeModeratorUseridList()
     local result = {}

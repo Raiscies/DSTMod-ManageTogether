@@ -5,6 +5,13 @@ STRINGS.UI.MANAGE_TOGETHER = {
     
     -- announcement
     ANNOUNCE_PREFIX = '[Manage Together] ',
+
+    LEVEL_PRETTY_NAME = {
+        ADMIN = 'Admin',
+        MODERATOR = 'Moderator',
+        USER = 'Player', 
+    },
+
     FMT_KICKED_PLAYER = '%s(%s) is kicked from the server',
     FMT_BANNED_PLAYER = '%s(%s) is banned',
     FMT_KILLED_PLAYER = '%s(%s) is killed',
@@ -13,8 +20,6 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_ROLLBACK_REQUEST = '%s raised a rollback request, to the %dth saving point:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s raised a rollback request, to the saving point: %s',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s raised a world regenerating request, the world will regenerate in %d second(s)',
-    ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
-    ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 
     FMT_SET_NEW_PLAYER_JOINABILITY = {
         ALLOW = '%s allowed new players to join the server',
@@ -22,6 +27,30 @@ STRINGS.UI.MANAGE_TOGETHER = {
     },
     ALLOW_NEW_PLAYER_JOIN = 'allow new players to join the server', 
     NOT_ALLOW_NEW_PLAYER_JOIN = 'forbidden new players to join the server',
+
+    FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s enabled auto new player wall, server will forbidden new players to join when online players do not satisfiy the condition',  
+    FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s disabled auto new player wall',
+    FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = 'currently no %s or higher permission level\'s player online, automatically forbiddened new players to join the server',
+    AUTO_NEW_PLAYER_WALL_STATE_ALLOW = 'automatically allowed new player to join the server',
+    
+    
+    FMT_MAKE_ITEM_STAT_HEAD = '%s raised a inventory item statistics request', 
+    FMT_MAKE_ITEM_STAT_HEAD2 = 'target player(s): %s, target item(s): %s', 
+    MAKE_ITEM_STAT_OPTIONS = {
+        ALL_ONLINE_PLAYERS = 'All Online Players',
+        ALL_OFFLINE_PLAYERS = 'All Offline Players',
+        ALL_PLAYERS = 'All Players', 
+    }, 
+
+    FMT_MAKE_ITEM_STAT_HAS_ITEM = '%s(%s)%s owns: ',
+    --                       name(prefab) × counts
+    FMT_SINGLE_ITEM_RESULT = '%s(%s) × %d; ',
+    FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s) don\'t have any target item%s;',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', the player exists deeper container(s) that haven\'t been search',
+    MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = ' exists deeper container(s) that haven\'t been search, ',
+    MAKE_ITEM_STAT_DELIM = '',
+    ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
+    ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 
     UNKNOWN_PLAYER = 'Unknown Player',
     
@@ -79,6 +108,10 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = 'should we %s',
             TITLE = 'should we modify new player connection setting?'
         },
+        MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
+            FMT_ANNOUNCE = 'should we make a statistics for %s for these items: %s',
+            TITLE = 'should we execute a inventory item statistics?'
+        }
     }
 }
 
@@ -114,6 +147,10 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     VOTE = 'Start a Vote...',
     NO_VOTE = 'Cancel to Start a Vote',
     START_A_VOTE = 'Start a Vote: ',
+    MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = 'Execute Item Statistics',
+    MAKE_ITEM_STAT_DESC = 'Search and make a Statistics for appointted items in all of the online/offline player\'s inventory\nitem name or its prefab name are both accepted',
+    MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
+    MAKE_ITEM_STAT_TEXT_PROMPT = 'Cut Grass,yellowstaff',
     REFRESH_RECORDS = 'Update Data',
     REFRESH_RECORDS_DESC = 'most of the situation you don\'t need to click this button, but if you found something wrong about display, just try it', 
     -- player commands

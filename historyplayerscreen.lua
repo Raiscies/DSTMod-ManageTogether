@@ -1,12 +1,15 @@
 
-GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-
 -- GUI - clients only
 if not TheNet:GetIsClient() then return end
 
 -- shortened aliasis
-local M = manage_together
-local S = STRINGS.UI.HISTORYPLAYERSCREEN
+
+local M = GLOBAL.manage_together
+local S = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN
+
+M.using_namespace(M, GLOBAL)
+
+string.trim = M.trim
 
 require 'util'
 local Screen = require 'widgets/screen'
@@ -35,6 +38,7 @@ local spinner_lean_images = {
 
 local Image = require 'widgets/image'
 local ImageButton = require 'widgets/imagebutton'
+local RadioButtons = require 'widgets/radiobuttons'
 local PlayerBadge = require 'widgets/playerbadge'
 local ScrollableList = require 'widgets/scrollablelist'
 
@@ -141,7 +145,7 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
             text = STRINGS.UI.PLAYERSTATUSSCREEN.OK, 
             cb = function() 
                 if self:Verify() then
-                    on_confirmed_fn()
+                    on_confirmed_fn(self:GetText())
                     TheFrontEnd:PopScreen() 
                 end
             end
@@ -154,8 +158,21 @@ local InputVerificationDialog = Class(InputDialogScreen, function(self, title, v
     self.verify_fn = verify_fn
 
     self.bg:SetPosition(0, 20)
+    local width, height = self.bg:GetSize()
+    self.bg:SetSize(width, 120)
     
     self.bg.actions:DisableItem(1)
+
+
+    local edit_text_on_control = self.edit_text.OnControl
+    self.edit_text.OnControl = function(edit, control, down)
+        if self:Verify() then
+            self.bg.actions:EnableItem(1)
+        else
+            self.bg.actions:DisableItem(1)
+        end
+        return edit_text_on_control(edit, control, down)
+    end
 end)
 function InputVerificationDialog:OnControl(control, down)
     if self:Verify() then
@@ -163,15 +180,7 @@ function InputVerificationDialog:OnControl(control, down)
     else
         self.bg.actions:DisableItem(1)
     end
-    InputVerificationDialog._base.OnControl(self, control, down)
-end
-function InputVerificationDialog:OnTextInput(text)
-    if self:Verify() then
-        self.bg.actions:EnableItem(1)
-    else
-        self.bg.actions:DisableItem(1)
-    end
-    InputVerificationDialog._base.OnTextInput(self, text)
+    return InputVerificationDialog._base.OnControl(self, control, down)
 end
 
 function InputVerificationDialog:Verify()
@@ -179,13 +188,151 @@ function InputVerificationDialog:Verify()
 end
 
 
-local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
-    TheFrontEnd:PushScreen(InputVerificationDialog(
-        -- title
-        string.format(S.FMT_INPUT_TO_CONFIRM, required_text_tips, action_name),
-        verify_fn, 
-        on_confirmed_fn
-    ))
+local ItemStatDialog = Class(InputVerificationDialog, function(self, title, desc, on_submitted)
+    -- M.ToPrefabName: returns nil if the name is not valid or else returns non-nil item prefab name string
+    local verify_fn = function(text)
+        -- eg1: prefab1, prefab2, prefab3
+        local target_prefabs = {}
+        text = text:trim()
+        for _, word in ipairs(text:split(',')) do
+            word = word:trim()
+             
+            local result = ToPrefabName(word)
+            if result then
+                if type(result) == 'string' then
+                    -- table.insert(self.the_item_prefabs, result)
+                    target_prefabs[result] = true
+                else
+                    -- result is a table
+                    for _, v in ipairs(result) do
+                        target_prefabs[v] = true
+                    end
+                end
+            else
+                -- this word is bad
+                return false
+            end
+        end
+        
+        self.the_item_prefabs = {}
+        for prefab, _ in pairs(target_prefabs) do
+            table.insert(self.the_item_prefabs, prefab)
+        end
+        -- self.the_item_prefabs = M.ToPrefabName(text:rtrim())
+         
+        return #self.the_item_prefabs ~= 0
+    end
+    local submitted_fn = function()
+        on_submitted(self.the_item_prefabs, self.search_range)
+    end
+    InputVerificationDialog._ctor(self, title, verify_fn, submitted_fn)
+    local width, height = self.bg:GetSize()
+    self.bg:SetSize(width, 250)
+
+    self.edit_text:SetTextPrompt(S.MAKE_ITEM_STAT_TEXT_PROMPT, {0, 0, 0, .4})
+    
+    self.desc_text = desc
+    -- description text
+    self.desc = self.proot:AddChild(Text(NEWFONT, 28))
+    self.desc:SetPosition(0, 110, 0)
+    self.desc:SetString(self.desc_text)
+    self.desc:SetColour(1, 1, 1, 1)
+    self.desc:EnableWordWrap(true)
+    self.desc:SetRegionSize(500, 160)
+    self.desc:SetVAlign(ANCHOR_MIDDLE)
+
+    local radio_button_settings = {
+        width = 170,
+        height = 40,
+        font = NEWFONT,
+        font_size = 23,
+        image_scale = 0.6,
+        atlas = "images/ui.xml",
+        on_image = "radiobutton_on.tex",
+        off_image = "radiobutton_off.tex",
+        normal_colour = {1, 1, 1, 1}, 
+        selected_colour = {1, 1, 1, 1},
+        hover_colour = {1, 1, 1, 1}
+    }
+    local radio_options = {
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_ONLINE_PLAYERS,  data = 0},
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_OFFLINE_PLAYERS, data = 1},
+        {text = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS,         data = 2},
+    }
+    self.search_range = 0
+    self.search_range_radio = self.proot:AddChild(RadioButtons(radio_options,  #radio_options * 170, 40, radio_button_settings, true))
+    self.search_range_radio:SetPosition(-90, 70, 0)
+  
+    self.search_range_radio:SetOnChangedFn(function(data)
+        self.search_range = data
+    end)
+
+    -- enable item text prediction
+    self.edit_text:EnableWordPrediction({width = 800, mode = 'enter', pad_y = -75})
+    
+    
+    -- tweak the RefreshPredictions and Apply functions
+    -- add a implicit 'begin' character, to help the predictor correctly apply the predictted word to the textedit
+    local implicit_begin = '\0'
+    local OldRefreshPredictions = self.edit_text.prediction_widget.word_predictor.RefreshPredictions
+    self.edit_text.prediction_widget.word_predictor.RefreshPredictions = function(predictor, text, cursor_pos)
+        OldRefreshPredictions(predictor, implicit_begin .. text, cursor_pos + 1)
+    end
+    self.edit_text.prediction_widget.word_predictor.Apply = function(predictor, prediction_index)
+        local new_text = nil
+        local new_cursor_pos = nil
+        if predictor.prediction ~= nil then
+            local new_word = predictor.prediction.matches[math.clamp(prediction_index or 1, 1, #predictor.prediction.matches)]
+
+            -- no implicit_begin char in the application
+            new_text = predictor.text:sub(2, predictor.prediction.start_pos) .. new_word .. ','
+            new_cursor_pos = #new_text
+        end
+
+        predictor:Clear()
+        return new_text, new_cursor_pos
+    end
+    
+    local get_display_string = function(word)
+        if _G.Prefabs[word] then
+            -- word is a prefab string
+            local name = STRINGS.NAMES[word:upper()] 
+            return name and (word .. '(' .. name .. ')') or word
+        else
+            local prefab_names = M.LOCAL_NAME_REFERENCES[word]
+            if prefab_names then
+                if type(prefab_names) == 'table' then
+                    prefab_names = table.concat(prefab_names, ', ')
+                end
+                return word .. '(' .. prefab_names .. ')'
+            else
+                return name
+            end
+        end
+    end
+    
+    for _, dict in ipairs(M.GetItemDictionaries()) do
+        self.edit_text:AddWordPredictionDictionary({
+            words = dict, 
+            delim = implicit_begin, 
+            num_chars = 1,
+            skip_pre_delim_check = true, 
+            GetDisplayString = get_display_string
+        })
+        self.edit_text:AddWordPredictionDictionary({
+            words = dict, 
+            delim = ',', 
+            num_chars = 1, 
+            skip_pre_delim_check = true, 
+            GetDisplayString = get_display_string
+        })
+    end
+
+end)
+
+function ItemStatDialog:GetItemPrefabs()
+    self:Verify()
+    return self.the_item_prefabs
 end
 
 local function PopupDialog(title, text)
@@ -197,10 +344,23 @@ local function PopupDialog(title, text)
             text,
             -- buttons
             {
-                {text=STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
+                {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
             }
         )
     )
+end
+
+local function PopupInputConfirmDialog(action_name, required_text_tips, verify_fn, on_confirmed_fn)
+    TheFrontEnd:PushScreen(InputVerificationDialog(
+        -- title
+        string.format(S.FMT_INPUT_TO_CONFIRM, required_text_tips, action_name),
+        verify_fn, 
+        on_confirmed_fn
+    ))
+end
+
+local function PopupItemStatDialog(title, desc, on_submitted_fn)
+    TheFrontEnd:PushScreen(ItemStatDialog(title, desc, on_submitted_fn))
 end
 
 
@@ -217,6 +377,14 @@ local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, com
                 name .. '_hover.tex', 
                 name .. '_select.tex', -- disabled.tex 
                 name .. '_select.tex'
+            }
+        elseif type(img_src) == 'string' then
+            img_src = {
+                M.ATLAS,
+                img_src .. '_normal.tex', 
+                img_src .. '_hover.tex', 
+                img_src .. '_select.tex', -- disabled.tex 
+                img_src .. '_select.tex'
             }
         end
         --                                                        atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
@@ -350,8 +518,8 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                    M.dbg('confirmed to rollback to: ', screen.rollback_spinner:GetSelected().text)
-                    M.dbg('real target: data = ', screen.rollback_spinner:GetSelected().data, ', info = ', screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data])
+                     
+                     
 
                     ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
@@ -386,7 +554,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 current_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
                 function() ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) end
             )
-            M.dbg('current state: ', current_state, 'target state: ', not current_state, 'type of current state: ', type(current_state), 'target state: ', type(not current_state))
+             
         end
     )
     -- modify 'disabled' texture
@@ -398,6 +566,19 @@ local function DoInitServerRelatedCommnadButtons(screen)
     else
         screen.set_new_player_joinability:TurnOff()
     end
+
+    CreateButtonOfServer(screen, 'make_item_stat_in_player_inventories', 'make_item_stat', false, function(vote_state)
+        PopupItemStatDialog(
+            vote_state and (S.START_A_VOTE .. S.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES) or S.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, 
+            S.MAKE_ITEM_STAT_DESC, 
+            -- on_submitted
+            function(item_prefabs, search_range)
+                 
+
+                ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, unpack(item_prefabs))
+            end
+        )
+    end)
 
     CreateButtonOfServer(screen, 'vote', nil, false, function(vote_state)
         if vote_state then
@@ -449,21 +630,21 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     end
 
     self.on_snapshot_info_updated = function()
-        M.dbg('on_snapshot_info_updated')
+         
         if self.shown then 
             self:DoInitRollbackSpinner()
         end
     end
 
     self.on_server_data_updated = function()
-        M.dbg('on_server_data_updated')
+         
         if self.shown then 
             self:DoInit()
         end
     end
 
     self.on_new_player_joinability_updated = function()
-        M.dbg('on_new_player_joinability_updated')
+         
         if self.shown then
             local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
             if new_player_joinability then

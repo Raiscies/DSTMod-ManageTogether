@@ -2,40 +2,43 @@
 <Atlas>
     <Texture filename="manage_together_integrated.tex"/>
     <Elements>
-        <Element name="add_moderator.tex" u1="0.453613" u2="0.550293" v1="0.0205078" v2="0.213867"/>
-        <Element name="admin_badge.tex" u1="0.906738" u2="0.996582" v1="0.59082" v2="0.772461"/>
-        <Element name="allow_all_player_hover.tex" u1="0.000488281" u2="0.112793" v1="0.774414" v2="0.999023"/>
-        <Element name="allow_all_player_normal.tex" u1="0.000488281" u2="0.112793" v1="0.547852" v2="0.772461"/>
-        <Element name="allow_all_player_select.tex" u1="0.000488281" u2="0.112793" v1="0.321289" v2="0.545898"/>
-        <Element name="allow_old_player_hover.tex" u1="0.000488281" u2="0.112793" v1="0.0947266" v2="0.319336"/>
-        <Element name="allow_old_player_normal.tex" u1="0.11377" u2="0.226074" v1="0.774414" v2="0.999023"/>
-        <Element name="allow_old_player_select.tex" u1="0.11377" u2="0.226074" v1="0.547852" v2="0.772461"/>
-        <Element name="bg_rollback_spinner.tex" u1="0.453613" u2="0.683105" v1="0.895508" v2="0.999023"/>
-        <Element name="kill.tex" u1="0.55127" u2="0.647949" v1="0.0205078" v2="0.213867"/>
-        <Element name="killban.tex" u1="0.648926" u2="0.745605" v1="0.0205078" v2="0.213867"/>
-        <Element name="no_vote_hover.tex" u1="0.11377" u2="0.226074" v1="0.321289" v2="0.545898"/>
-        <Element name="no_vote_normal.tex" u1="0.11377" u2="0.226074" v1="0.0947266" v2="0.319336"/>
-        <Element name="no_vote_select.tex" u1="0.227051" u2="0.339355" v1="0.774414" v2="0.999023"/>
-        <Element name="not_allow_all_hover.tex" u1="0.227051" u2="0.339355" v1="0.547852" v2="0.772461"/>
-        <Element name="not_allow_all_normal.tex" u1="0.227051" u2="0.339355" v1="0.321289" v2="0.545898"/>
-        <Element name="not_allow_all_select.tex" u1="0.227051" u2="0.339355" v1="0.0947266" v2="0.319336"/>
-        <Element name="refresh_records_hover.tex" u1="0.340332" u2="0.452637" v1="0.774414" v2="0.999023"/>
-        <Element name="refresh_records_normal.tex" u1="0.340332" u2="0.452637" v1="0.547852" v2="0.772461"/>
-        <Element name="refresh_records_select.tex" u1="0.340332" u2="0.452637" v1="0.321289" v2="0.545898"/>
-        <Element name="regenerate_world_hover.tex" u1="0.340332" u2="0.452637" v1="0.0947266" v2="0.319336"/>
-        <Element name="regenerate_world_normal.tex" u1="0.684082" u2="0.796387" v1="0.774414" v2="0.999023"/>
-        <Element name="regenerate_world_select.tex" u1="0.797363" u2="0.909668" v1="0.774414" v2="0.999023"/>
-        <Element name="remove_moderator.tex" u1="0.746582" u2="0.843262" v1="0.125977" v2="0.319336"/>
-        <Element name="rollback_hover.tex" u1="0.453613" u2="0.565918" v1="0.668945" v2="0.893555"/>
-        <Element name="rollback_normal.tex" u1="0.566895" u2="0.679199" v1="0.668945" v2="0.893555"/>
-        <Element name="rollback_select.tex" u1="0.680176" u2="0.79248" v1="0.547852" v2="0.772461"/>
-        <Element name="save_hover.tex" u1="0.793457" u2="0.905762" v1="0.547852" v2="0.772461"/>
-        <Element name="save_normal.tex" u1="0.453613" u2="0.565918" v1="0.442383" v2="0.666992"/>
-        <Element name="save_select.tex" u1="0.566895" u2="0.679199" v1="0.442383" v2="0.666992"/>
-        <Element name="view_steam_profile.tex" u1="0.793457" u2="0.890137" v1="0.352539" v2="0.545898"/>
-        <Element name="vote_hover.tex" u1="0.453613" u2="0.565918" v1="0.21582" v2="0.44043"/>
-        <Element name="vote_normal.tex" u1="0.566895" u2="0.679199" v1="0.21582" v2="0.44043"/>
-        <Element name="vote_select.tex" u1="0.680176" u2="0.79248" v1="0.321289" v2="0.545898"/>
+        <Element name="add_moderator.tex" u1="0.227051" u2="0.32373" v1="0.449707" v2="0.546387"/>
+        <Element name="admin_badge.tex" u1="0.906738" u2="0.996582" v1="0.79541" v2="0.88623"/>
+        <Element name="allow_all_player_hover.tex" u1="0.230957" u2="0.343262" v1="0.887207" v2="0.999512"/>
+        <Element name="allow_all_player_normal.tex" u1="0.000488281" u2="0.112793" v1="0.834473" v2="0.946777"/>
+        <Element name="allow_all_player_select.tex" u1="0.11377" u2="0.226074" v1="0.834473" v2="0.946777"/>
+        <Element name="allow_old_player_hover.tex" u1="0.344238" u2="0.456543" v1="0.887207" v2="0.999512"/>
+        <Element name="allow_old_player_normal.tex" u1="0.45752" u2="0.569824" v1="0.887207" v2="0.999512"/>
+        <Element name="allow_old_player_select.tex" u1="0.570801" u2="0.683105" v1="0.887207" v2="0.999512"/>
+        <Element name="bg_rollback_spinner.tex" u1="0.000488281" u2="0.22998" v1="0.947754" v2="0.999512"/>
+        <Element name="kill.tex" u1="0.227051" u2="0.32373" v1="0.352051" v2="0.44873"/>
+        <Element name="killban.tex" u1="0.227051" u2="0.32373" v1="0.254395" v2="0.351074"/>
+        <Element name="make_item_stat_hover.tex" u1="0.684082" u2="0.796387" v1="0.887207" v2="0.999512"/>
+        <Element name="make_item_stat_normal.tex" u1="0.797363" u2="0.909668" v1="0.887207" v2="0.999512"/>
+        <Element name="make_item_stat_select.tex" u1="0.227051" u2="0.339355" v1="0.773926" v2="0.88623"/>
+        <Element name="no_vote_hover.tex" u1="0.000488281" u2="0.112793" v1="0.721191" v2="0.833496"/>
+        <Element name="no_vote_normal.tex" u1="0.11377" u2="0.226074" v1="0.721191" v2="0.833496"/>
+        <Element name="no_vote_select.tex" u1="0.340332" u2="0.452637" v1="0.773926" v2="0.88623"/>
+        <Element name="not_allow_all_player_hover.tex" u1="0.453613" u2="0.565918" v1="0.773926" v2="0.88623"/>
+        <Element name="not_allow_all_player_normal.tex" u1="0.566895" u2="0.679199" v1="0.773926" v2="0.88623"/>
+        <Element name="not_allow_all_player_select.tex" u1="0.680176" u2="0.79248" v1="0.773926" v2="0.88623"/>
+        <Element name="refresh_records_hover.tex" u1="0.793457" u2="0.905762" v1="0.773926" v2="0.88623"/>
+        <Element name="refresh_records_normal.tex" u1="0.000488281" u2="0.112793" v1="0.60791" v2="0.720215"/>
+        <Element name="refresh_records_select.tex" u1="0.000488281" u2="0.112793" v1="0.494629" v2="0.606934"/>
+        <Element name="regenerate_world_hover.tex" u1="0.000488281" u2="0.112793" v1="0.381348" v2="0.493652"/>
+        <Element name="regenerate_world_normal.tex" u1="0.000488281" u2="0.112793" v1="0.268066" v2="0.380371"/>
+        <Element name="regenerate_world_select.tex" u1="0.000488281" u2="0.112793" v1="0.154785" v2="0.26709"/>
+        <Element name="remove_moderator.tex" u1="0.227051" u2="0.32373" v1="0.156738" v2="0.253418"/>
+        <Element name="rollback_hover.tex" u1="0.000488281" u2="0.112793" v1="0.0415039" v2="0.153809"/>
+        <Element name="rollback_normal.tex" u1="0.11377" u2="0.226074" v1="0.60791" v2="0.720215"/>
+        <Element name="rollback_select.tex" u1="0.11377" u2="0.226074" v1="0.494629" v2="0.606934"/>
+        <Element name="save_hover.tex" u1="0.11377" u2="0.226074" v1="0.381348" v2="0.493652"/>
+        <Element name="save_normal.tex" u1="0.11377" u2="0.226074" v1="0.268066" v2="0.380371"/>
+        <Element name="save_select.tex" u1="0.11377" u2="0.226074" v1="0.154785" v2="0.26709"/>
+        <Element name="view_steam_profile.tex" u1="0.227051" u2="0.32373" v1="0.059082" v2="0.155762"/>
+        <Element name="vote_hover.tex" u1="0.11377" u2="0.226074" v1="0.0415039" v2="0.153809"/>
+        <Element name="vote_normal.tex" u1="0.227051" u2="0.339355" v1="0.660645" v2="0.772949"/>
+        <Element name="vote_select.tex" u1="0.227051" u2="0.339355" v1="0.547363" v2="0.659668"/>
     </Elements>
     <StraightAlpha>false</StraightAlpha>
 </Atlas>
