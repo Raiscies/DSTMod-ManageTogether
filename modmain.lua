@@ -1259,7 +1259,7 @@ end
 
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
-        GetTime() - classified.last_query_player_record_timestamp <= 3 then 
+        GetTime() - classified.last_query_player_record_timestamp <= 1 then 
         dbg('Current Time: ', GetTime(), 'Last Query Time: ', classified.last_query_player_record_timestamp)
         dbg('ignored a request for query history record, because one request has just sended')
         return
