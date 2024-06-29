@@ -721,12 +721,12 @@ M.AddCommands(
     {
         name = 'REGENERATE_WORLD', 
         can_vote = true,
-        checker = {        'number'},
+        checker = {        'optnumber'},
         fn = function(doer, delay_seconds)
-            if delay_seconds < 0 then
+            if not delay_seconds or delay_seconds < 0 then
                 delay_seconds = 5
             end 
-            announce(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
+            announce_fmt(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
             GLOBAL.TheWorld:DoTaskInTime(delay_seconds, function()
                 GLOBAL.TheNet:SendWorldResetRequestToServer()
             end)
@@ -847,7 +847,7 @@ M.SHARD_COMMAND = {
         
         if not target or not target.in_this_shard then return end
 
-        local announce_string = string.format(S.FMT_KILLED_PLAYER, target.name, target_userid)
+        local announce_string = string.format(S.FMT_KILLED_PLAYER, target.name or '???', target_userid)
         if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
@@ -867,7 +867,7 @@ M.SHARD_COMMAND = {
         
         if not target or not target.in_this_shard then return end
 
-        local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name, target_userid)
+        local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name or '???', target_userid)
         if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
@@ -1069,46 +1069,61 @@ end
 function M.CheckArgs(checkers, ...)
     local checkertype = type(checkers)
     if checkertype == 'table' then
-
+        local args = {...}
         local last_checker_fn = CHECKERS.none
         local same_as_below = false
-        for i, v in varg_pairs(...) do
-            local the_checker = checkers[i]
-            
-            -- if the_checker then
-            if the_checker == CHECKERS.same then
-                -- set flag
-                same_as_below = true
-            end
-            if same_as_below then
-                -- ignore the tailing checkers
-                the_checker = last_checker_fn
+        for i, this_checker in ipairs(checkers) do
+
+            if this_checker == CHECKERS.same then
+                --         checker: number, same(i == 2)
+                -- (valid) args:    1,      nil, nil ... 
+                -- (valid)          2,      3,   nil ... 
+                
+                -- no more args 
+                if #args < i then return true end
+                
+                -- check remained args
+                for j = i, #args do
+                    if not last_checker_fn(args[j]) then return false end
+                end
+                return true
             end
 
-            if the_checker == nil and v ~= nil then
+            local this_arg = args[i]
+            if this_checker == nil and this_arg ~= nil then
+                if this_arg ~= nil then
+                    return false    
+                end
+                last_checker_fn = CHECKERS.none
                 -- this arg should be nil
-                return false
-            elseif type(the_checker) == 'function' then
-                if not the_checker(v) then
+            elseif type(this_checker) == 'function' then
+                if not this_checker(this_arg) then
                     -- bad argument 
                     return false
                 end
-                last_checker_fn = the_checker
-            elseif type(the_checker) == 'string' then
-                local the_checker_fn = CHECKERS[the_checker]
+                last_checker_fn = this_checker
+            elseif type(this_checker) == 'string' then
+                local the_checker_fn = CHECKERS[this_checker]
+                dbg('the_checker: ', this_checker)
                 assert(the_checker_fn ~= nil)
-
+                dbg('the_checker_fn: ', the_checker_fn)
                 -- bad argument 
-                if not the_checker_fn(v) then
+                if not the_checker_fn(this_arg) then
+                    dbg('check result: no')
                     return false
                 end
+                dbg('check result: yes')
                 last_checker_fn = the_checker_fn
             end
-
         end
-        return true
+        -- check remained args
+        -- no more checker, so not accept remained args
+        return select('#', ...) <= #checkers
+
     elseif checkertype == 'function' then
         return checkers(...)
+    elseif checkers == nil then
+        return select('#', ...) == 0 -- no args
     end
     dbg('in M.CheckArgs: bad checker type')
     return false
@@ -1136,13 +1151,10 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
-    end
-
-    local checker = M.COMMAND[cmd].checker
-    if checker and not CheckArgs(checker, ...) then
+    elseif not CheckArgs(M.COMMAND[cmd].checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
-    
+
     local result = M.COMMAND[cmd].fn(executor, ...)
     dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
     -- nil(by default) means success
@@ -1167,10 +1179,7 @@ function M.StartCommandVote(executor, cmd, ...)
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
-    end
-    
-    local checker = M.COMMAND[cmd].checker
-    if checker and not CheckArgs(checker, ...) then
+    elseif not CheckArgs(M.COMMAND[cmd].checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
@@ -1250,7 +1259,7 @@ end
 
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
-        GetTime() - classified.last_query_player_record_timestamp <= 3 then 
+        GetTime() - classified.last_query_player_record_timestamp <= 1 then 
         dbg('Current Time: ', GetTime(), 'Last Query Time: ', classified.last_query_player_record_timestamp)
         dbg('ignored a request for query history record, because one request has just sended')
         return
