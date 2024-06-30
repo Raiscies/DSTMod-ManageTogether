@@ -71,10 +71,19 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
 
         self.callback = {}
         self.suppress_announcement = false
+        self.outofdated_mods = {}
 
         original_callback = GLOBAL.Networking_ModOutOfDateAnnouncement
         trigged_once = false
-        is_recovered = false
+
+        local function add_old_mod(modname)
+            local modhash = smallhash(modname)
+            if not self.outofdated_mods[modhash] then
+                self.outofdated_mods[modhash] = modname
+                return true
+            end
+            return false
+        end
         
         function self:Add(fn, once)
             table.insert(self.callback, {fn = fn, once = once})
@@ -99,6 +108,9 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
         function self:GetOriginalCallback()
             return original_callback
         end
+        function self:GetOutOfDatedMod()
+            return self.outofdated_mods
+        end
 
         function self:RecoverOriginalCallback()
             _G.Networking_ModOutOfDateAnnouncement = original_callback
@@ -106,14 +118,16 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             -- handler is stopped
             -- until you re-init another handler
         end
-        function self:IsRecovered()
-            return is_recovered
-        end
+        -- function self:IsRecovered()
+        --     return is_recovered
+        -- end
 
         _G.Networking_ModOutOfDateAnnouncement = function(mod)
             if not self.suppress_announcement then
                 original_callback(mod)
             end
+
+            add_old_mod(mod)
 
             if TheWorld then
                 TheWorld:PushEvent('ms_modoutofdated', mod)

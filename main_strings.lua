@@ -178,5 +178,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     FMT_CONFIRM_DIALOG_DESC  = '将玩家%s %s%s',
     FMT_INPUT_TO_CONFIRM = '输入%s以确认%s',
 
-    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...'
+    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...', 
+    FMT_SERVER_WILL_SHUTDOWN = '服务器将会在%d秒内关闭, 原因: %s',
+    SHUTDOWN_REASON_UPDATE_MOD = '重启并更新模组'
 }
