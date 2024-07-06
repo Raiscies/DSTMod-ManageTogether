@@ -1003,10 +1003,14 @@ function HistoryPlayerScreen:DoInit()
         self.servermods:SetPosition(20,-250,0)
         self.servermods:SetColour(1,1,1,1)
         self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..modsStr, 650, 146, true)
+        self.servermods:SetHoverText(modsStr)
 
         self.bg:SetScale(.95,.95)
         self.bg:SetPosition(0,-10)
     end
+
+    DoInitScreenToggleButton(self, 2)
+    DoInitServerRelatedCommnadButtons(self)
 
     -- what does this function do?
     local function doButtonFocusHookups(playerListing)
@@ -1030,6 +1034,8 @@ function HistoryPlayerScreen:DoInit()
             end
         end
     end
+
+
     
     local function listingConstructor(i, parent)
         local playerListing =  parent:AddChild(Widget('playerListing'))
@@ -1455,8 +1461,6 @@ function HistoryPlayerScreen:DoInit()
         end
     end
 
-    DoInitScreenToggleButton(self, 2)
-    DoInitServerRelatedCommnadButtons(self)
     if TheWorld then
         if TheWorld.net then
             self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
