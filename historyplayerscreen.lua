@@ -1003,33 +1003,39 @@ function HistoryPlayerScreen:DoInit()
         self.servermods:SetPosition(20,-250,0)
         self.servermods:SetColour(1,1,1,1)
         self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..modsStr, 650, 146, true)
+        self.servermods:SetHoverText(modsStr)
 
         self.bg:SetScale(.95,.95)
         self.bg:SetPosition(0,-10)
     end
 
-    -- what does this function do?
-    local function doButtonFocusHookups(playerListing)
-        local buttons = {}
-        if playerListing.viewprofile:IsVisible() then table.insert(buttons, playerListing.viewprofile) end
-        if playerListing.kick:IsVisible() then table.insert(buttons, playerListing.kick) end
-        if playerListing.ban:IsVisible() then table.insert(buttons, playerListing.ban) end
-        -- if playerListing.useractions:IsVisible() then table.insert(buttons, playerListing.useractions) end
+    DoInitScreenToggleButton(self, 2)
+    DoInitServerRelatedCommnadButtons(self)
 
-        local focusforwardset = false
-        for i,button in ipairs(buttons) do
-            if not focusforwardset then
-                focusforwardset = true
-                playerListing.focus_forward = button
-            end
-            if buttons[i-1] then
-                button:SetFocusChangeDir(MOVE_LEFT, buttons[i-1])
-            end
-            if buttons[i+1] then
-                button:SetFocusChangeDir(MOVE_RIGHT, buttons[i+1])
-            end
-        end
-    end
+    -- -- what does this function do?
+    -- local function doButtonFocusHookups(playerListing)
+    --     local buttons = {}
+    --     if playerListing.viewprofile:IsVisible() then table.insert(buttons, playerListing.viewprofile) end
+    --     if playerListing.kick:IsVisible() then table.insert(buttons, playerListing.kick) end
+    --     if playerListing.ban:IsVisible() then table.insert(buttons, playerListing.ban) end
+    --     -- if playerListing.useractions:IsVisible() then table.insert(buttons, playerListing.useractions) end
+
+    --     local focusforwardset = false
+    --     for i,button in ipairs(buttons) do
+    --         if not focusforwardset then
+    --             focusforwardset = true
+    --             playerListing.focus_forward = button
+    --         end
+    --         if buttons[i-1] then
+    --             button:SetFocusChangeDir(MOVE_LEFT, buttons[i-1])
+    --         end
+    --         if buttons[i+1] then
+    --             button:SetFocusChangeDir(MOVE_RIGHT, buttons[i+1])
+    --         end
+    --     end
+    -- end
+
+
     
     local function listingConstructor(i, parent)
         local playerListing =  parent:AddChild(Widget('playerListing'))
@@ -1409,7 +1415,7 @@ function HistoryPlayerScreen:DoInit()
             end
         end
 
-        doButtonFocusHookups(playerListing)
+        -- doButtonFocusHookups(playerListing)
     end
 
     if not self.scroll_list then
@@ -1455,8 +1461,6 @@ function HistoryPlayerScreen:DoInit()
         end
     end
 
-    DoInitScreenToggleButton(self, 2)
-    DoInitServerRelatedCommnadButtons(self)
     if TheWorld then
         if TheWorld.net then
             self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
