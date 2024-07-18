@@ -61,6 +61,10 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
 
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = '服务器将在无人时重启, 当前已关闭警告',
+    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = '服务器模组过期警告已关闭',
+    MODOUTOFDATE_REVOTE = '投票将会在%d分钟后重新发起',
+
     -- vote related strings
     VOTE = {
         FMT_START = '%s 发起了一场投票: %s?',
@@ -113,6 +117,14 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
             TITLE = '我们应该执行物品栏物品统计吗?'
+        }, 
+        MODOUTOFDATE = {
+            FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么?', 
+            TITLE = '服务器模组已过期, 我们应该...', 
+            SHUTDOWN = '立即重启服务器', 
+            SHUTDOWN_WHEN_NOBODY = '服务器无人时重启', 
+            SUPPRESS_ANNOUNCEMENT = '仅关闭警告', 
+            DELAY = '一会再说',
         }
     }
 }

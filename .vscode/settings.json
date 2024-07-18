@@ -130,7 +130,8 @@
         "StartCommandVote",
         "c_shutdown",
         "InitModOutOfDateListener",
-        "ExecuteCommandFromServer"
+        "ExecuteCommandFromServer",
+        "flog"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

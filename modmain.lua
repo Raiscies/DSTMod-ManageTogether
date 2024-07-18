@@ -339,30 +339,15 @@ local ITEM_STAT_CATEGORY = {
     [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
 }
 
-local function AddOfficalVoteCommand(name, voteresultfn, command_name_or_server_fn, options)
+local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_original_params)
+
+    -- to modify more usercommand arguments, set arguments in override_args table 
     
-    -- register vote commands
-    if not command_name_or_server_fn then
-        command_name_or_server_fn = name
+    if not override_args then
+        override_args = {}
     end
 
-    local server_fn = type(command_name_or_server_fn) == 'function' and 
-        command_name_or_server_fn or 
-        function(params, caller)
-            dbg('passed vote: serverfn')
-            GLOBAL.TheWorld:DoTaskInTime(5, function()
-                local env = M.GetVoteEnv()
-                if not env then
-                    log('error: failed to execute vote command: command arguments lost')
-                    return
-                end
-                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[command_name_or_server_fn], true, unpack(env.args)))
-                log('executed vote command: cmd =', command_name_or_server_fn, 'args =', M.tolinekvstring(env.args), ', result =', result)
-                M.ResetVoteEnv()
-            end)
-        end
-
-    AddUserCommand('MANAGE_TOGETHER_' .. name,  {
+    local default_args = {
         prettyname = nil, 
         desc = nil,
         permission = COMMAND_PERMISSION.ADMIN, -- command shouldn't be use directly
@@ -377,7 +362,7 @@ local function AddOfficalVoteCommand(name, voteresultfn, command_name_or_server_
         voteminpasscount = M.VOTE_MIN_PASSED_COUNT ~= 0 and M.VOTE_MIN_PASSED_COUNT or nil, -- default is 3
         votecountvisible = true,
         voteallownotvoted = true,
-        voteoptions = options or nil, -- { "Yes", "No" }
+        voteoptions = nil, -- { "Yes", "No" }
 
         votenamefmt = chain_get(S.VOTE, string.upper(name), 'FMT_NAME'),
         votetitlefmt = chain_get(S.VOTE, string.upper(name), 'TITLE'),
@@ -385,8 +370,31 @@ local function AddOfficalVoteCommand(name, voteresultfn, command_name_or_server_
         
         votecanstartfn = VoteUtil.DefaultCanStartVote,
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
-        serverfn = server_fn,
-    })
+        serverfn = function(params, caller)
+            dbg('passed vote: serverfn')
+            GLOBAL.TheWorld:DoTaskInTime(3, function()
+                local env = M.GetVoteEnv()
+                if not env then
+                    log('error: failed to execute vote command: command arguments lost')
+                    return
+                end
+
+                if forward_original_params then
+                    table.insert(env, params, caller)
+                end
+
+                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
+                log('executed vote command: cmd =', name, 'args =', M.tolinekvstring(env.args), ', result =', result)
+                M.ResetVoteEnv()
+            end)
+        end,
+    }
+
+    AddUserCommand('MANAGE_TOGETHER_' .. name,  
+        setmetatable(override_args, {__index = function(t, k)
+            return default_args[k]
+        end})
+    )
 end
 
 --[[
@@ -871,6 +879,82 @@ M.AddCommands(
             end
             BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...)
         end
+    }, 
+    {
+        name = 'MODOUTOFDATE', 
+        can_vote = true, 
+        -- this should only be called on server  
+        permission = M.PERMISSION.ADMIN,
+        checker = {        'table', 'any'},
+        fn = function(doer, params, fucking_caller) -- params and caller is forwarded from the original vote params
+            
+            log(string.format('mod out of date command is being executed by %s(%s)', doer.userid, doer.name))
+            
+            local selection, count = params.voteselection, params.votecount
+            
+            if not (CHECKERS.number(selection) and CHECKERS.number(count)) then
+                dbg('failed to execute mod out of date command, params are bad')
+                return M.ERROR_CODE.BAD_ARGUMENT
+            end
+
+            if selection ~= 4 then
+                
+                -- suppress annoying announcement anyway 
+                GetServerInfoComponent().mod_out_of_date_handler:SetSuppressAnnouncement(true)
+
+                if selection == 1 then
+                    -- do shutdown immediactly
+                    log('vote result: do shutdown immediactly')
+                    return ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
+
+                elseif selection == 2 then
+                    log('vote result: do shutdown when server is empty')
+                    announce(S.MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY)
+                    -- do shutdown when server is empty
+
+                    local server_keeps_empty = false
+                    local shutdown_task
+                    TheWorld:ListenForEvent('ms_playercounts', function(data)
+                        if data.total == 0 then
+                            -- server is empty now, but we wait for one more minute
+                            if not server_keeps_empty then 
+                                server_keeps_empty = true
+                                log('server is empty, it will shutdown if nobody join in 1 minute')
+                                shutdown_task = TheWorld:DoTaskInTime(60, function()
+                                    -- server is still empty in 60 seconds, 
+                                    -- or this task will be cancel
+                                    ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
+                                end)
+                            end
+                        else
+                            -- reset task
+                            server_keeps_empty = false
+                            if shutdown_task then
+                                shutdown_task:Cancel()
+                                shutdown_task = nil
+                                log('shutdown task is canceled')
+                            end
+                        end
+                    end)
+
+                elseif selection == 3 then
+                    log('vote result: suppress mod out of date announcement only')
+                    announce(S.MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT)
+                    -- do suppress announcement
+                    -- do nothing, announcement is suppressed now
+                end
+
+            else
+                -- selection == 4
+                -- do re-vote in some minutes
+                log('vote result: start a vote again in', M.MOD_OUTOFDATE_REVOTE_MINUTE, 'minute(s)')
+                announce_fmt(S.MODOUTOFDATE_REVOTE, M.MOD_OUTOFDATE_REVOTE_MINUTE)
+
+                TheWorld:DoTaskInTime(M.MOD_OUTOFDATE_REVOTE_MINUTE * 60, function()
+                    StartCommandVote(doer, M.COMMAND_ENUM.MODOUTOFDATE)
+                end)
+            end
+        end
     }
 )
 
@@ -966,7 +1050,7 @@ M.SHARD_COMMAND = {
         
         
         -- first arg will be target_userid if cmd is user_targetted
-        -- the real arg are store to M.VOTE_ENVIRONMENT
+        -- the real arg are stored to M.VOTE_ENVIRONMENT
         -- this is because the offical function ONLY accepts a target_userid or nil as a arg 
         -- and further more, vote command will be failed to execute if target is offline 
         -- so we just pass a fucking nil to offical function
@@ -1256,44 +1340,37 @@ AddPrefabPostInit('shard_network', function(inst)
 
 
         if M.MOD_OUTOFDATE_HANDLER_ENABLED then
-            AddOfficalVoteCommand('MODOUTOFDATE', VoteUtil.DefaultMajorityVote, function(params)
-                local selection, count = params.voteselection, params.votecount
-
-                dbg('passed mod out of date vote')
-                if selection == 1 then
-                    -- do shutdown
-                    local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD))
-                    log('executed vote command: cmd = SHUTDOWN, args = ', M.tolinekvstring(env.args), ', result =', result)
+            AddOfficalVoteCommand('MODOUTOFDATE', VoteUtil.DefaultMajorityVote, {
+                voteminpasscount = 1,
+                voteoptions = {
+                    -- vote options:
                     
-                elseif selection == 2 then
-                    -- do suppress announcement
-                    GetServerInfoComponent().mod_out_of_date_handler:SetSuppressAnnouncement(true)
-                else
-                    -- do revote in some minutes
+                    -- 1. shutdown immediactly(with suppressing announcement)
+                    S.VOTE.MODOUTOFDATE.SHUTDOWN, 
 
-                end
+                    --  2. shutdown immediactly when server is empty(with suppressing announcement);
+                    S.VOTE.MODOUTOFDATE.SHUTDOWN_WHEN_NOBODY, 
+            
+                    --  3. do not shutdown, but suppress the announcement
+                    S.VOTE.MODOUTOFDATE.SUPPRESS_ANNOUNCEMENT,
+                    
+                    --  4. do not shutdown, and start a vote again in ? minutes
+                    S.VOTE.MODOUTOFDATE.DELAY
+                    
+                    --  (no explicit option) 5. do nothing
+                }
+            }, true) -- forward original params
 
-                M.ResetVoteEnv()
-
-            end, {
-                -- vote options:
-                --  1. shutdown in ? minutes/shutdown immediactly while server is empty;
-                S.MODOUTOFDATE_VOTE.SHUTDOWN, 
-        
-                --  2. do not shutdown, and suppress the announcement
-                S.MODOUTOFDATE_VOTE.SUPPRESS_ANNOUNCEMENT,
+            if TheShard:IsMaster() then
                 
-                --  3. do not shutdown, and start a vote again in ? minutes
-                S.MODOUTOFDATE_VOTE.DELAY
+                local handler = GetServerInfoComponent().mod_out_of_date_handler
                 
-                --  (no explicit option) 4. do nothing
-        
-            })
-            local handler = GetServerInfoComponent().mod_out_of_date_handler
-            handler:Add(function(mod)
-                -- ExecuteCommandFromServer(M.COMMAND_ENUM.SHUTDOWN, true)
-            end, true)
-        
+                -- add callbacks
+                handler:Add(function(mod)
+                    ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true) -- start a vote
+                end, true) -- trigger only once
+                
+            end
         end
         
     end

@@ -67,88 +67,113 @@ local ShardServerInfoRecord = Class(
             self.netvar.auto_new_player_wall_min_level:set(M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
             self.netvar.auto_new_player_wall_enabled:set(false)
         end)
-
+        
+        if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+            self:InitModOutOfDateHandler()
+        end
+        
     end
 )
 
 function ShardServerInfoRecord:InitModOutOfDateHandler()
-    self.mod_out_of_date_handler = Class(function(self)
 
-        self.callback = {}
-        self.suppress_announcement = false
-        self.outofdated_mods = {}
+    self.mod_out_of_date_handler = Class(function(self, recorder)
 
-        original_callback = GLOBAL.Networking_ModOutOfDateAnnouncement
-        trigged_once = false
-
-        local function add_old_mod(modname)
-            local modhash = smallhash(modname)
-            if not self.outofdated_mods[modhash] then
-                self.outofdated_mods[modhash] = modname
-                return true
-            end
-            return false
-        end
+        self.recorder = recorder
         
-        function self:Add(fn, once)
-            table.insert(self.callback, {fn = fn, once = once})
-            return self
-        end
-        function self:Remove(fn)
-            for i, v in ipairs(M.ModOutOfDateHandler) do
-                if v.fn == fn then
-                    return table.remove(M.ModOutOfDateHandler, i)
+        if recorder.world.ismastersim then
+                
+            -- callbacks are only work at Master
+            local callbacks = {}        
+            
+            local trigged_once = false
+
+            function self:Add(fn, trig_once)
+                table.insert(callbacks, {fn = fn, once = trig_once})
+                return self
+            end
+            function self:Remove(fn)
+                for i, v in ipairs(callbacks) do
+                    if v.fn == fn then
+                        return table.remove(callbacks, i)
+                    end
                 end
             end
         end
+
+        local original_callback = GLOBAL.Networking_ModOutOfDateAnnouncement
+
+
+        -- register netvars 
+        recorder.netvar.is_announcement_suppressed = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_announcement_suppressed', 'ms_modoutofdate_announcement_state_changed')
+        recorder.netvar.is_mod_outofdate = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_mod_outofdate', 'ms_modoutofdate_state_changed')
+
+
         function self:SetSuppressAnnouncement(val)
-            self.suppress_announcement = val or false
+            recorder:SetNetVar('is_announcement_suppressed', val)
         end
+        function self:SetIsModOutofDate()
+            recorder:SetNetvar('is_mod_outofdate', true)
+        end
+        
         function self:GetSuppressAnnouncement()
-            return self.suppress_announcement
+            return recorder.netvar.is_announcement_suppressed:value()
         end
-        function self:IsTrigged()
-            return trigged_once
-        end
+
         function self:GetOriginalCallback()
             return original_callback
         end
-        function self:GetOutOfDatedMod()
-            return self.outofdated_mods
-        end
 
-        function self:RecoverOriginalCallback()
-            _G.Networking_ModOutOfDateAnnouncement = original_callback
-            is_recovered = true
-            -- handler is stopped
-            -- until you re-init another handler
-        end
-        -- function self:IsRecovered()
-        --     return is_recovered
-        -- end
 
+        -- hook target function
         _G.Networking_ModOutOfDateAnnouncement = function(mod)
-            if not self.suppress_announcement then
+            if not recorder.netvar.is_announcement_suppressed:value() then
                 original_callback(mod)
             end
 
-            add_old_mod(mod)
+            recorder.world:PushEvent('ms_modoutofdate', mod)
 
-            if TheWorld then
-                TheWorld:PushEvent('ms_modoutofdated', mod)
-            end
-
-            for _, v in ipairs(self.callback) do
-                if not (v.once and trigged_once) then
-                    v.fn(mod)
-                end
-            end
-
-            trigged_once = true
         end
+
+        -- raised from Networking_ModOutOfDateAnnouncement
+        recorder.inst:ListenForEvent('ms_modoutofdate', function(src, modname)
+            self:SetIsModOutofDate()
+
+            if recorder.world.ismastersim then
+                
+                for _, v in ipairs(self.callback) do
+                    if not (v.once and trigged_once) then
+                        v.fn(modname)
+                    end
+                end
+
+                trigged_once = true
+            end
+        end)
+
+        -- netvar events
+        recorder.inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function(src)
+            if self:GetSuppressAnnouncement() then
+                log('mod out of date announcement is suppressed')
+            else
+                log('mod out of date announcement is recovered')
+            end
+        end)
+        recorder.inst:ListenForEvent('ms_modoutofdate_state_changed', function(src)
+            if recorder.netvar.is_mod_outofdate:value() then
+                -- mod is out of date
+                flog('received an event from shard %s that mod is out of date', src)
+            else
+                -- state is reset
+                dbg('received an event from shard ', src, ' that mod out of date state is reset')
+            end
+        end)
+
     end)(
         -- a sigleton instance
+        self
     )
+    
 
 end
 
@@ -186,9 +211,6 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         self:UpdateNewPlayerWallState()
     end)
 
-    if M.MOD_OUTOFDATE_HANDLER_ENABLED then
-        self:InitModOutOfDateHandler()
-    end
 
 end or function() end
 

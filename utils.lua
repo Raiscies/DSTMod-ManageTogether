@@ -133,6 +133,10 @@ function M.log(...)
     print('[ManageTogether]', ...)
 end
 
+function M.flog(pattern, ...)
+    M.log(string.format(pattern, ...))
+end
+
 function M.GetPlayerByUserid(userid)
     for _, player in ipairs(AllPlayers) do
         if player.userid == userid then
