@@ -36,7 +36,9 @@ local ShardServerInfoRecord = Class(
             -- master will listen for this event in self:MasterOnlyInit() 
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
                 dbg('ms_playerjoined:', player.userid)
-                self:RecordPlayer(player.userid)
+                TheWorld:DoTaskInTime(0, function()
+                    self:RecordPlayer(player.userid)
+                end)
                 
             end, self.world)
         end
@@ -82,8 +84,10 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
 
     self.inst:ListenForEvent('ms_playerjoined', function(src, player)
         dbg('ms_playerjoined(master):', player.userid)
-        self:RecordPlayer(player.userid) 
-        self:UpdateNewPlayerWallState() 
+        TheWorld:DoTaskInTime(0, function()
+            self:RecordPlayer(player.userid) 
+            self:UpdateNewPlayerWallState() 
+        end)
     end, self.world)
 
     self.inst:ListenForEvent('ms_playerleft_from_a_shard', function()
