@@ -93,6 +93,15 @@ local trans = ChooseTranslationTable({
 				moderator = '监督员/管理员都不在线时',
 				user = '任意玩家都不在线时',
 			},
+			experimental_title = '实验性',
+			modoutofdate_handler_enabled = {
+				label = '启用服务器模组过期处理程序', 
+				hover = '当服务器检测到模组过期时, 发起一个投票, 选项包含重启服务器(如果启用了下面的设置项)或者关闭模组过期警告等\n这个功能有很大的限制, 只有在玩家在线时服务器才能检测模组过期; 并且重启服务器实际上只是简单地关闭你的服务器, 只有你的服务器脚本在服务器关闭后能够自动重启才有用\n谨慎启用! 你的存档也许可能会在模组更新后出现崩溃, 无法启动, 坏档等问题'
+			},
+			modoutofdate_handler_add_shutdown_option = {
+				label = '添加模组过期投票的重启选项',
+				hover = '启用它会在投票选项中添加重启服务器的选项. 当然, 你的服务器脚本需要具有自动重启的功能, 否则这将只是简单的关闭服务器',
+			},
 			others_title = '其它',
 			debug = {
 				label = '开启调试'
@@ -333,6 +342,9 @@ configuration_options = {
 		{description = trans.options.auto_new_player_wall_min_level.moderator, data = 'moderator'},
 		{description = trans.options.auto_new_player_wall_min_level.admin, data = 'admin'},
 	}, 'moderator'),
+	title('experimental_title'), 
+	binary_option('modoutofdate_handler_enabled', NO),
+	binary_option('modoutofdate_handler_add_shutdown_option', NO),
 	title('others_title'),
 	binary_option('debug', NO), 
 }

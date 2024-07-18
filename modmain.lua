@@ -86,7 +86,8 @@ local function InitConfigs()
     M.MODERATOR_FILE_NAME = 'manage_together_moderators'
     M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
     M.CLEANER_ITEM_STAT_ANNOUNCEMENT = is_config_enabled('cleaner_item_stat_announcement')
-    M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('mod_out_of_date_handler')
+    M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('modoutofdate_handler_enabled')
+    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION = is_config_enabled('modoutofdate_handler_add_shutdown_option')
     M.MOD_OUTOFDATE_REVOTE_MINUTE = GetModConfigData('mod_out_of_date_revote_minute') or 5
 
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
@@ -897,20 +898,26 @@ M.AddCommands(
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
 
-            if selection ~= 4 then
+            if selection ~= 2 then
                 
                 -- suppress annoying announcement anyway 
                 GetServerInfoComponent().mod_out_of_date_handler:SetSuppressAnnouncement(true)
 
                 if selection == 1 then
+                    -- do suppress announcement
+                    log('vote result: suppress mod out of date announcement only')
+                    announce(S.MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT)
+                    -- do nothing, announcement is suppressed now
+
+                elseif selection == 3 then
                     -- do shutdown immediactly
                     log('vote result: do shutdown immediactly')
                     return ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
 
-                elseif selection == 2 then
+                elseif selection == 4 then
+                    -- do shutdown when server is empty
                     log('vote result: do shutdown when server is empty')
                     announce(S.MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY)
-                    -- do shutdown when server is empty
 
                     local server_keeps_empty = false
                     local shutdown_task
@@ -936,16 +943,10 @@ M.AddCommands(
                             end
                         end
                     end)
-
-                elseif selection == 3 then
-                    log('vote result: suppress mod out of date announcement only')
-                    announce(S.MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT)
-                    -- do suppress announcement
-                    -- do nothing, announcement is suppressed now
                 end
-
+                
             else
-                -- selection == 4
+                -- selection == 2
                 -- do re-vote in some minutes
                 log('vote result: start a vote again in', M.MOD_OUTOFDATE_REVOTE_MINUTE, 'minute(s)')
                 announce_fmt(S.MODOUTOFDATE_REVOTE, M.MOD_OUTOFDATE_REVOTE_MINUTE)
@@ -1338,25 +1339,23 @@ AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then
         inst:AddComponent('shard_serverinforecord')
 
-
         if M.MOD_OUTOFDATE_HANDLER_ENABLED then
             AddOfficalVoteCommand('MODOUTOFDATE', VoteUtil.DefaultMajorityVote, {
                 voteminpasscount = 1,
                 voteoptions = {
                     -- vote options:
-                    
-                    -- 1. shutdown immediactly(with suppressing announcement)
-                    S.VOTE.MODOUTOFDATE.SHUTDOWN, 
-
-                    --  2. shutdown immediactly when server is empty(with suppressing announcement);
-                    S.VOTE.MODOUTOFDATE.SHUTDOWN_WHEN_NOBODY, 
-            
-                    --  3. do not shutdown, but suppress the announcement
+                    -- 1. do not shutdown, but suppress the announcement
                     S.VOTE.MODOUTOFDATE.SUPPRESS_ANNOUNCEMENT,
-                    
-                    --  4. do not shutdown, and start a vote again in ? minutes
-                    S.VOTE.MODOUTOFDATE.DELAY
-                    
+
+                    -- 2. do not shutdown, and start a vote again in ? minutes
+                    S.VOTE.MODOUTOFDATE.DELAY,
+
+                    -- 3. shutdown immediactly(with suppressing announcement)
+                    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN or nil, 
+
+                    -- 4. shutdown immediactly when server is empty(with suppressing announcement);
+                    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN_WHEN_NOBODY or nil
+            
                     --  (no explicit option) 5. do nothing
                 }
             }, true) -- forward original params

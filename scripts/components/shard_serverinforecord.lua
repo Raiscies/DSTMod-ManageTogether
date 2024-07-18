@@ -81,12 +81,13 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
 
         self.recorder = recorder
         
+        local triggered_once
         if recorder.world.ismastersim then
                 
             -- callbacks are only work at Master
             local callbacks = {}        
             
-            local trigged_once = false
+            triggered_once = false
 
             function self:Add(fn, trig_once)
                 table.insert(callbacks, {fn = fn, once = trig_once})
@@ -138,23 +139,13 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
         -- raised from Networking_ModOutOfDateAnnouncement
         recorder.inst:ListenForEvent('ms_modoutofdate', function(src, modname)
             self:SetIsModOutofDate()
-
-            if recorder.world.ismastersim then
-                
-                for _, v in ipairs(self.callback) do
-                    if not (v.once and trigged_once) then
-                        v.fn(modname)
-                    end
-                end
-
-                trigged_once = true
-            end
         end)
 
         -- netvar events
         recorder.inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function(src)
             if self:GetSuppressAnnouncement() then
                 log('mod out of date announcement is suppressed')
+
             else
                 log('mod out of date announcement is recovered')
             end
@@ -163,6 +154,17 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             if recorder.netvar.is_mod_outofdate:value() then
                 -- mod is out of date
                 flog('received an event from shard %s that mod is out of date', src)
+                
+                if recorder.world.ismastersim then
+                    
+                    for _, v in ipairs(self.callback) do
+                        if not (v.once and triggered_once) then
+                            v.fn()
+                        end
+                    end
+
+                    triggered_once = true
+                end
             else
                 -- state is reset
                 dbg('received an event from shard ', src, ' that mod out of date state is reset')
