@@ -998,12 +998,23 @@ function HistoryPlayerScreen:DoInit()
     self.divider:SetPosition(0,149)
 
     if not self.servermods and TheNet:GetServerModsEnabled() then
-        local modsStr = TheNet:GetServerModsDescription()
+        local mods_desc = TheNet:GetServerModsDescription()
         self.servermods = self.root:AddChild(Text(UIFONT,25))
         self.servermods:SetPosition(20,-250,0)
         self.servermods:SetColour(1,1,1,1)
-        self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..modsStr, 650, 146, true)
-        self.servermods:SetHoverText(modsStr)
+        self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..mods_desc, 650, 146, true)
+        
+        local mods_desc_table = {}
+        local count = 0
+        for w in string.gmatch(mods_desc, '[^,]+,') do
+            count = count + 1
+            table.insert(mods_desc_table, w)
+            if count % 2 == 0 then
+                table.insert(mods_desc_table, '\n')
+            end
+        end
+        self.servermods:SetHoverText(table.concat(mods_desc_table, ''), {bg_texture = 'char_shadow.tex'})
+        self.servermods.hovertext_bg:SetTint(1, 1, 1, 1)
 
         self.bg:SetScale(.95,.95)
         self.bg:SetPosition(0,-10)
@@ -1440,6 +1451,8 @@ function HistoryPlayerScreen:DoInit()
     else
         self.scroll_list:SetList(sorted_userkey_list)
     end
+
+    self.bg_rollback_spinner:MoveToFront()
 
     if not self.bgs then
         self.bgs = {}
