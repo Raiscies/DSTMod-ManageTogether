@@ -3,7 +3,7 @@
 
 local M = manage_together
 
-local dbg, chain_get = M.dbg, M.chain_get
+local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
 
 local IsPlayerOnline = M.IsPlayerOnline
 
@@ -82,10 +82,11 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
         self.recorder = recorder
         
         local triggered_once
+        local callbacks
         if recorder.world.ismastersim then
                 
             -- callbacks are only work at Master
-            local callbacks = {}        
+            callbacks = {}        
             
             triggered_once = false
 
@@ -102,23 +103,25 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             end
         end
 
-        local original_callback = GLOBAL.Networking_ModOutOfDateAnnouncement
+        local original_callback = _G.Networking_ModOutOfDateAnnouncement
 
 
         -- register netvars 
         recorder.netvar.is_announcement_suppressed = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_announcement_suppressed', 'ms_modoutofdate_announcement_state_changed')
         recorder.netvar.is_mod_outofdate = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_mod_outofdate', 'ms_modoutofdate_state_changed')
 
+        local is_announcement_suppressed = false
+        local is_mod_outofdate = false
 
         function self:SetSuppressAnnouncement(val)
             recorder:SetNetVar('is_announcement_suppressed', val)
         end
         function self:SetIsModOutofDate()
-            recorder:SetNetvar('is_mod_outofdate', true)
+            recorder:SetNetVar('is_mod_outofdate', true)
         end
         
         function self:GetSuppressAnnouncement()
-            return recorder.netvar.is_announcement_suppressed:value()
+            return is_announcement_suppressed
         end
 
         function self:GetOriginalCallback()
@@ -128,22 +131,27 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
 
         -- hook target function
         _G.Networking_ModOutOfDateAnnouncement = function(mod)
-            if not recorder.netvar.is_announcement_suppressed:value() then
-                original_callback(mod)
-            end
+            -- suppress the announcement on server side is useless for clients,
+            -- this should affects the server log, so we just remain it
+            -- if not is_announcement_suppressed then
+            original_callback(mod)
+            -- end
 
             recorder.world:PushEvent('ms_modoutofdate', mod)
 
+            dbg('Networking_ModOutOfDateAnnouncement is called')
         end
 
         -- raised from Networking_ModOutOfDateAnnouncement
         recorder.inst:ListenForEvent('ms_modoutofdate', function(src, modname)
             self:SetIsModOutofDate()
-        end)
+            dbg('ms_modoutofdate')
+        end, recorder.world)
 
         -- netvar events
         recorder.inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function(src)
-            if self:GetSuppressAnnouncement() then
+            is_announcement_suppressed = recorder.netvar.is_announcement_suppressed:value()
+            if is_announcement_suppressed then
                 log('mod out of date announcement is suppressed')
 
             else
@@ -151,13 +159,15 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             end
         end)
         recorder.inst:ListenForEvent('ms_modoutofdate_state_changed', function(src)
-            if recorder.netvar.is_mod_outofdate:value() then
+            dbg('ms_modoutofdate_state_changed')
+            is_mod_outofdate = recorder.netvar.is_mod_outofdate:value()
+            if is_mod_outofdate then
                 -- mod is out of date
-                flog('received an event from shard %s that mod is out of date', src)
+                flog('received an event from shard %s that mod is out of date', tostring(src))
                 
                 if recorder.world.ismastersim then
                     
-                    for _, v in ipairs(self.callback) do
+                    for _, v in ipairs(callbacks) do
                         if not (v.once and triggered_once) then
                             v.fn()
                         end
@@ -167,7 +177,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
                 end
             else
                 -- state is reset
-                dbg('received an event from shard ', src, ' that mod out of date state is reset')
+                dbg('received an event from shard ', tostring(src), ' that mod out of date state is reset')
             end
         end)
 

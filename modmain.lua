@@ -381,7 +381,8 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
                 end
 
                 if forward_original_params then
-                    table.insert(env, params, caller)
+                    table.insert(env.args, params)
+                    table.insert(env.args, caller)
                 end
 
                 local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
@@ -392,9 +393,7 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
     }
 
     AddUserCommand('MANAGE_TOGETHER_' .. name,  
-        setmetatable(override_args, {__index = function(t, k)
-            return default_args[k]
-        end})
+        setmetatable(override_args, {__index = default_args})
     )
 end
 
@@ -414,36 +413,35 @@ local function DefaultUserTargettedArgsDescription(userid, ...)
     return select('#', ...) == 0 and 
         user_desc or 
         user_desc .. ', ' .. DefaultArgsDescription(...)
-    end
-function M.AddCommand(info_table, command_fn, regen_permission_mask)
-    assert(M.COMMAND_NUM < 64, 'error: the number of commands exceeded limitation(64)')
+end
 
-    local name, permission, args_description, checker, can_vote, user_targetted = 
-        info_table.name, info_table.permission, info_table.args_description, info_table.checker, info_table.can_vote, info_table.user_targetted
+function M.AddCommand(command_info, command_fn, regen_permission_mask)
+    assert(M.COMMAND_NUM < 64, 'error: the number of commands exceeded limitation(64)')
 
 
     local vote_result_fn
-    if not permission then
-        permission, vote_result_fn = moderator_config(name)
+    if not command_info.permission then
+        command_info.permission, vote_result_fn = moderator_config(command_info.name)
     end
 
     -- set command enum
     local cmd_enum = lshift(1, M.COMMAND_NUM)
     M.COMMAND_NUM = M.COMMAND_NUM + 1
-    M.COMMAND_ENUM[name] = cmd_enum
-    -- set command 
-    M.COMMAND[cmd_enum] = {
-        permission = permission, 
-        args_description = args_description or (user_targetted and DefaultUserTargettedArgsDescription or DefaultArgsDescription),
-        checker = checker,
-        can_vote = can_vote or false, 
-        user_targetted = user_targetted or false,
-        fn = command_fn or info_table.fn
+    M.COMMAND_ENUM[command_info.name] = cmd_enum
 
-    }
+    if not command_info.fn then
+        command_info.fn = command_fn
+    end
 
-    if can_vote then
-        AddOfficalVoteCommand(name, vote_result_fn)
+    if not command_info.args_description then
+        command_info.args_description = (command_info.user_targetted and DefaultUserTargettedArgsDescription or DefaultArgsDescription)
+    end
+
+    -- set command info
+    M.COMMAND[cmd_enum] = command_info
+
+    if command_info.can_vote then
+        AddOfficalVoteCommand(command_info.name, vote_result_fn, command_info.vote_override_args, command_info.vote_forward_original_params)
     end
 
     if regen_permission_mask == true then
@@ -469,8 +467,8 @@ end
 function M.AddCommands(...)
     for _, v in varg_pairs(...) do
         M.AddCommand(
-            v,    -- info_table (actually .fn is redundent, but never mind it)
-            v.fn, -- command_fn
+            v,    -- command_info
+            nil,  -- command_fn, it is already passed by command_info.fn
             false
         )
     end
@@ -577,6 +575,9 @@ M.CHECKERS = {
     optuint   = optuint, 
     optstring = optstring,
     
+    table = function(val) return type(val) == 'table' end,
+    opttable = function(val) return val == nil or type(val) == 'table' end,
+    
     userid_recorded = function(val) return GetPlayerRecord(val) ~= nil end, 
     -- unfortunately, lua's regex does not support repeat counting syntex like [%w%-_]{8}, 
     -- so we have to write it manually
@@ -598,6 +599,7 @@ M.CHECKERS = {
 
     ['nil'] = function(val) return val == nil end, -- 'nil' is same as nil
     any = function() return true end,
+
 }
 M.CHECKERS.userid = M.CHECKERS.userid_like
 M.CHECKERS.none   = M.CHECKERS['nil']
@@ -884,13 +886,35 @@ M.AddCommands(
     {
         name = 'MODOUTOFDATE', 
         can_vote = true, 
-        -- this should only be called on server  
+        -- this command should only be call on server  
         permission = M.PERMISSION.ADMIN,
-        checker = {        'table', 'any'},
+        vote_forward_original_params = true,
+        vote_override_args = {
+            voteresultfn = VoteUtil.DefaultMajorityVote,
+            voteminpasscount = 1,
+            voteoptions = {
+                -- 1. do not shutdown, but suppress the announcement
+                S.VOTE.MODOUTOFDATE.SUPPRESS_ANNOUNCEMENT,
+    
+                -- 2. do not shutdown, and start a vote again in ? minutes
+                S.VOTE.MODOUTOFDATE.DELAY,
+                
+                -- 3. shutdown immediactly(with suppressing announcement)
+                M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN or nil, 
+                
+                -- 4. shutdown immediactly when server is empty(with suppressing announcement);
+                M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN_WHEN_NOBODY or nil
+                
+                --  (no explicit option) 5. do nothing
+            }
+        },
+        checker = {        'opttable', 'any'},
         fn = function(doer, params, fucking_caller) -- params and caller is forwarded from the original vote params
             
             log(string.format('mod out of date command is being executed by %s(%s)', doer.userid, doer.name))
             
+            if not params then return M.ERROR_CODE.BAD_ARGUMENT end
+
             local selection, count = params.voteselection, params.votecount
             
             if not (CHECKERS.number(selection) and CHECKERS.number(count)) then
@@ -1086,6 +1110,7 @@ M.SHARD_COMMAND = {
         dbg('Intent to Start a Vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
     end
 }
+
 local function RegisterRPCs()
 
     -- server rpcs
@@ -1150,6 +1175,8 @@ local function RegisterRPCs()
 
 end
 RegisterRPCs()
+
+
 
 if GLOBAL.TheNet:GetIsServer() then
 -- Server codes begin ----------------------------------------------------------
@@ -1332,44 +1359,23 @@ function M.ExecuteCommandFromServer(cmd, start_vote, ...)
     else
         result = ExecuteCommand(admin_host, cmd, false, ...)
     end
-    log('executed a command from server, command =', M.CommandEnumToName(cmd), ', result =', M.ErrorCodeToName(result))
+    log('finished a command execution request from server, command =', M.CommandEnumToName(cmd), ', result =', M.ErrorCodeToName(result))
 end
 
 AddPrefabPostInit('shard_network', function(inst)
     if not inst.components.shard_serverinforecord then
         inst:AddComponent('shard_serverinforecord')
 
-        if M.MOD_OUTOFDATE_HANDLER_ENABLED then
-            AddOfficalVoteCommand('MODOUTOFDATE', VoteUtil.DefaultMajorityVote, {
-                voteminpasscount = 1,
-                voteoptions = {
-                    -- vote options:
-                    -- 1. do not shutdown, but suppress the announcement
-                    S.VOTE.MODOUTOFDATE.SUPPRESS_ANNOUNCEMENT,
-
-                    -- 2. do not shutdown, and start a vote again in ? minutes
-                    S.VOTE.MODOUTOFDATE.DELAY,
-
-                    -- 3. shutdown immediactly(with suppressing announcement)
-                    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN or nil, 
-
-                    -- 4. shutdown immediactly when server is empty(with suppressing announcement);
-                    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION and S.VOTE.MODOUTOFDATE.SHUTDOWN_WHEN_NOBODY or nil
             
-                    --  (no explicit option) 5. do nothing
-                }
-            }, true) -- forward original params
-
-            if TheShard:IsMaster() then
-                
-                local handler = GetServerInfoComponent().mod_out_of_date_handler
-                
-                -- add callbacks
-                handler:Add(function(mod)
-                    ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true) -- start a vote
-                end, true) -- trigger only once
-                
-            end
+        if M.MOD_OUTOFDATE_HANDLER_ENABLED and TheShard:IsMaster() then
+            
+            local handler = GetServerInfoComponent().mod_out_of_date_handler
+            
+            -- add callbacks
+            handler:Add(function(mod)
+                ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true) -- start a vote
+            end, true) -- trigger only once
+            
         end
         
     end
@@ -1514,6 +1520,9 @@ local function CommandApplyableForPlayerTarget(classified, cmd, target_userid)
         
 end
 
+
+local original_mod_out_of_date_callback = Networking_ModOutOfDateAnnouncement
+
 -- this should be call on both server & client 
 AddPrefabPostInit('player_classified', function(inst)
     dbg('postinit player_classified')
@@ -1533,12 +1542,17 @@ AddPrefabPostInit('player_classified', function(inst)
     }
     inst.net_allow_new_players_to_connect = net_bool(inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed')
 
+    inst.net_suppress_mod_outofdate_announcement = net_bool(inst.GUID, 'manage_together.suppress_mod_outofdate_annoucement', 'suppress_mod_outofdate_annoucement_state_changed')
+
+
     inst.permission_level = M.PERMISSION.USER
     inst.permission_mask = 0
     inst.vote_permission_mask = 0
     inst.allow_new_players_to_connect = false
     inst.last_query_player_record_timestamp = nil
     inst.next_query_player_record_block_index = 1
+
+    inst.suppress_mod_outofdate_annoucement = false
 
     inst:ListenForEvent('permission_level_changed', function()
         inst.permission_level = inst.net_permission_level:value()
@@ -1557,8 +1571,16 @@ AddPrefabPostInit('player_classified', function(inst)
         dbg('player_classified: new_player_joinability_changed: ', inst.allow_new_players_to_connect)
     end)
 
+    inst:ListenForEvent('suppress_mod_outofdate_annoucement_state_changed', function()
+        inst.suppress_mod_outofdate_annoucement = inst.net_suppress_mod_outofdate_announcement:value()
 
-    if GLOBAL.TheWorld then
+        if not TheWorld.ismastersim then
+            GLOBAL.Networking_ModOutOfDateAnnouncement = inst.suppress_mod_outofdate_annoucement and function()end or original_mod_out_of_date_callback
+        end
+    end)
+
+
+    if TheWorld then
         inst:ListenForEvent('player_record_sync_completed', function(src, has_more)
             dbg('listened player_record_sync_completed, has_more = ', has_more, 'this index = ', inst.next_query_player_record_block_index)
             if has_more then
@@ -1569,18 +1591,26 @@ AddPrefabPostInit('player_classified', function(inst)
                 -- we just need to receive the updated reocrds now
                 inst.next_query_player_record_block_index = nil
             end
-        end, GLOBAL.TheWorld)
+        end, TheWorld)
 
-        if GLOBAL.TheWorld.ismastersim then
-            local recorder = GLOBAL.TheWorld.shard.components.shard_serverinforecord
+        if TheWorld.ismastersim then
+            local recorder = TheWorld.shard.components.shard_serverinforecord
 
             inst:ListenForEvent('ms_new_player_joinability_changed', function()
                 dbg('player_classified: listened ms_new_player_joinability_changed: ', recorder:GetAllowNewPlayersToConnect())
                 if HasPermission(inst, M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
                     inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
                 end
-            end, GLOBAL.TheWorld.shard)
+            end, TheWorld.shard) -- inst == shard_network
 
+            if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+                 
+                inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function()
+                    dbg('player_classified: listened ms_modoutofdate_announcement_state_changed')
+                    inst.net_suppress_mod_outofdate_announcement:set(recorder.mod_out_of_date_handler:GetSuppressAnnouncement())
+                end, TheWorld.shard)
+                
+            end
             -- update once
             inst:DoTaskInTime(1, function()
                 dbg('player_classified: update new player joinability once: ', recorder:GetAllowNewPlayersToConnect())

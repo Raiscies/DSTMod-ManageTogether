@@ -119,7 +119,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
             TITLE = '我们应该执行物品栏物品统计吗?'
         }, 
         MODOUTOFDATE = {
-            FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么?', 
+            FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么', 
             TITLE = '服务器模组已过期, 我们应该...', 
             SHUTDOWN = '立即重启服务器', 
             SHUTDOWN_WHEN_NOBODY = '服务器无人时重启', 
