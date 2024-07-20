@@ -3,8 +3,6 @@
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
--- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-
 function M.using_namespace(...)
     -- local oldmetatable = GLOBAL.getmetatable(env)
     local nss = {...}

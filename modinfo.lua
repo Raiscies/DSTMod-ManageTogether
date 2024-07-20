@@ -167,7 +167,7 @@ most of the commands are available applying to offline player.
 				day = 'Day(s)'
 			},
 			auto_new_player_wall_enabled = {
-				label = '启用新玩家过滤器', 
+				label = 'enable new player filter', 
 				hover = '当在线玩家中不存在指定或更高权限的玩家时禁止新玩家加入, 反之允许新玩家加入\n新玩家指未曾加入过服务器的玩家, 曾加入过服务器的玩家不受限制' 
 			},
 			auto_new_player_wall_min_level = {
@@ -176,6 +176,15 @@ most of the commands are available applying to offline player.
 				admin = '管理员不在线时',
 				moderator = '监督员和管理员都不在线时',
 				user = '任意玩家都不在线时',
+			},
+			experimental_title = 'Experimental',
+			modoutofdate_handler_enabled = {
+				label = 'enable mod out of date handler', 
+				hover = 'start a vote while server find that mod is out of date, options including restart server(if the following config is enabled) or turn off the warning announcement about it\nthis function exists strict limitation, server can check for the mod only when someone is online, and it requires your server running script to have an ability to automatically restart it while server is down',
+			},
+			modoutofdate_handler_add_shutdown_option = {
+				label = 'add restart options for mod out of date vote',
+				hover = 'options about restart server will be add if this config is enabled. notice that your server running script needs to have an ability to automatically restart while server is shutting down, or it will just simply shutdown the server, but not restart it',
 			},
 			others_title = 'Others',
 			debug = {
