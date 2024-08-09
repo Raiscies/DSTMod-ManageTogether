@@ -260,6 +260,12 @@ end
 function ShardServerInfoRecord:SetNetVar(name, value, force_update)
     -- must be set on master
     if TheShard:IsMaster() then
+
+        -- pass boolean from rpc will be cast to nil if it is false, 
+        -- however netvar does not accept nil, it will cause crash
+        -- so we have to cast it back
+        value = value ~= nil and value or false
+
         if force_update then
             self.netvar[name]:set_local(value)
         end
