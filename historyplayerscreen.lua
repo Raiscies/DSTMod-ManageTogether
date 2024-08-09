@@ -701,7 +701,7 @@ end
 function HistoryPlayerScreen:DumpToWebPage(userid)
     local record = self.recorder.player_record[userid]
     local encoded_data = M.EncodeToBase64(string.format(S.FMT_TEXT_WEB_PAGE, record.name or S.UNKNOWN, userid or S.UNKNOWN, record.netid or S.UNKNOWN))
-    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data))
+    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data), false) -- past a false, in order to raise client's default web browser but not Steam's browser
 end
 
 function HistoryPlayerScreen:OnBecomeActive()
