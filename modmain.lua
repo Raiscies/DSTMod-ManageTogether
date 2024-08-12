@@ -89,6 +89,7 @@ local function InitConfigs()
     M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('modoutofdate_handler_enabled')
     M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION = is_config_enabled('modoutofdate_handler_add_shutdown_option')
     M.MOD_OUTOFDATE_REVOTE_MINUTE = GetModConfigData('mod_out_of_date_revote_minute') or 5
+    M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION = GetModConfigData('mod_outofdate_vote_default_action') or nil
 
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
     if type(auto_new_player_wall_min_level) == 'string' then
@@ -116,18 +117,23 @@ local function InitConfigs()
         GLOBAL.STRINGS.UI.MANAGE_TOGETHER = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT
         GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
+
+    M.RPC_RESPONSE_TIMEOUT = 5
 end
 InitConfigs()
 
 
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
+modimport ('asyncutil')
 modimport('utils')
 local Functional = require 'functional'
 
 M.using_namespace(M, GLOBAL, Functional)
 
 local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
+
+
 
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
@@ -137,7 +143,8 @@ M.ERROR_CODE = table.invert({
     'DATA_NOT_PRESENT',
     'VOTE_CONFLICT', 
     'COMMAND_NOT_VOTABLE',
-    'INTERNAL_ERROR'
+    'INTERNAL_ERROR', 
+    'MISSING_RESPONSE', 
 })
 M.ERROR_CODE.SUCCESS = 0
 
@@ -163,35 +170,6 @@ end
 M.COMMAND_NUM = 0
 M.COMMAND = {}
 M.COMMAND_ENUM = {}
-
-M.RPC = {}
-M.RPC.NAMESPACE = 'ManageTogether'
-local function GenerateCommandRPCName(tab)
-    for _, v in ipairs(tab) do
-        M.RPC[v] = v
-    end
-end
-
-GenerateCommandRPCName({
-    'SEND_COMMAND', 
-    'SEND_VOTE_COMMAND', 
-    'SHARD_SEND_COMMAND', 
-    'SHARD_RECORD_PLAYER', 
-    'SHARD_RECORD_ONLINE_PLAYERS',
-    'SHARD_SET_PLAYER_PERMISSION',
-    'SHARD_SET_NET_VAR',
-    'SHARD_PUSH_NET_EVENT',
-    
-    'RESULT_SEND_COMMAND', 
-    'RESULT_SEND_VOTE_COMMAND',
-    
-    'OFFLINE_PLAYER_RECORD_SYNC', 
-    'ONLINE_PLAYER_RECORD_SYNC', 
-    'PLAYER_RECORD_SYNC_COMPLETED',
-    'SNAPSHOT_INFO_SYNC',
-    
-})
-
 M.PERMISSION_MASK = {}
 
 -- this table save some additional parameters for an on-going vote
@@ -340,6 +318,8 @@ local ITEM_STAT_CATEGORY = {
     [2] = S.MAKE_ITEM_STAT_OPTIONS.ALL_PLAYERS
 }
 
+local execute_command_impl
+
 local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_original_params)
 
     -- to modify more usercommand arguments, set arguments in override_args table 
@@ -373,22 +353,22 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
         serverfn = function(params, caller)
             dbg('passed vote: serverfn')
-            GLOBAL.TheWorld:DoTaskInTime(3, function()
-                local env = M.GetVoteEnv()
-                if not env then
-                    log('error: failed to execute vote command: command arguments lost')
-                    return
-                end
+            local env = M.GetVoteEnv()
+            if not env then
+                log('error: failed to execute vote command: command arguments lost')
+                return
+            end
 
-                if forward_original_params then
-                    table.insert(env.args, params)
-                    table.insert(env.args, caller)
-                end
+            if forward_original_params then
+                table.insert(env.args, params)
+                table.insert(env.args, caller)
+            end
 
-                local result = M.ErrorCodeToName(M.ExecuteCommand(M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)))
-                log('executed vote command: cmd =', name, 'args =', M.tolinekvstring(env.args), ', result =', result)
-                M.ResetVoteEnv()
+            async(execute_command_impl, M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)):set_callback(function(result)
+                log('executed vote command: cmd =', name, 'args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
             end)
+            
+            M.ResetVoteEnv()
         end,
     }
 
@@ -525,7 +505,7 @@ function M.ErrorCodeToName(code)
             return name
         end
     end
-    return ''
+    return 'UNKNOWN_ERROR_CODE'
 end
 function M.CommandEnumToName(cmd)
     for name, cmd_enum in pairs(M.COMMAND_ENUM) do
@@ -533,7 +513,7 @@ function M.CommandEnumToName(cmd)
             return name
         end
     end
-    return ''
+    return 'UNKNOWN_COMMAND_ENUM'
 end
 function M.LevelEnumToName(level)
     for name, lvl in pairs(M.PERMISSION) do
@@ -541,7 +521,7 @@ function M.LevelEnumToName(level)
             return name
         end
     end
-    return ''
+    return 'UNKNOWN_LEVEL_ENUM'
 end
 
 function M.CmdEnumToVoteHash(cmd)
@@ -672,7 +652,23 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
-            BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid)
+            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+
+            for shardid, res in pairs(result) do
+                local status = res[1]
+                if status == 2 then
+                    -- player is killed in this shard, command executed successfully
+                    return M.ERROR_CODE.SUCCESS
+                elseif status == 1 then
+                    return M.ERROR_CODE.INTERNAL_ERROR
+                end
+            end
+            if missing_count > 0 then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            else
+                return M.ERROR_CODE.BAD_TARGET
+            end
+
         end
     },
     {
@@ -684,7 +680,7 @@ M.AddCommands(
             -- ban a player
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
-            GLOBAL.TheNet:Ban(target_userid)
+            TheNet:Ban(target_userid)
             announce_fmt(S.FMT_BANNED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
         end
     },
@@ -697,7 +693,22 @@ M.AddCommands(
             -- kill and ban a player
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
-            BroadcastShardCommand(M.COMMAND_ENUM.KILLBAN, target_userid)
+            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            execute_in_time(3, TheNet.Ban, TheNet, target_userid)
+            for shardid, res in pairs(result) do
+                local status = res[1]
+                if status == 2 then
+                    -- player is killed in this shard, command executed successfully
+                    return M.ERROR_CODE.SUCCESS
+                elseif status == 1 then
+                    return M.ERROR_CODE.INTERNAL_ERROR
+                end
+            end
+            if missing_count > 0 then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            else
+                return M.ERROR_CODE.BAD_TARGET
+            end
 
         end
     },
@@ -746,8 +757,8 @@ M.AddCommands(
                 delay_seconds = 5
             end 
             announce_fmt(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
-            GLOBAL.TheWorld:DoTaskInTime(delay_seconds, function()
-                GLOBAL.TheNet:SendWorldResetRequestToServer()
+            execute_in_time(delay_seconds, function()
+                TheNet:SendWorldResetRequestToServer()
             end)
 
             
@@ -768,14 +779,15 @@ M.AddCommands(
                 -- announce(reason)
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
-            if TheWorld then
-                TheWorld:DoTaskInTime(delay_seconds, function()
-                    c_shutdown()
-                end)
-            else
-                log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
-                c_shutdown()
-            end
+            execute_in_time(delay_seconds, c_shutdown)
+            -- if TheWorld then
+            --     TheWorld:DoTaskInTime(delay_seconds, function()
+            --         c_shutdown()
+            --     end)
+            -- else
+            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
+            --     c_shutdown()
+            -- end
 
         end
     },
@@ -880,7 +892,13 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
-            BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...)
+            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            if missing_count ~= 0 then
+                -- TODO: add to main_strings
+                announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
+            else
+                announce(S.MAKE_ITEM_STAT_FINISHED)
+            end
         end
     }, 
     {
@@ -908,16 +926,22 @@ M.AddCommands(
                 --  (no explicit option) 5. do nothing
             }
         },
-        checker = {        'opttable', 'any'},
-        fn = function(doer, params, fucking_caller) -- params and caller is forwarded from the original vote params
+        checker = {        'optnumber', 'opttable', 'any'},
+        fn = function(doer, selection, params, fucking_caller) -- params and caller is forwarded from the original vote params
             
-            log(string.format('mod out of date command is being executed by %s(%s)', doer.userid, doer.name))
-            
-            if not params then return M.ERROR_CODE.BAD_ARGUMENT end
+            -- selection is used for directly command execution, 
+            -- param is used for accept vote result 
 
-            local selection, count = params.voteselection, params.votecount
+            log(string.format('mod out of date command is being executed by %s(%s)', doer.userid, doer.name))
+
+            if params then
+                M.MOD_OUTOFDATE_VOTE_PASSED_FLAG = true
+                if not selection then
+                    selection = params.voteselection
+                end
+            end
             
-            if not (CHECKERS.number(selection) and CHECKERS.number(count)) then
+            if not (CHECKERS.number(selection)) then
                 dbg('failed to execute mod out of date command, params are bad')
                 return M.ERROR_CODE.BAD_ARGUMENT
             end
@@ -929,41 +953,52 @@ M.AddCommands(
 
                 if selection == 1 then
                     -- do suppress announcement
-                    log('vote result: suppress mod out of date announcement only')
+                    log('modoutofdate: suppress mod out of date announcement only')
                     announce(S.MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT)
                     -- do nothing, announcement is suppressed now
 
                 elseif selection == 3 then
                     -- do shutdown immediactly
-                    log('vote result: do shutdown immediactly')
-                    return ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
+                    log('modoutofdate: do shutdown immediactly')
+                    -- return ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
 
                 elseif selection == 4 then
                     -- do shutdown when server is empty
-                    log('vote result: do shutdown when server is empty')
+                    log('modoutofdate: do shutdown when server is empty')
                     announce(S.MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY)
-
+                    
                     local server_keeps_empty = false
                     local shutdown_task
+
+                    local on_server_once_empty = function()
+                        if not server_keeps_empty then 
+                            server_keeps_empty = true
+                            log('server is empty, it will shutdown if nobody join in 1 minute')
+
+                            shutdown_task = execute_in_time(60, execute_command_impl, 
+                                -- server is still empty in 60 seconds, 
+                                -- or this task will be cancel
+                                doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD
+                            )
+                        end
+                    end
+
+                    -- test once
+                    if TheWorld.shard.components.shard_players:GetNumPlayers() == 0 then
+                        on_server_once_empty()
+                    end
+
                     TheWorld:ListenForEvent('ms_playercounts', function(data)
                         if data.total == 0 then
                             -- server is empty now, but we wait for one more minute
-                            if not server_keeps_empty then 
-                                server_keeps_empty = true
-                                log('server is empty, it will shutdown if nobody join in 1 minute')
-                                shutdown_task = TheWorld:DoTaskInTime(60, function()
-                                    -- server is still empty in 60 seconds, 
-                                    -- or this task will be cancel
-                                    ExecuteCommand(doer, M.COMMAND_ENUM.SHUTDOWN, true, 5, S.SHUTDOWN_REASON_UPDATE_MOD)
-                                end)
-                            end
+                            on_server_once_empty()
                         else
                             -- reset task
                             server_keeps_empty = false
                             if shutdown_task then
                                 shutdown_task:Cancel()
                                 shutdown_task = nil
-                                log('shutdown task is canceled')
+                                log('shutdown task is cancelled')
                             end
                         end
                     end)
@@ -972,12 +1007,13 @@ M.AddCommands(
             else
                 -- selection == 2
                 -- do re-vote in some minutes
-                log('vote result: start a vote again in', M.MOD_OUTOFDATE_REVOTE_MINUTE, 'minute(s)')
+                log('modoutofdate: start a vote again in', M.MOD_OUTOFDATE_REVOTE_MINUTE, 'minute(s)')
                 announce_fmt(S.MODOUTOFDATE_REVOTE, M.MOD_OUTOFDATE_REVOTE_MINUTE)
 
-                TheWorld:DoTaskInTime(M.MOD_OUTOFDATE_REVOTE_MINUTE * 60, function()
-                    StartCommandVote(doer, M.COMMAND_ENUM.MODOUTOFDATE)
-                end)
+                execute_in_time(M.MOD_OUTOFDATE_REVOTE_MINUTE * 60, StartCommandVote, 
+                    doer, M.COMMAND_ENUM.MODOUTOFDATE
+                )
+
             end
         end
     }
@@ -986,52 +1022,68 @@ M.AddCommands(
 -- some commands are shard-unawared, we should handle it properly
 M.SHARD_COMMAND = {
     [M.COMMAND_ENUM.KILL] = function(sender_shard_id, target_userid)
+
+        -- return value: 
+        -- 0: player is not in this shard
+        -- 1: player is in this shard, but some error occured while killing it
+        -- 2: successed to kill the target player
+
         local target = GetPlayerRecord(target_userid)
         
-        if not target or not target.in_this_shard then return end
+        if not target or not target.in_this_shard then return 0 end
 
         local announce_string = string.format(S.FMT_KILLED_PLAYER, target.name or '???', target_userid)
         if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
                     KillPlayer(v, announce_string)
-                    return
+                    return 2
                 end
             end
+            return 1
         else
             if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
                 dbg('error: failed to kill a offline player')
+                return 1
             end
         end
     end,
 
-    [M.COMMAND_ENUM.KILLBAN] = function(sender_shard_id, target_userid)
-        local target = GetPlayerRecord(target_userid)
+    -- [M.COMMAND_ENUM.KILLBAN] = function(sender_shard_id, target_userid)
+
+    --     -- return value: 
+    --     -- 0: player is not in this shard
+    --     -- 1: player is in this shard, but some error occured while killing it
+    --     -- 2: successed to killban the target player
+
+    --     local target = GetPlayerRecord(target_userid)
         
-        if not target or not target.in_this_shard then return end
+    --     if not target or not target.in_this_shard then return 0 end
 
-        local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name or '???', target_userid)
-        if IsPlayerOnline(target_userid) then
-            for _,v in pairs(GLOBAL.AllPlayers) do
-                if v and v.userid == target_userid then
-                    KillPlayer(v, announce_string)
-                    GLOBAL.TheWorld:DoTaskInTime(3, function() GLOBAL.TheNet:Ban(target_userid) end)
-                    return
-                end
-            end
-        else
-            GLOBAL.TheNet:Ban(target_userid)
-            if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
-                dbg('error: failed to killban a offline player')
-            end
-        end
-    end,
+    --     local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name or '???', target_userid)
+    --     if IsPlayerOnline(target_userid) then
+    --         for _,v in pairs(GLOBAL.AllPlayers) do
+    --             if v and v.userid == target_userid then
+    --                 KillPlayer(v, announce_string)
+    --                 TheWorld:DoTaskInTime(3, TheNet.Ban, TheNet, target_userid)
+    --                 return 2
+    --             end
+    --         end
+    --         return 1
+    --     else
+    --         TheNet:Ban(target_userid)
+    --         if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
+    --             dbg('error: failed to killban a offline player')
+    --             return 1
+    --         end
+    --     end
+    -- end,
     [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, ...)
         local item_prefabs = {...}
         if CHECKERS.userid_recorded(userid_or_flag) then
-            if not GetPlayerRecord(userid_or_flag).in_this_shard then return end
+            if not GetPlayerRecord(userid_or_flag).in_this_shard then return true end
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item_prefabs))
-            return
+            return true
         end
 
         -- userid_or_flag is a flag
@@ -1058,6 +1110,8 @@ M.SHARD_COMMAND = {
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
         
         end
+
+        return true -- return a non-nil value in order to force to send a result to broadcast raiser
     end,
 
     -- just for internal use
@@ -1089,25 +1143,32 @@ M.SHARD_COMMAND = {
         })
         Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
-        GLOBAL.TheWorld:DoTaskInTime(1, function()
-            -- check if the vote is actually began
-            local voter_state, is_get_failed = chain_get(GLOBAL.TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
-            if not is_get_failed and voter_state then
-
+        local vote_started = false
+        local function on_vote_started()
+            if not vote_started then 
+                vote_started = true
                 local announce_string = string.format(
                     S.VOTE[M.CommandEnumToName(cmd)].FMT_ANNOUNCE, 
                     M.COMMAND[cmd].args_description(unpack(args))
                 )
                 M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
-            else
-                -- clear vote env cuz vote is not actually starts
+                -- listen only once
+                TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
+            end
+        end
+
+        TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
+        execute_in_time(1, function()
+            if not vote_started then
+                -- remove the event listener anyway
                 M.ResetVoteEnv()
                 M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
                 dbg('failed to start a vote.')
+                TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
             end
-                
         end)
-        dbg('Intent to Start a Vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+
+        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
     end
 }
 
@@ -1116,62 +1177,86 @@ local function RegisterRPCs()
     -- server rpcs
 
     -- handle send_command
-    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND, function(player, cmd, ...)
-        local result = M.ExecuteCommand(player, cmd, false, ...)
+    -- AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND, function(player, cmd, ...)
+    --     local result = M.ExecuteCommand(player, cmd, false, ...)
+    --     if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
+    --         return
+    --     end
+
+    -- end)
+
+    AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
+        local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-            return
+            return nil
+        end
+        return result
+    end)
+
+    AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
+        local result = StartCommandVote(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
+            return nil
         end
 
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND), player.userid,
-            cmd, result
-        )
+        return result
     end)
+
     -- handle send_vote_command
-    AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND, function(player, cmd, ...)
-        local result = M.StartCommandVote(player, cmd, ...)
-        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-            return
-        end
+    -- AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND, function(player, cmd, ...)
+    --     local result = M.StartCommandVote(player, cmd, ...)
+    --     if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
+    --         return
+    --     end
 
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND), player.userid,
-            cmd, result
-        )
-    end)
+    --     SendModRPCToClient(
+    --         GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND), player.userid,
+    --         cmd, result
+    --     )
+    -- end)
 
     -- client rpcs
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND, 
-    function(cmd, result) 
-        -- if IsCommandEnum(cmd) and IsErrorCode(result) then
-        if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
-            dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
-        else
-            dbg('received from server(send command): server drunk')
-        end
-    end)
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND, 
+    -- function(cmd, result) 
+    --     -- if IsCommandEnum(cmd) and IsErrorCode(result) then
+    --     if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
+    --         dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
+    --     else
+    --         dbg('received from server(send command): server drunk')
+    --     end
+    -- end)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND, 
-    function(cmd, result) 
-        if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
-            dbg('received from server(send vote command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
-        else
-            dbg('received from server(send vote command): server drunk')
-        end
-    end)
+    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND, 
+    -- function(cmd, result) 
+    --     if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
+    --         dbg('received from server(send vote command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
+    --     else
+    --         dbg('received from server(send vote command): server drunk')
+    --     end
+    -- end)
     
     -- shard rpcs
 
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND, 
-    function(sender_shard_id, cmd, ...)
+    AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
         dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
         if M.SHARD_COMMAND[cmd] then
-            M.SHARD_COMMAND[cmd](sender_shard_id, ...)
+            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+            -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
         else
             dbg('shard command not exists')
         end
     end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND, 
+    -- function(sender_shard_id, cmd, ...)
+    --     dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
+    --     if M.SHARD_COMMAND[cmd] then
+    --         M.SHARD_COMMAND[cmd](sender_shard_id, ...)
+    --     else
+    --         dbg('shard command not exists')
+    --     end
+    -- end)
 
 end
 RegisterRPCs()
@@ -1187,28 +1272,31 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+            return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...)
+            -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
+            
         else   
             dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', arg = ', ...)
+            return nil
         end
     else
-        SendModRPCToShard(
-            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND), 
+        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+        return SendRPCToShard(
+            'SHARD_SEND_COMMAND',
             GLOBAL.SHARDID.MASTER, 
             cmd, ...
         )
-        dbg('Forwarded Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
     end
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND), 
+    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+    return SendRPCToShard(
+        'SHARD_SEND_COMMAND',  
         nil, 
         cmd, ...
     )
-    dbg('Broadcasted Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
 end
 
 
@@ -1275,12 +1363,12 @@ function M.CheckArgs(checkers, ...)
     return false
 end
 
-function M.ExecuteCommand(executor, cmd, is_vote, ...)
+execute_command_impl = function(executor, cmd, is_vote, ...)
     local permission_level = PermissionLevel(executor.userid)
     if is_vote then
         permission_level = VotePermissionElevate(permission_level)
     end
-
+    
     -- check data validity: cmd, args
     if not CHECKERS.command_enum(cmd) then
         -- bad command type
@@ -1301,13 +1389,16 @@ function M.ExecuteCommand(executor, cmd, is_vote, ...)
         return M.ERROR_CODE.BAD_ARGUMENT
     end
 
-    local result = M.COMMAND[cmd].fn(executor, ...)
-    dbg('received command request from player: ', executor.name, ', cmd = ', M.CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
+
+    dbg('received command request from player: ', executor.name, ', cmd = ', CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
+
+    local result = M.COMMAND[cmd].fn(...)
     -- nil(by default) means success
     return result == nil and M.ERROR_CODE.SUCCESS or result
-    
-end
-function M.StartCommandVote(executor, cmd, ...)
+
+end    
+
+local start_command_vote_impl = function(executor, cmd, ...)
     local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
     if not CHECKERS.command_enum(cmd) then
         return M.ERROR_CODE.BAD_COMMAND
@@ -1336,9 +1427,16 @@ function M.StartCommandVote(executor, cmd, ...)
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
-    ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...)
+    -- this function is attempted to be execute in another coroutine
+    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get()
+end
 
-    return M.ERROR_CODE.SUCCESS
+function M.ExecuteCommand(executor, cmd, ...)
+    return async(execute_command_impl, executor, cmd, false, ...)
+end
+
+function M.StartCommandVote(executor, cmd, ...)
+    return async(start_command_vote_impl, executor, cmd, ...)
 end
 
 function M.ExecuteCommandFromServer(cmd, start_vote, ...)
@@ -1353,13 +1451,14 @@ function M.ExecuteCommandFromServer(cmd, start_vote, ...)
         log('failed to execute a command from server: host object is bad, command =', M.CommandEnumToName(cmd))
         return
     end 
-    local result
+    local future
     if start_vote then
-        result = StartCommandVote(admin_host, cmd, ...)
+        future = StartCommandVote(admin_host, cmd, ...)
     else
-        result = ExecuteCommand(admin_host, cmd, false, ...)
+        future = ExecuteCommand(admin_host, cmd, ...)
     end
-    log('finished a command execution request from server, command =', M.CommandEnumToName(cmd), ', result =', M.ErrorCodeToName(result))
+    log('finished a command execution request from server, command =', M.CommandEnumToName(cmd), ', result =', M.ErrorCodeToName(future))
+    return future
 end
 
 AddPrefabPostInit('shard_network', function(inst)
@@ -1373,7 +1472,18 @@ AddPrefabPostInit('shard_network', function(inst)
             
             -- add callbacks
             handler:Add(function(mod)
-                ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true) -- start a vote
+                ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true, nil) -- start a vote_state
+                M.MOD_OUTOFDATE_VOTE_PASSED_FLAG = false
+                if M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION then
+                    execute_in_time(35, function()
+                        -- do default action while vote is failed to pass
+                        if not M.MOD_OUTOFDATE_VOTE_PASSED_FLAG then
+                            -- vote failed to pass
+                            ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, false, M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION)
+                        end
+                        M.MOD_OUTOFDATE_VOTE_PASSED_FLAG = nil
+                    end)
+                end
             end, true) -- trigger only once
             
         end
@@ -1446,7 +1556,13 @@ local function QueryHistoryPlayers(classified, block_index)
         return
     end
 
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
+    -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
+    --     M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
+    --     classified.last_query_player_record_timestamp, 
+    --     block_index or classified.next_query_player_record_block_index
+    -- )
+
+    SendRPCToServer('SEND_COMMAND', 
         M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
         classified.last_query_player_record_timestamp, 
         block_index or classified.next_query_player_record_block_index
@@ -1458,7 +1574,8 @@ local function QueryHistoryPlayers(classified, block_index)
 end
 
 local function QuerySnapshotInformations(classified)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
+    -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
+    SendRPCToServer('SEND_COMMAND', M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
 end
 
 -- actually it just query history players and snapshot informations
@@ -1468,11 +1585,27 @@ local function QueryServerData(classified)
 end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), cmd, ...)
+    SendRPCToServer('SEND_COMMAND', cmd, ...):set_callback(function(result)
+        local name = M.CommandEnumToName(cmd)
+        if CHECKERS.error_code(result) then
+            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(result))
+        else
+            dbg('received result from server(send command): cmd =', name, ', server drunk')
+        end
+        
+    end)
 end
 
 local function RequestToExecuteVoteCommand(classified, cmd, ...)
-    SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
+    -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
+    SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(result)
+        local name = M.CommandEnumToName(cmd)
+        if CHECKERS.error_code(result) then
+            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(result))
+        else
+            dbg('received result from server(send vote command): cmd =', name, ', server drunk')
+        end
+    end )
 end
 
 -- for server, 

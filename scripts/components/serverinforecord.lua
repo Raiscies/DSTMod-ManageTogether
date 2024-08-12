@@ -2,7 +2,9 @@
 
 local M = manage_together
 
-local dbg, chain_get = M.dbg, M.chain_get
+-- local dbg, chain_get = M.dbg, M.chain_get
+
+M.usingnamespace(M)
 
 local ServerInfoRecord = Class(function(self, inst)
     dbg('ServerInfoRecord: init')
@@ -34,7 +36,7 @@ end)
 function ServerInfoRecord:RegisterRPCs()
     dbg('ServerInfoRecord:RegisterRPCs()')
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC, function(userid, netid, name, age, skin, permission_level)
+    AddClientRPC('OFFLINE_PLAYER_RECORD_SYNC', function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {
             netid = netid, 
             name = name, 
@@ -45,9 +47,9 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received offline player record sync from server: ', self.player_record[userid])
 
         self.inst:PushEvent('player_record_updated', userid)
-    end)
+    end, true) -- no response
     
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC, function(userid, permission_level)
+    AddClientRPC('ONLINE_PLAYER_RECORD_SYNC', function(userid, permission_level)
         if not self.player_record[userid] then
             self.player_record[userid] = {}
         end
@@ -56,15 +58,15 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received online player record sync from server: ', self.player_record[userid])
 
         self.inst:PushEvent('player_record_updated', userid)
-    end)
+    end, true)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED, function(has_more)
+    AddClientRPC('PLAYER_RECORD_SYNC_COMPLETED', function(has_more)
         self.has_more_player_records = has_more
         self.inst:PushEvent('player_record_sync_completed', has_more)
         dbg('player record sync completed, has_more = ', has_more)
-    end)
+    end, true)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC, function(index, snapshot_id, day, season)
+    AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season)
         if index == 1 then
             -- clear all of the old snapshot info
             self.snapshot_info = {}
@@ -79,7 +81,7 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received snapshot info sync from server: ', self.snapshot_info[index])
 
         self.inst:PushEvent('snapshot_info_updated', index)
-    end)
+    end, true)
 
 end
 

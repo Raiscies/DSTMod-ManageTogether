@@ -390,7 +390,7 @@ function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     for _, v in ipairs(AllPlayers) do
         if v.userid == userid then
             local delay_serialize_time = fn(v, ...) or 0
-            TheWorld:DoTaskInTime(delay_serialize_time, function()
+            execute_in_time(delay_serialize_time, function()
                 v:OnDespawn()
                 SerializeUserSession(v)
                 v:Remove()

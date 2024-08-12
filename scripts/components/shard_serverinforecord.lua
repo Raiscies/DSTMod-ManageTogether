@@ -3,9 +3,11 @@
 
 local M = manage_together
 
-local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+M.usingnamespace(M)
 
-local IsPlayerOnline = M.IsPlayerOnline
+-- local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+
+-- local IsPlayerOnline = M.IsPlayerOnline
 
 local ShardServerInfoRecord = Class(
     function(self, inst)
@@ -348,8 +350,8 @@ end
 
 function ShardServerInfoRecord:SetPermission(userid, permission_level)
     -- broadcast to every shards
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION), 
+    SendRPCToShard(
+        'SHARD_SET_PLAYER_PERMISSION', 
         nil, 
         userid, 
         permission_level
@@ -357,16 +359,16 @@ function ShardServerInfoRecord:SetPermission(userid, permission_level)
 end
 
 function ShardServerInfoRecord:RecordPlayer(userid)
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER), 
+    SendRPCToShard(
+        'SHARD_RECORD_PLAYER', 
         nil, 
         userid
     )
 end
 
 function ShardServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS), 
+    SendRPCToShard(
+        'SHARD_RECORD_ONLINE_PLAYERS', 
         nil, 
         do_permission_elevate
     ) 
@@ -380,8 +382,8 @@ function ShardServerInfoRecord:SetNetVar(name, value, force_update)
         end
         self.netvar[name]:set(value)
     else
-        SendModRPCToShard(
-            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR),
+        SendRPCToShard(
+            'SHARD_SET_NET_VAR',
             SHARDID.MASTER, 
             name, value, force_update
         )
@@ -392,8 +394,8 @@ function ShardServerInfoRecord:PushNetEvent(name)
     if TheShard:IsMaster() then
         self.netvar[name]:push()
     else
-        SendModRPCToShard(
-            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT),
+        SendRPCToShard(
+            'SHARD_PUSH_NET_EVENT',
             SHARDID.MASTER, 
             name
         )
@@ -402,13 +404,13 @@ end
 
 local function SendPlayerRecord(acceptor_userid, record_userid, record)
     if IsPlayerOnline(record_userid) then
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+        SendRPCToClient(
+            'ONLINE_PLAYER_RECORD_SYNC', acceptor_userid, 
             record_userid, record.permission_level
         )
     else
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+        SendRPCToClient(
+            'OFFLINE_PLAYER_RECORD_SYNC', acceptor_userid, 
             record_userid, record.netid, record.name, record.age, record.skin, record.permission_level
         )
     end
@@ -428,8 +430,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
                 SendPlayerRecord(userid, record_userid, record)
             end
         end
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED), userid,
+        SendRPCToClient(
+            'PLAYER_RECORD_SYNC_COMPLETED', userid,
             false -- has_more
         )
 
@@ -445,8 +447,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
             record.update_timestamp >= last_query_timestamp then
 
             -- always push the updated online player records
-            SendModRPCToClient(
-                GetClientModRPC(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC), userid, 
+            SendRPCToClient(
+                'ONLINE_PLAYER_RECORD_SYNC', userid, 
                 record_userid, record.permission_level
             )
         elseif from <= i and i <= to then
@@ -456,8 +458,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
         end
     end
 
-    SendModRPCToClient(
-        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED), userid,
+    SendRPCToClient(
+        'PLAYER_RECORD_SYNC_COMPLETED', userid,
         to < #self.player_record_userid_list -- has_more
     )
 
@@ -468,8 +470,8 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
     if not slots then return end
 
     for i, v in ipairs(slots) do
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC), userid, 
+        SendRPCToClient(
+            'SNAPSHOT_INFO_SYNC', userid, 
             i, v.snapshot_id, v.day, v.season
         )
     end
@@ -550,24 +552,42 @@ end
 
 
 function ShardServerInfoRecord:RegisterShardRPCs()
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
+
+    AddShardRPC('SHARD_RECORD_PLAYER', function(sender_shard_id, userid)
         self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
+    end, true) -- no_response
+    AddShardRPC('SHARD_RECORD_ONLINE_PLAYERS', function(sender_shard_id, do_permission_elevate)
         self:ShardRecordOnlinePlayers(do_permission_elevate)
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
+    end, true)
+    AddShardRPC('SHARD_SET_PLAYER_PERMISSION', function(sender_shard_id, userid, permission_level)
         self:ShardSetPermission(userid, permission_level)
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
+    end, true)
+    
+    AddShardRPC('SHARD_SET_NET_VAR', function(sender_shard_id, name, value, force_update)
         self:SetNetVar(name, value, force_update)
-    end)
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
+    end, true)
+    AddShardRPC('SHARD_PUSH_NET_EVENT', function(sender_shard_id, name)
         self:PushNetEvent(name)
-    end)
+    end, true)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
+    --     self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
+    --     self:ShardRecordOnlinePlayers(do_permission_elevate)
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
+    --     self:ShardSetPermission(userid, permission_level)
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
+    --     self:SetNetVar(name, value, force_update)
+    -- end)
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
+    --     self:PushNetEvent(name)
+    -- end)
 end
 
 function ShardServerInfoRecord:InitNetVars()
