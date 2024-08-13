@@ -640,7 +640,7 @@ M.AddCommands(
             -- kick a player
             -- don't need to check target_userid, which has been checked on ExecuteCommand
 
-            GLOBAL.TheNet:Kick(target_userid)
+            TheNet:Kick(target_userid)
             announce_fmt(S.FMT_KICKED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
         end
     },
@@ -894,7 +894,6 @@ M.AddCommands(
             end
             local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
             if missing_count ~= 0 then
-                -- TODO: add to main_strings
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
                 announce(S.MAKE_ITEM_STAT_FINISHED)
@@ -1176,15 +1175,6 @@ local function RegisterRPCs()
 
     -- server rpcs
 
-    -- handle send_command
-    -- AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND, function(player, cmd, ...)
-    --     local result = M.ExecuteCommand(player, cmd, false, ...)
-    --     if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-    --         return
-    --     end
-
-    -- end)
-
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
@@ -1202,39 +1192,6 @@ local function RegisterRPCs()
         return result
     end)
 
-    -- handle send_vote_command
-    -- AddModRPCHandler(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND, function(player, cmd, ...)
-    --     local result = M.StartCommandVote(player, cmd, ...)
-    --     if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-    --         return
-    --     end
-
-    --     SendModRPCToClient(
-    --         GetClientModRPC(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND), player.userid,
-    --         cmd, result
-    --     )
-    -- end)
-
-    -- client rpcs
-
-    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_COMMAND, 
-    -- function(cmd, result) 
-    --     -- if IsCommandEnum(cmd) and IsErrorCode(result) then
-    --     if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
-    --         dbg('received from server(send command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
-    --     else
-    --         dbg('received from server(send command): server drunk')
-    --     end
-    -- end)
-
-    -- AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.RESULT_SEND_VOTE_COMMAND, 
-    -- function(cmd, result) 
-    --     if CHECKERS.command_enum(cmd) and CHECKERS.error_code(result) then
-    --         dbg('received from server(send vote command), cmd = ', M.CommandEnumToName(cmd), ', result = ', M.ErrorCodeToName(result))
-    --     else
-    --         dbg('received from server(send vote command): server drunk')
-    --     end
-    -- end)
     
     -- shard rpcs
 
@@ -1248,15 +1205,6 @@ local function RegisterRPCs()
         end
     end)
 
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SEND_COMMAND, 
-    -- function(sender_shard_id, cmd, ...)
-    --     dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
-    --     if M.SHARD_COMMAND[cmd] then
-    --         M.SHARD_COMMAND[cmd](sender_shard_id, ...)
-    --     else
-    --         dbg('shard command not exists')
-    --     end
-    -- end)
 
 end
 RegisterRPCs()

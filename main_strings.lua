@@ -50,6 +50,9 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
     MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = '物品栏物品统计已结束, 但没有收到部分服务器分片的结束通知', 
+    MAKE_ITEM_STAT_FINISHED = '物品栏物品统计已完成',
+
     -- unused: MAKE_ITEM_STAT_END = '物品栏统计结束',
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',

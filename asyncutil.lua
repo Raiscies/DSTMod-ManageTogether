@@ -1,6 +1,8 @@
 require 'scheduler'
 
-GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+if GLOBAL then    
+    GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+end
 
 
 local create = coroutine.create

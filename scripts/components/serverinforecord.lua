@@ -2,8 +2,6 @@
 
 local M = manage_together
 
--- local dbg, chain_get = M.dbg, M.chain_get
-
 M.usingnamespace(M)
 
 local ServerInfoRecord = Class(function(self, inst)
