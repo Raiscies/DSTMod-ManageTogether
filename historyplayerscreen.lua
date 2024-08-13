@@ -694,14 +694,18 @@ function HistoryPlayerScreen:GenerateSortedKeyList()
     
 end
 
-function HistoryPlayerScreen:BuildDaySeasonStringByInfoIndex(index)
-    return M.BuildDaySeasonString(self.recorder.snapshot_info[index].day, self.recorder.snapshot_info[index].season)
+-- function HistoryPlayerScreen:BuildDaySeasonStringByInfoIndex(index)
+--     return M.BuildDaySeasonString(self.recorder.snapshot_info[index].day, self.recorder.snapshot_info[index].season)
+-- end
+
+function HistoryPlayerScreen:BuildSnapshotBriefStringByInfoIndex(index)
+    return M.BuildSnapshotBriefString(S.FMT_ROLLBACK_SPINNER_BRIEF, self.recorder.snapshot_info[index])
 end
 
 function HistoryPlayerScreen:DumpToWebPage(userid)
     local record = self.recorder.player_record[userid]
     local encoded_data = M.EncodeToBase64(string.format(S.FMT_TEXT_WEB_PAGE, record.name or S.UNKNOWN, userid or S.UNKNOWN, record.netid or S.UNKNOWN))
-    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data))
+    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data), false) -- past a false, in order to raise client's default web browser but not Steam's browser
 end
 
 function HistoryPlayerScreen:OnBecomeActive()
@@ -789,14 +793,14 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     if #self.recorder.snapshot_info ~= 0 then
         -- for new command ROLLBACK
         if first_slot_valid then
-            table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #self.recorder.snapshot_info do
-                table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
+                table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
             end
         else
-            table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
             for i = 2, #self.recorder.snapshot_info do
-                table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
+                table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
         end
         
@@ -813,7 +817,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         end
     elseif self.bg_rollback_spinner == nil and not TheInput:ControllerAttached() then
         self.bg_rollback_spinner = self.root:AddChild(Image(M.ATLAS, 'bg_rollback_spinner.tex'))
-        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 25}, nil, 'images/global_redux.xml', spinner_lean_images, true)
+        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 22}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
         self.rollback_spinner.first_slot_valid = first_slot_valid

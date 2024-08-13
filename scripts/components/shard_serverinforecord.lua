@@ -38,7 +38,9 @@ local ShardServerInfoRecord = Class(
             -- master will listen for this event in self:MasterOnlyInit() 
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
                 dbg('ms_playerjoined:', player.userid)
-                self:RecordPlayer(player.userid)
+                TheWorld:DoTaskInTime(0, function()
+                    self:RecordPlayer(player.userid)
+                end)
                 
             end, self.world)
         end
@@ -202,8 +204,10 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
 
     self.inst:ListenForEvent('ms_playerjoined', function(src, player)
         dbg('ms_playerjoined(master):', player.userid)
-        self:RecordPlayer(player.userid) 
-        self:UpdateNewPlayerWallState() 
+        TheWorld:DoTaskInTime(0, function()
+            self:RecordPlayer(player.userid) 
+            self:UpdateNewPlayerWallState() 
+        end)
     end, self.world)
 
     self.inst:ListenForEvent('ms_playerleft_from_a_shard', function()
@@ -377,6 +381,12 @@ end
 function ShardServerInfoRecord:SetNetVar(name, value, force_update)
     -- must be set on master
     if TheShard:IsMaster() then
+
+        -- pass boolean from rpc will be cast to nil if it is false, 
+        -- however netvar does not accept nil, it will cause crash
+        -- so we have to cast it back
+        value = value ~= nil and value or false
+
         if force_update then
             self.netvar[name]:set_local(value)
         end
@@ -472,7 +482,7 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
     for i, v in ipairs(slots) do
         SendRPCToClient(
             'SNAPSHOT_INFO_SYNC', userid, 
-            i, v.snapshot_id, v.day, v.season
+            i, v.snapshot_id, v.day, v.season, v.phase
         )
     end
 end
@@ -483,7 +493,7 @@ function ShardServerInfoRecord:OnSave()
     -- OnSave will be call everytime while world is saved
     -- not just while server is shutting down
 
-    self.world:DoTaskInTime(3, function()
+    self.world:DoTaskInTime(0, function()
         self:UpadateSaveInfo()
     end)
 
@@ -691,17 +701,22 @@ function ShardServerInfoRecord:LoadSaveInfo()
     --      .snapshot_id 
     --      .day
     --      .season
+    --      .phase
 
     local function set_day_season_info(slot, worlddata)
-        -- days
+        -- days & phase
         if worlddata.clock ~= nil then
             self.snapshot_info.slots[slot].day = (worlddata.clock.cycles or 0) + 1
+
+            -- phase: {'day', 'dusk', 'night'}
+            self.snapshot_info.slots[slot].phase = worlddata.clock.phase
         end
         
         -- seasons
         if worlddata.seasons ~= nil and worlddata.seasons.season ~= nil then
             self.snapshot_info.slots[slot].season = M.SEASONS[worlddata.seasons.season]
         end
+
     end
 
     local function make_on_read_world_file(slot)
@@ -794,7 +809,8 @@ function ShardServerInfoRecord:UpadateSaveInfo()
             table.insert(new_slots, {
                 snapshot_id = v.snapshot_id, 
                 day = slot.day,             -- -slot's day and season data might missing, it will be nil, but never mind it
-                season = slot.season
+                season = slot.season,
+                phase = slot.phase
             })
         else
             -- this slot is new
@@ -813,6 +829,7 @@ function ShardServerInfoRecord:UpadateSaveInfo()
         -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
         self.snapshot_info.slots[1].day = self.world.state.cycles + 1
         self.snapshot_info.slots[1].season = M.SEASONS[self.world.state.season]
+        self.snapshot_info.slots[1].phase = self.world.state.phase
     end)
    
     self.snapshot_info.slots = new_slots
@@ -822,18 +839,32 @@ function ShardServerInfoRecord:UpadateSaveInfo()
 
 end
 
-function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
+-- function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
+--     index = index or 1
+--     return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
+-- end
+-- function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
+--     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
+--     for _, v in ipairs(self.snapshot_info.slots) do
+--         if v.snapshot_id == snapshot_id then
+--             return M.BuildDaySeasonString(v.day, v.season)
+--         end
+--     end
+--     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
+-- end
+
+function ShardServerInfoRecord:BuildSnapshotBriefStringByIndex(fmt, index, substitute_table)
     index = index or 1
-    return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
+    return M.BuildSnapshotBriefString(fmt, self.snapshot_info.slots[index], substitute_table)
 end
-function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
+function ShardServerInfoRecord:BuildSnapshotBriefStringByID(fmt, snapshot_id, substitute_table)
     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
     for _, v in ipairs(self.snapshot_info.slots) do
         if v.snapshot_id == snapshot_id then
-            return M.BuildDaySeasonString(v.day, v.season)
+            return M.BuildSnapshotBriefString(fmt, v, substitute_table)
         end
     end
-    return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
+    return M.BuildSnapshotBriefString(fmt, {}, substitute_table) -- this function can correctly handle empty table arguments
 end
 
 function ShardServerInfoRecord:SnapshotIDExists(snapshot_id)

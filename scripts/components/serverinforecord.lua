@@ -64,7 +64,7 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('player record sync completed, has_more = ', has_more)
     end, true)
 
-    AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season)
+    AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season, phase)
         if index == 1 then
             -- clear all of the old snapshot info
             self.snapshot_info = {}
@@ -73,7 +73,8 @@ function ServerInfoRecord:RegisterRPCs()
         self.snapshot_info[index] = {
             snapshot_id = snapshot_id, 
             day = day, 
-            season = season
+            season = season, 
+            phase = phase
         }
 
         dbg('received snapshot info sync from server: ', self.snapshot_info[index])

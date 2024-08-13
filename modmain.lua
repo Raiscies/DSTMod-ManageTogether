@@ -726,7 +726,7 @@ M.AddCommands(
         can_vote = true, 
         checker = {                'snapshot_id_existed'},
         args_description = function(target_snapshot_id)
-            return GetServerInfoComponent():BuildDaySeasonStringBySnapshotID(target_snapshot_id)
+            return GetServerInfoComponent():BuildSnapshotBriefStringByID(target_snapshot_id)
         end,
         fn = function(doer, target_snapshot_id)
             local comp = GetServerInfoComponent()
@@ -740,7 +740,7 @@ M.AddCommands(
                 comp:SetIsRollingBack()
                 announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
                     doer.name, 
-                    comp:BuildDaySeasonStringBySnapshotID(target_snapshot_id)
+                    comp:BuildSnapshotBriefStringByID(target_snapshot_id)
                 )
                 return M.ERROR_CODE.SUCCESS
             else

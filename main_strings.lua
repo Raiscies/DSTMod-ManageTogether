@@ -63,6 +63,13 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     DAY_UNKNOWN = STRINGS.UI.SERVERADMINSCREEN.DAY_UNKNOWN, 
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
+    PHASES = STRINGS.UI.SERVERLISTINGSCREEN.PHASES, 
+    PHASES_SHORTTEN = {
+        DAY = '晨', 
+        DUSK = '昏', 
+        NIGHT = '夜',
+    },
+    UNKNOWN_PHASE = '未知时段',
 
     MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = '服务器将在无人时重启, 当前已关闭警告',
     MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = '服务器模组过期警告已关闭',
@@ -145,7 +152,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
 
     -- this website does not accept \n to return line, use <br> instead
     FMT_TEXT_WEB_PAGE = 'Name: %s<br>User ID: %s<br>Steam ID: %s',
-    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#(页面空白请刷新)导出玩家数据/data:text/plain;base64,%s',
+    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#ExportedPlayerData/data:text/plain;base64,%s',
     UNKNOWN = 'unknown',
 
     -- server commands
@@ -158,6 +165,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ROLLBACK_SPINNER_NEWEST = '(最近)',
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
+    FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
+
     REGENERATE_WORLD = '重新生成世界',
     REGENERATE_WORLD_DESC = '毁掉这个世界的一切, 然后生成一个新的. ',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = '服务器名称',

@@ -228,9 +228,34 @@ function M.BuildSeasonString(season_enum)
         S.SEASONS[string.upper(M.SEASON_NAMES[season_enum])] or 
         S.UNKNOWN_SEASON
 end
+function M.BuildPhaseString(phase, fullname)
+    return fullname and (phase and S.PHASES[phase:upper()] or '') or (phase and S.PHASES_SHORTTEN[phase:upper()] or S.UNKNOWN_PHASE)
+end
 
-function M.BuildDaySeasonString(day, season_enum)
-    return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
+-- function M.BuildDaySeasonString(day, season_enum)
+--     return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
+-- end
+local build_string_substitute_table = {
+    day = M.BuildDayString,
+    season = M.BuildSeasonString,
+    phase = M.BuildPhaseString,
+    -- phase_shortten = function(phase) return M.BuildPhaseString(phase, true) end
+}
+function M.BuildSnapshotBriefString(fmt, datatable, substitute_table)
+    local substitutor = substitute_table and setmetatable({}, {
+        __index = function(t, k)
+            return substitute_table[k] or build_string_substitute_table[k]
+        end 
+    }) or build_string_substitute_table
+
+    --[[
+        example: 
+        BuildSnapshotBriefString('{day}-{season} {phase}', {day = 1, season = 1, phase = 'night'})
+        == 'Day 1-Winter Night'
+    ]]
+    return string.gsub(fmt, '%{(%w+)%}', function(capture)
+        return substitutor[capture](datatable[capture])
+    end)
 end
 
 function M.IsNewestRollbackSlotValid()
