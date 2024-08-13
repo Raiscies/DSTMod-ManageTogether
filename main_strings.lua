@@ -137,7 +137,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
 
     -- this website does not accept \n to return line, use <br> instead
     FMT_TEXT_WEB_PAGE = 'Name: %s<br>User ID: %s<br>Steam ID: %s',
-    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#(页面空白请刷新)导出玩家数据/data:text/plain;base64,%s',
+    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#ExportedPlayerData/data:text/plain;base64,%s',
     UNKNOWN = 'unknown',
 
     -- server commands

@@ -817,7 +817,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         end
     elseif self.bg_rollback_spinner == nil and not TheInput:ControllerAttached() then
         self.bg_rollback_spinner = self.root:AddChild(Image(M.ATLAS, 'bg_rollback_spinner.tex'))
-        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 18}, nil, 'images/global_redux.xml', spinner_lean_images, true)
+        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 22}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
         self.rollback_spinner.first_slot_valid = first_slot_valid
