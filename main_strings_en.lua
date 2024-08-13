@@ -58,6 +58,16 @@ STRINGS.UI.MANAGE_TOGETHER = {
     DAY_UNKNOWN = STRINGS.UI.SERVERADMINSCREEN.DAY_UNKNOWN, 
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
+    PHASES = STRINGS.UI.SERVERLISTINGSCREEN.PHASES, 
+    PHASES_SHORTTEN = STRINGS.UI.SERVERLISTINGSCREEN.PHASES,
+
+    -- PHASES_SHORTTEN = {
+    --     any idea?
+    --     DAY = 'M',  (Moon)
+    --     DUSK = 'D', 
+    --     NIGHT = 'N',
+    -- },
+    UNKNOWN_PHASE = 'Unknown Phase',
 
     -- vote related strings
     VOTE = {
@@ -141,6 +151,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = 'this snapshot is disabled due to a very recent saving time(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
+    FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
+
     REGENERATE_WORLD = 'Regengerate World',
     REGENERATE_WORLD_DESC = 'distory EVERYTHING of the world, and then generate a new world',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = 'server name',
