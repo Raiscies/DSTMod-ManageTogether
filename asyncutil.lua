@@ -1,8 +1,6 @@
 require 'scheduler'
 
--- if GLOBAL then    
 GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
--- end
 
 local M = GLOBAL.manage_together
 local dbg = M.dbg
@@ -14,7 +12,7 @@ local resume = coroutine.resume
 local status = coroutine.status
 
 -- scheduler.lua
-local hibernate = Hibernate
+local hibernate = Hibernate -- hibernate a task until it is being wake up
 local wake = WakeTask
 local sleep = Sleep
 

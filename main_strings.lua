@@ -190,12 +190,42 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     REMOVE_MODERATOR = '移除监督员',
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = '切换新玩家可加入状态',
+    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么新玩家可加入状态将于服务器不满足「%s」时被自动关闭, 否则自动开启',
+    
+    -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
-        ALLOW_ALL_PLAYER = '禁止新玩家加入\n当前已允许新玩家加入', 
-        ALLOW_OLD_PLAYER = '允许新玩家加入\n当前已禁止新玩家加入', 
+        ALLOW_ALL_PLAYER = '切换新玩家可加入状态\n当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '切换新玩家可加入状态\n当前已禁止新玩家加入', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家数量变动时被覆盖',
+    -- popup dialog button/desc
+    DIALOG_SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = '当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '当前已禁止新玩家加入',
+        
+        JOINABILITY_BUTTON = {
+            -- button action inverts the current state
+            ALLOW_ALL_PLAYER = '禁止新玩家加入', 
+            ALLOW_OLD_PLAYER = '允许新玩家加入', 
+        },
+        
 
+        -- auto new player wall
+        WALL_ENABLED = '新玩家可加入性动态调整已开启',
+        WALL_DISABLED = '新玩家可加入性动态调整已关闭',
+
+        WALL_BUTTON = {
+            -- button action inverts the current state
+            WALL_ENABLED = '开启新玩家可加入性动态调整',
+            WALL_DISABLED = '关闭新玩家可加入性动态调整',
+        },
+
+         WALL_LEVEL = {
+            ADMIN = '管理员在线时',
+            MODERATOR = '管理员或监督员在线时',
+            USER = '任意玩家在线时',
+            UNKNOWN = '??'
+         }
+    },
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 
     FMT_CONFIRM_DIALOG_TITLE = '%s玩家', 

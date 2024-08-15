@@ -14,18 +14,18 @@ local SendRPCToShard = M.SendRPCToShard
 
 local ServerInfoRecord = Class(function(self, inst)
     dbg('ServerInfoRecord: init')
-    self.inst = inst
+    self.inst = inst -- TheWorld.net, or say xx_network
     self.world = TheWorld
 
     if TheWorld.ismastersim then
         inst:DoTaskInTime(0, function()
              
             -- on server side
-            self.shard_serverinforecord = TheWorld.shard.components.shard_serverinforecord
+            self.shard_recorder = TheWorld.shard.components.shard_serverinforecord
             
             -- alias
-            self.player_record = self.shard_serverinforecord.player_record
-            self.snapshot_info = self.shard_serverinforecord.snapshot_info
+            self.player_record = self.shard_recorder.player_record
+            self.snapshot_info = self.shard_recorder.snapshot_info
         
         end)
     else
@@ -92,9 +92,44 @@ function ServerInfoRecord:RegisterRPCs()
 
 end
 
+function ServerInfoRecord:InitNetVars()
+    -- all of these netvars are in public area - all of the clients are available to accept it
+    self.netver = {
+        allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'manage_together.auto_new_player_wall_enabled', 'auto_new_player_wall_changed'),
+        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
+    }
+
+    if TheWorld.ismastersim then
+         
+            -- listen for events from recorder
+        self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
+            local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
+            dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
+
+            self.netver.allow_new_players_to_connect:set(connectable)
+        end, TheWorld.shard) -- event broadcaster is shard_network
+
+        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function()
+            local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
+            dbg('ServerInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            self.netver.auto_new_player_wall_enabled:set(enabled)
+            self.netvar.auto_new_player_wall_min_level:set(min_level)
+        end, TheWorld.shard)
+    end
+end
+
+function ServerInfoRecord:GetAllowNewPlayersToConnect()
+    return bool(self.netvar.allow_new_players_to_connect:value())
+end
+
+function ServerInfoRecord:GetAutoNewPlayerWall()
+    return bool(self.netvar.auto_new_player_wall_enabled:value()), self.netvar.auto_new_player_wall_min_level:value()
+end
+
 if not TheWorld.ismastersim then
     -- client side
-
+    
 function ServerInfoRecord:RecordClientData(userid)
     local client = TheNet:GetClientTableForUser(userid)
     local record = self.player_record[userid]

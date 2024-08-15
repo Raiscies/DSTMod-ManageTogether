@@ -19,7 +19,6 @@ local SendRPCToShard = M.SendRPCToShard
 local ShardServerInfoRecord = Class(
     function(self, inst)
         self.inst = inst -- inst is shard_network
-        self.world = TheWorld
         
         self.player_record = {}
         self.snapshot_info = {slots = {}}
@@ -49,7 +48,7 @@ local ShardServerInfoRecord = Class(
                     self:RecordPlayer(player.userid)
                 end)
                 
-            end, self.world)
+            end, TheWorld)
         end
 
         -- ms_playerleft will be push only when player is left from master,
@@ -57,16 +56,16 @@ local ShardServerInfoRecord = Class(
         self.inst:ListenForEvent('ms_playerleft', function(src, player)
             dbg('ms_playerleft')
             self:PushNetEvent('playerleft_from_a_shard')
-        end, self.world)
+        end, TheWorld)
 
         self.inst:ListenForEvent('cycleschanged', function(src, data)
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
-        end, self.world)
+        end, TheWorld)
   
 
         -- OnLoad will not be called if mod is firstly loaded 
         -- in this case, we should handle it properly
-        self.world:DoTaskInTime(0, function()
+        TheWorld:DoTaskInTime(0, function()
             if #self.snapshot_info.slots ~= 0 then
                 return
             end
@@ -215,7 +214,7 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
             self:RecordPlayer(player.userid) 
             self:UpdateNewPlayerWallState() 
         end)
-    end, self.world)
+    end, TheWorld)
 
     self.inst:ListenForEvent('ms_playerleft_from_a_shard', function()
         dbg('ms_playerleft_from_a_shard on master')
@@ -223,14 +222,14 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     end)
 
     self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
-        local allowed = not not self.netvar.allow_new_players_to_connect:value()
+        local allowed = bool(self.netvar.allow_new_players_to_connect:value())
         dbg('event: ms_new_player_joinability_changed: ', allowed)
         TheNet:SetAllowNewPlayersToConnect(allowed)
     end)
 
     self:SetAllowNewPlayersToConnect(TheNet:GetAllowNewPlayersToConnect(), true) -- force update
 
-    self.world:DoTaskInTime(0, function()
+    TheWorld:DoTaskInTime(0, function()
           -- update once
         dbg('update once new player wall')
         self:UpdateNewPlayerWallState()
@@ -500,7 +499,7 @@ function ShardServerInfoRecord:OnSave()
     -- OnSave will be call everytime while world is saved
     -- not just while server is shutting down
 
-    self.world:DoTaskInTime(0, function()
+    TheWorld:DoTaskInTime(0, function()
         self:UpadateSaveInfo()
     end)
 
@@ -610,8 +609,8 @@ end
 function ShardServerInfoRecord:InitNetVars()
     self.netvar = {
         is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back'),
-        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level'), 
-        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled'),
+        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level', 'ms_auto_new_player_wall_changed'), 
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled', 'ms_auto_new_player_wall_changed'),
         allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_changed'),
         
         playerleft_from_a_shard = net_event(self.inst.GUID, 'ms_playerleft_from_a_shard')
@@ -633,7 +632,7 @@ function ShardServerInfoRecord:SetAllowNewPlayersToConnect(allowed, force_update
     self:SetNetVar('allow_new_players_to_connect', allowed, force_update)
 end
 function ShardServerInfoRecord:GetAllowNewPlayersToConnect()
-    return self.netvar.allow_new_players_to_connect:value()
+    return bool(self.netvar.allow_new_players_to_connect:value())
 end
 
 function ShardServerInfoRecord:SetAutoNewPlayerWall(enabled, min_level)
@@ -645,10 +644,8 @@ function ShardServerInfoRecord:SetAutoNewPlayerWall(enabled, min_level)
     end
 end
 function ShardServerInfoRecord:GetAutoNewPlayerWall()
-    return {
-        enabled = self.netvar.auto_new_player_wall_enabled:value(), 
-        min_level = self.netvar.auto_new_player_wall_min_level:value()
-    }
+    -- enabled, min_level
+    return bool(self.netvar.auto_new_player_wall_enabled:value()), self.netvar.auto_new_player_wall_min_level:value()
 end
 
 -- master side only
@@ -692,7 +689,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         self:SetAllowNewPlayersToConnect(new_state)
     end
     dbg('finished to update new player wall state, old_state = ', old_state, ', new_state = ', new_state, ', required_min_level = ', required_min_level)
-    self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
+    TheWorld:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function() end
 
@@ -826,17 +823,14 @@ function ShardServerInfoRecord:UpadateSaveInfo()
             })
         end
     end
-
-    -- if not new_slots[1].day then
-        -- the current slot's snapshot_id is new 
         
     -- set the newest slot's day and season data
-    -- the data is just current day and season
-    self.world:DoTaskInTime(0, function()
+    -- the data is just current day, season and phase
+    TheWorld:DoTaskInTime(0, function()
         -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
-        self.snapshot_info.slots[1].day = self.world.state.cycles + 1
-        self.snapshot_info.slots[1].season = M.SEASONS[self.world.state.season]
-        self.snapshot_info.slots[1].phase = self.world.state.phase
+        self.snapshot_info.slots[1].day = TheWorld.state.cycles + 1
+        self.snapshot_info.slots[1].season = M.SEASONS[TheWorld.state.season]
+        self.snapshot_info.slots[1].phase = TheWorld.state.phase
     end)
    
     self.snapshot_info.slots = new_slots
@@ -845,20 +839,6 @@ function ShardServerInfoRecord:UpadateSaveInfo()
     end
 
 end
-
--- function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
---     index = index or 1
---     return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
--- end
--- function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
---     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
---     for _, v in ipairs(self.snapshot_info.slots) do
---         if v.snapshot_id == snapshot_id then
---             return M.BuildDaySeasonString(v.day, v.season)
---         end
---     end
---     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
--- end
 
 function ShardServerInfoRecord:BuildSnapshotBriefStringByIndex(fmt, index, substitute_table)
     index = index or 1
