@@ -2,7 +2,15 @@
 
 local M = manage_together
 
-M.usingnamespace(M)
+-- M.usingnamespace(M)
+
+local dbg = M.dbg
+local AddServerRPC = M.AddServerRPC
+local AddClientRPC = M.AddClientRPC
+local AddShardRPC = M.AddShardRPC
+local SendRPCToServer = M.SendRPCToServer
+local SendRPCToClient = M.SendRPCToClient
+local SendRPCToShard = M.SendRPCToShard
 
 local ServerInfoRecord = Class(function(self, inst)
     dbg('ServerInfoRecord: init')

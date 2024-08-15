@@ -151,7 +151,10 @@
         "KillTask",
         "execute_in_time",
         "SendRPCToServer",
-        "AddClientRPC"
+        "AddClientRPC",
+        "StartStaticThread",
+        "staticScheduler",
+        "execute_in_time_nonstatic"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

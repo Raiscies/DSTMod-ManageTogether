@@ -125,8 +125,8 @@ InitConfigs()
 
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
-modimport ('asyncutil')
 modimport('utils')
+-- modimport ('asyncutil') -- it is imported in utils
 local Functional = require 'functional'
 
 M.using_namespace(M, GLOBAL, Functional)
@@ -694,7 +694,7 @@ M.AddCommands(
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
-            execute_in_time(3, TheNet.Ban, TheNet, target_userid)
+            execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
             for shardid, res in pairs(result) do
                 local status = res[1]
                 if status == 2 then
@@ -1157,6 +1157,8 @@ M.SHARD_COMMAND = {
         end
 
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
+
+        -- check for voting whether is filed to start
         execute_in_time(1, function()
             if not vote_started then
                 -- remove the event listener anyway
@@ -1423,7 +1425,7 @@ AddPrefabPostInit('shard_network', function(inst)
                 ExecuteCommandFromServer(M.COMMAND_ENUM.MODOUTOFDATE, true, nil) -- start a vote_state
                 M.MOD_OUTOFDATE_VOTE_PASSED_FLAG = false
                 if M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION then
-                    execute_in_time(35, function()
+                    execute_in_time_nonstatic(35, function()
                         -- do default action while vote is failed to pass
                         if not M.MOD_OUTOFDATE_VOTE_PASSED_FLAG then
                             -- vote failed to pass
@@ -1562,6 +1564,7 @@ end
 -- and it does not work for other players, 
 -- cause the player_classified entity not exists on the other clients
 local function SetPermission(classified, level)
+    dbg('setting player permission: ', classified, ', level =', level)
 
     -- permission level
     classified.net_permission_level:set(level)
@@ -1637,14 +1640,17 @@ AddPrefabPostInit('player_classified', function(inst)
 
     inst:ListenForEvent('permission_level_changed', function()
         inst.permission_level = inst.net_permission_level:value()
+        dbg('player_classified: permission_level_changed: ', inst.permission_level)
     end)
     
     inst:ListenForEvent('permission_mask_changed', function()
         inst.permission_mask = M.concatbit32to64(inst.net_permission_masks[1]:value(), inst.net_permission_masks[2]:value())
+        dbg('player_classified: permission_mask_changed: ', inst.permission_mask)
     end)
     
     inst:ListenForEvent('vote_permission_mask_changed', function()
         inst.vote_permission_mask = M.concatbit32to64(inst.net_vote_permission_masks[1]:value(), inst.net_vote_permission_masks[2]:value())
+        dbg('player_classified: vote_permission_mask_changed: ', inst.vote_permission_mask)
     end)
     
     inst:ListenForEvent('new_player_joinability_changed', function()

@@ -207,6 +207,12 @@ function M.GetPlayerFromUserid(userid)
     return nil
 end
 
+
+-- this should be import after log, dbg functions,
+-- but some of the utils functions needs asyncutil :)
+-- execute_in_time
+modimport('asyncutil')
+
 -- this is come from seasons.lua
 -- which doesn't exports from the file so we just simply make a copy 
 M.SEASON_NAMES = {
@@ -415,7 +421,7 @@ function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     for _, v in ipairs(AllPlayers) do
         if v.userid == userid then
             local delay_serialize_time = fn(v, ...) or 0
-            execute_in_time(delay_serialize_time, function()
+            execute_in_time_nonstatic(delay_serialize_time, function()
                 v:OnDespawn()
                 SerializeUserSession(v)
                 v:Remove()

@@ -1,9 +1,12 @@
 require 'scheduler'
 
-if GLOBAL then    
-    GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-end
+-- if GLOBAL then    
+GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
+-- end
 
+local M = GLOBAL.manage_together
+local dbg = M.dbg
+local log = M.log
 
 local create = coroutine.create
 local yield = coroutine.yield
@@ -20,14 +23,24 @@ local Future = Class(function(self, fn)
     local value_ = nil
     local valid_ = false
     local callback_ = nil
-
-    self.fn = fn
-    -- self.binded_task = task
-
+    
     local waiting_tasks_ = {}
 
+    self.fn = fn
+
+    self.target = function(param)
+        value_ = {self.fn(unpack(param))} -- target is asynced with main thread, but sync with its Task(fn) thread
+        valid_ = true
+        
+        self:wake_all_waiting_tasks()
+        if self.callback_ then
+            self.callback_(self:get_nowait())
+        end
+    end
+    
+
     local function add_waiting_task()
-        table.insert(waiting_tasks_, GetCurrentScheduler().tasks[coroutine.running()])
+        table.insert(waiting_tasks_, staticScheduler.tasks[coroutine.running()])
     end
     local function wake_all_waiting_tasks()
         for _, t in ipairs(waiting_tasks_) do
@@ -38,16 +51,6 @@ local Future = Class(function(self, fn)
     -- this task will be packaged to scheduler.Task - a coroutine
     function self:get_nowait()
         return value_ ~= nil and unpack(value_)
-    end
-
-    function self:run_task(...)
-        value_ = {fn(...)} -- task is asynced with main thread, but sync with its Task(fn) thread
-        valid_ = true
-        
-        wake_all_waiting_tasks()
-        if callback_ then
-            callback_(self:get_nowait())
-        end
     end
 
     function self:wait()
@@ -97,6 +100,7 @@ local Future = Class(function(self, fn)
 
 end)
 
+
 --[[
     usage:
 
@@ -107,22 +111,38 @@ end)
         use future object to get the function's return value
 
         function logic...
-    end)
+    end, params...)
 
 
 ]]
 
+
+-- async is non-static 
 function M.async(fn, ...)
     local future = Future(fn)
-    StartThread(future.run_task, nil, future, ...)
+    StartStaticThread(future.target, nil, {...})
     return future
 end
+function M.async_nonstatic(fn, ...)
+    local future = Future(fn)
+    StartThread(future.target, nil, {...})
+    return future
+end
+
 local async = M.async
+local async_nonstatic = M.async_nonstatic
 
 function M.execute_in_time(time, fn, ...)
-    local scheduler = GetCurrentScheduler()
+    -- local scheduler = staticScheduler
+    staticScheduler:ExecuteInTime(time, fn, staticScheduler:GetCurrentTask().id, ...)
+end
+
+function M.execute_in_time_nonstatic(time, fn, ...)
+    -- but normal scheduler will pause when server is paused 
+    -- while staticScheduler will ignore it 
     scheduler:ExecuteInTime(time, fn, scheduler:GetCurrentTask().id, ...)
 end
+
 
 -- a warpper of immediactate values
 function M.future_value(...)
@@ -138,11 +158,21 @@ function M.is_future(val)
 end
 
 
-local RPC_CATEGORY = {
-    SERVER = 1, 
-    CLIENT = 2, 
-    SHARD  = 3
-}
+local RPC_CATEGORY
+if M.DEBUG then
+    RPC_CATEGORY = {
+        SERVER = 'server', 
+        CLIENT = 'client', 
+        SHARD  = 'shard'
+    }
+
+else
+    RPC_CATEGORY = {
+        SERVER = 1, 
+        CLIENT = 2, 
+        SHARD  = 3
+    }
+end
 
 local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
     self.namespace = namespace
@@ -174,7 +204,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
 
         -- here is client side
         if not self:SetContextResult(RPC_CATEGORY.SERVER, id, {...}) then
-            print('failed to get return value from server rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from server rpc, id =', id, ', context is not exists')
             return
         end
         wake(self.contexts[RPC_CATEGORY.SERVER][id].task)
@@ -187,7 +217,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
 
         -- here is server side
         if not self:AddContextResult(RPC_CATEGORY.CLIENT, id, player, {...}) then
-            print('failed to get return value from client rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from client rpc, id =', id, ', context is not exists')
             return
         end
         local context = self.contexts[RPC_CATEGORY.CLIENT][id]
@@ -202,7 +232,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
         -- shard1 -shardRPC-> shardn (call) could be more than one target
         -- shardnetworking -shardRPC-> shard1 (return value)
         if not self:AddContextResult(RPC_CATEGORY.SHARD, id, sender_shard_id, {...}) then
-            print('failed to get return value from shard rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from shard rpc, id =', id, ', context is not exists')
             return
         end
         
@@ -257,8 +287,10 @@ end
 
 function AsyncRPCManager:AddServerRPC(name, fn, no_response)
     if no_response then
+        -- dbg('registering server RPC: ', name, ', with no response')
         AddModRPCHandler(self.namespace, name, fn)
     else
+        -- dbg('registering server RPC: ', name, ', with response')
         AddModRPCHandler(self.namespace, name, function(player, ...)
             -- here is server side
             -- return results to client
@@ -278,9 +310,11 @@ end
 
 function AsyncRPCManager:AddClientRPC(name, fn, no_response)
     if no_response then
-        AddClientRPC(self.namespace, name, fn)
+        -- dbg('registering client RPC: ', name, ', with no response')
+        AddClientModRPCHandler(self.namespace, name, fn)
     else
-        AddClientRPC(self.namespace, name, function(...)
+        -- dbg('registering client RPC: ', name, ', with response')
+        AddClientModRPCHandler(self.namespace, name, function(...)
             -- here is client side
             -- return results to server
             local result = {fn(...)}
@@ -297,8 +331,10 @@ end
 
 function AsyncRPCManager:AddShardRPC(name, fn, no_response)
     if no_response then
+        -- dbg('registering shard RPC: ', name, ', with no response')
         AddShardModRPCHandler(self.namespace, name, fn)
     else
+        -- dbg('registering shard RPC: ', name, ', with response')
         AddShardModRPCHandler(self.namespace, name, function(sender_shard_id, ...)
             local result = {fn(sender_shard_id, ...)}
             if #result ~= 0 then
@@ -313,16 +349,18 @@ function AsyncRPCManager:AddShardRPC(name, fn, no_response)
 end
 
 local do_send_rpc = function(rpc_manager, category, rpc_name, attempted_response_count, ...)
-    local id = rpc_manager:CreateContext(category, GetCurrentScheduler().tasks[coroutine.running()], attempted_response_count)
+    local id = rpc_manager:CreateContext(category, staticScheduler.tasks[coroutine.running()], attempted_response_count)
+
+    dbg('sending async RPC: category =', category, ', name =', rpc_name)
 
     if category == RPC_CATEGORY.SERVER then
         SendModRPCToServer(GetModRPC(rpc_manager.namespace, rpc_name), id, ...)
     elseif category == RPC_CATEGORY.CLIENT then
-        SendRPCToClient(GetClientModRPC(rpc_manager.namespace, rpc_name), id, ...)
+        SendModRPCToClient(GetClientModRPC(rpc_manager.namespace, rpc_name), id, ...)
     elseif category == RPC_CATEGORY.SHARD then
-        SendRPCToShard(GetShardModRPC(rpc_manager.namespace, rpc_name), id, ...)
+        SendModRPCToShard(GetShardModRPC(rpc_manager.namespace, rpc_name), id, ...)
     else
-        print('error: in do_send_rpc: category', category, ' is bad')
+        dbg('error: in do_send_rpc: category', category, ' is bad')
         rpc_manager:PopContextResult(category, id)
         return
     end
@@ -336,13 +374,15 @@ end
 function AsyncRPCManager:SendRPCToServer(name, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.SERVER][name]
     if not rpc then
-        print('error: failed to send a RPC to server: RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to server: RPC name(', name, ') not found.')
         return nil, false
     end
     if rpc.no_response then
+        dbg('sending RPC: category =', RPC_CATEGORY.SERVER, ', name =', name)
         SendModRPCToServer(GetModRPC(self.namespace, name), ...)
         return nil, true
     else
+        dbg('try asyncly send RPC...')
         return async(do_send_rpc, self, RPC_CATEGORY.SERVER, name, 1, ...), true
     end
 end
@@ -350,14 +390,15 @@ end
 function AsyncRPCManager:SendRPCToClient(name, target, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.CLIENT][name]
     if not rpc then
-        print('error: failed to send a RPC to client(', target, '): RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to client(', target, '): RPC name(', name, ') not found.')
         return nil, false
     end
     if rpc.no_response then
-        SendRPCToClient(GetClientModRPC(self.namespace, name),  ...)
+        dbg('sending RPC: category =', RPC_CATEGORY.CLIENT, ', name =', name)
+        SendModRPCToClient(GetClientModRPC(self.namespace, name),  target, ...)
         return nil, true
     end
-
+    
     local attempted_response_count
     if target == nil then
         attempted_response_count = #GetPlayerClientTable()
@@ -366,25 +407,26 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
     elseif type(target) == 'table' then
         attempted_response_count = #target
     else
-        print('bad RPC target: ', target)
+        dbg('bad RPC target: ', target)
         return nil, false
     end
-
+    dbg('try asyncly send RPC...')
     return async(do_send_rpc, self, RPC_CATEGORY.CLIENT, name, target, attempted_response_count, ...), true
 end
 
 function AsyncRPCManager:SendRPCToShard(name, target, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.SHARD][name]
     if not rpc then
-        print('error: failed to send a RPC to shard(', target, '): RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to shard(', target, '): RPC name(', name, ') not found.')
         return nil, false
     end
     if rpc.no_response then
         -- here, arg1 is a normal argument of rpc
-        SendRPCToShard(GetShardModRPC(self.namespace, name), ...)
+        dbg('sending RPC: category =', RPC_CATEGORY.SHARD, ', name =', name)
+        SendModRPCToShard(GetShardModRPC(self.namespace, name), target, ...)
         return nil, true
     end
-
+    
     local attempted_response_count
     if target == nil then
         attempted_response_count = #Shard_GetConnectedShards()
@@ -393,11 +435,11 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
     elseif type(target) == 'table' then
         attempted_response_count = #target
     else
-        print('bad RPC target: ', target)
+        dbg('bad RPC target: ', target)
         return nil, false
     end
 
-    -- here, arg1 is attempted_response_count
+    dbg('try asyncly send RPC...')
     return async(do_send_rpc, self, RPC_CATEGORY.SHARD, name, target, attempted_response_count, ...), true
 
 end

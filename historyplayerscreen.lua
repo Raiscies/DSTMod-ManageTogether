@@ -1018,7 +1018,9 @@ function HistoryPlayerScreen:DoInit()
             end
         end
         self.servermods:SetHoverText(table.concat(mods_desc_table, ''), {bg_texture = 'char_shadow.tex'})
-        self.servermods.hovertext_bg:SetTint(1, 1, 1, 1)
+        if self.servermods.hovertext_bg then    
+            self.servermods.hovertext_bg:SetTint(1, 1, 1, 1)
+        end
 
         self.bg:SetScale(.95,.95)
         self.bg:SetPosition(0,-10)
@@ -1529,6 +1531,8 @@ function PlayerStatusScreen:DoInit(clients)
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
     if ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
         DoInitScreenToggleButton(self, 1)
+    else
+        dbg('no permission to query history players')
     end
 
 end

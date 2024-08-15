@@ -3,9 +3,16 @@
 
 local M = manage_together
 
-M.usingnamespace(M)
+-- M.usingnamespace(M)
 
--- local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+
+local AddServerRPC = M.AddServerRPC
+local AddClientRPC = M.AddClientRPC
+local AddShardRPC = M.AddShardRPC
+local SendRPCToServer = M.SendRPCToServer
+local SendRPCToClient = M.SendRPCToClient
+local SendRPCToShard = M.SendRPCToShard
 
 -- local IsPlayerOnline = M.IsPlayerOnline
 
