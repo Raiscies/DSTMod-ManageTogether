@@ -50,6 +50,9 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
     MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = '物品栏物品统计已结束, 但没有收到部分服务器分片的结束通知', 
+    MAKE_ITEM_STAT_FINISHED = '物品栏物品统计已完成',
+
     -- unused: MAKE_ITEM_STAT_END = '物品栏统计结束',
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
@@ -60,6 +63,17 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     DAY_UNKNOWN = STRINGS.UI.SERVERADMINSCREEN.DAY_UNKNOWN, 
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
+    PHASES = STRINGS.UI.SERVERLISTINGSCREEN.PHASES, 
+    PHASES_SHORTTEN = {
+        DAY = '晨', 
+        DUSK = '昏', 
+        NIGHT = '夜',
+    },
+    UNKNOWN_PHASE = '未知时段',
+
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = '服务器将在无人时重启, 当前已关闭警告',
+    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = '服务器模组过期警告已关闭',
+    MODOUTOFDATE_REVOTE = '投票将会在%d分钟后重新发起',
 
     -- vote related strings
     VOTE = {
@@ -113,6 +127,14 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
             TITLE = '我们应该执行物品栏物品统计吗?'
+        }, 
+        MODOUTOFDATE = {
+            FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么', 
+            TITLE = '服务器模组已过期, 我们应该...', 
+            SHUTDOWN = '立即重启服务器', 
+            SHUTDOWN_WHEN_NOBODY = '服务器无人时重启', 
+            SUPPRESS_ANNOUNCEMENT = '仅关闭警告', 
+            DELAY = '一会再说',
         }
     }
 }
@@ -130,7 +152,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
 
     -- this website does not accept \n to return line, use <br> instead
     FMT_TEXT_WEB_PAGE = 'Name: %s<br>User ID: %s<br>Steam ID: %s',
-    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#(页面空白请刷新)导出玩家数据/data:text/plain;base64,%s',
+    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#ExportedPlayerData/data:text/plain;base64,%s',
     UNKNOWN = 'unknown',
 
     -- server commands
@@ -143,6 +165,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ROLLBACK_SPINNER_NEWEST = '(最近)',
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
+    FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
+
     REGENERATE_WORLD = '重新生成世界',
     REGENERATE_WORLD_DESC = '毁掉这个世界的一切, 然后生成一个新的. ',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = '服务器名称',
@@ -178,5 +202,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     FMT_CONFIRM_DIALOG_DESC  = '将玩家%s %s%s',
     FMT_INPUT_TO_CONFIRM = '输入%s以确认%s',
 
-    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...'
+    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...', 
+    FMT_SERVER_WILL_SHUTDOWN = '服务器将会在%d秒内关闭, 原因: %s',
+    SHUTDOWN_REASON_UPDATE_MOD = '重启并更新模组'
 }

@@ -694,14 +694,18 @@ function HistoryPlayerScreen:GenerateSortedKeyList()
     
 end
 
-function HistoryPlayerScreen:BuildDaySeasonStringByInfoIndex(index)
-    return M.BuildDaySeasonString(self.recorder.snapshot_info[index].day, self.recorder.snapshot_info[index].season)
+-- function HistoryPlayerScreen:BuildDaySeasonStringByInfoIndex(index)
+--     return M.BuildDaySeasonString(self.recorder.snapshot_info[index].day, self.recorder.snapshot_info[index].season)
+-- end
+
+function HistoryPlayerScreen:BuildSnapshotBriefStringByInfoIndex(index)
+    return M.BuildSnapshotBriefString(S.FMT_ROLLBACK_SPINNER_BRIEF, self.recorder.snapshot_info[index])
 end
 
 function HistoryPlayerScreen:DumpToWebPage(userid)
     local record = self.recorder.player_record[userid]
     local encoded_data = M.EncodeToBase64(string.format(S.FMT_TEXT_WEB_PAGE, record.name or S.UNKNOWN, userid or S.UNKNOWN, record.netid or S.UNKNOWN))
-    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data))
+    VisitURL(string.format(S.FMT_URL_WAB_PAGE, encoded_data), false) -- past a false, in order to raise client's default web browser but not Steam's browser
 end
 
 function HistoryPlayerScreen:OnBecomeActive()
@@ -789,14 +793,14 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     if #self.recorder.snapshot_info ~= 0 then
         -- for new command ROLLBACK
         if first_slot_valid then
-            table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #self.recorder.snapshot_info do
-                table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
+                table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
             end
         else
-            table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
             for i = 2, #self.recorder.snapshot_info do
-                table.insert(self.rollback_slots, {text = self:BuildDaySeasonStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
+                table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
         end
         
@@ -813,7 +817,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         end
     elseif self.bg_rollback_spinner == nil and not TheInput:ControllerAttached() then
         self.bg_rollback_spinner = self.root:AddChild(Image(M.ATLAS, 'bg_rollback_spinner.tex'))
-        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 25}, nil, 'images/global_redux.xml', spinner_lean_images, true)
+        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 22}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
         self.rollback_spinner.first_slot_valid = first_slot_valid
@@ -998,38 +1002,57 @@ function HistoryPlayerScreen:DoInit()
     self.divider:SetPosition(0,149)
 
     if not self.servermods and TheNet:GetServerModsEnabled() then
-        local modsStr = TheNet:GetServerModsDescription()
+        local mods_desc = TheNet:GetServerModsDescription()
         self.servermods = self.root:AddChild(Text(UIFONT,25))
         self.servermods:SetPosition(20,-250,0)
         self.servermods:SetColour(1,1,1,1)
-        self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..modsStr, 650, 146, true)
+        self.servermods:SetTruncatedString(STRINGS.UI.PLAYERSTATUSSCREEN.MODSLISTPRE..' '..mods_desc, 650, 146, true)
+        
+        local mods_desc_table = {}
+        local count = 0
+        for w in string.gmatch(mods_desc, '[^,]+,') do
+            count = count + 1
+            table.insert(mods_desc_table, w)
+            if count % 2 == 0 then
+                table.insert(mods_desc_table, '\n')
+            end
+        end
+        self.servermods:SetHoverText(table.concat(mods_desc_table, ''), {bg_texture = 'char_shadow.tex'})
+        if self.servermods.hovertext_bg then    
+            self.servermods.hovertext_bg:SetTint(1, 1, 1, 1)
+        end
 
         self.bg:SetScale(.95,.95)
         self.bg:SetPosition(0,-10)
     end
 
-    -- what does this function do?
-    local function doButtonFocusHookups(playerListing)
-        local buttons = {}
-        if playerListing.viewprofile:IsVisible() then table.insert(buttons, playerListing.viewprofile) end
-        if playerListing.kick:IsVisible() then table.insert(buttons, playerListing.kick) end
-        if playerListing.ban:IsVisible() then table.insert(buttons, playerListing.ban) end
-        -- if playerListing.useractions:IsVisible() then table.insert(buttons, playerListing.useractions) end
+    DoInitScreenToggleButton(self, 2)
+    DoInitServerRelatedCommnadButtons(self)
 
-        local focusforwardset = false
-        for i,button in ipairs(buttons) do
-            if not focusforwardset then
-                focusforwardset = true
-                playerListing.focus_forward = button
-            end
-            if buttons[i-1] then
-                button:SetFocusChangeDir(MOVE_LEFT, buttons[i-1])
-            end
-            if buttons[i+1] then
-                button:SetFocusChangeDir(MOVE_RIGHT, buttons[i+1])
-            end
-        end
-    end
+    -- -- what does this function do?
+    -- local function doButtonFocusHookups(playerListing)
+    --     local buttons = {}
+    --     if playerListing.viewprofile:IsVisible() then table.insert(buttons, playerListing.viewprofile) end
+    --     if playerListing.kick:IsVisible() then table.insert(buttons, playerListing.kick) end
+    --     if playerListing.ban:IsVisible() then table.insert(buttons, playerListing.ban) end
+    --     -- if playerListing.useractions:IsVisible() then table.insert(buttons, playerListing.useractions) end
+
+    --     local focusforwardset = false
+    --     for i,button in ipairs(buttons) do
+    --         if not focusforwardset then
+    --             focusforwardset = true
+    --             playerListing.focus_forward = button
+    --         end
+    --         if buttons[i-1] then
+    --             button:SetFocusChangeDir(MOVE_LEFT, buttons[i-1])
+    --         end
+    --         if buttons[i+1] then
+    --             button:SetFocusChangeDir(MOVE_RIGHT, buttons[i+1])
+    --         end
+    --     end
+    -- end
+
+
     
     local function listingConstructor(i, parent)
         local playerListing =  parent:AddChild(Widget('playerListing'))
@@ -1409,7 +1432,7 @@ function HistoryPlayerScreen:DoInit()
             end
         end
 
-        doButtonFocusHookups(playerListing)
+        -- doButtonFocusHookups(playerListing)
     end
 
     if not self.scroll_list then
@@ -1435,6 +1458,8 @@ function HistoryPlayerScreen:DoInit()
         self.scroll_list:SetList(sorted_userkey_list)
     end
 
+    self.bg_rollback_spinner:MoveToFront()
+
     if not self.bgs then
         self.bgs = {}
     end
@@ -1455,8 +1480,6 @@ function HistoryPlayerScreen:DoInit()
         end
     end
 
-    DoInitScreenToggleButton(self, 2)
-    DoInitServerRelatedCommnadButtons(self)
     if TheWorld then
         if TheWorld.net then
             self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
@@ -1508,6 +1531,8 @@ function PlayerStatusScreen:DoInit(clients)
     -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
     if ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
         DoInitScreenToggleButton(self, 1)
+    else
+        dbg('no permission to query history players')
     end
 
 end

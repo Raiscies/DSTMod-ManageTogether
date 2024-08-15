@@ -3,9 +3,18 @@
 
 local M = manage_together
 
-local dbg, chain_get = M.dbg, M.chain_get
+-- M.usingnamespace(M)
 
-local IsPlayerOnline = M.IsPlayerOnline
+local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+
+local AddServerRPC = M.AddServerRPC
+local AddClientRPC = M.AddClientRPC
+local AddShardRPC = M.AddShardRPC
+local SendRPCToServer = M.SendRPCToServer
+local SendRPCToClient = M.SendRPCToClient
+local SendRPCToShard = M.SendRPCToShard
+
+-- local IsPlayerOnline = M.IsPlayerOnline
 
 local ShardServerInfoRecord = Class(
     function(self, inst)
@@ -31,10 +40,17 @@ local ShardServerInfoRecord = Class(
         -- ms_playerjoined is always push to master while 
         -- player is joining on the server, no metter they spawns on master or secondary shards 
         -- cuz they will migrate from master to secondary shard when join  
-        self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-            dbg('ms_playerjoined:', player.userid)
-            self:RecordPlayer(player.userid)
-        end, self.world)
+
+        if not TheShard:IsMaster() then 
+            -- master will listen for this event in self:MasterOnlyInit() 
+            self.inst:ListenForEvent('ms_playerjoined', function(src, player)
+                dbg('ms_playerjoined:', player.userid)
+                TheWorld:DoTaskInTime(0, function()
+                    self:RecordPlayer(player.userid)
+                end)
+                
+            end, self.world)
+        end
 
         -- ms_playerleft will be push only when player is left from master,
         -- but not left from secondary shard, so we should handle propaly
@@ -62,9 +78,127 @@ local ShardServerInfoRecord = Class(
             self.netvar.auto_new_player_wall_min_level:set(M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
             self.netvar.auto_new_player_wall_enabled:set(false)
         end)
-
+        
+        if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+            self:InitModOutOfDateHandler()
+        end
+        
     end
 )
+
+function ShardServerInfoRecord:InitModOutOfDateHandler()
+
+    self.mod_out_of_date_handler = Class(function(self, recorder)
+
+        self.recorder = recorder
+        
+        local triggered_once
+        local callbacks
+        if recorder.world.ismastersim then
+                
+            -- callbacks are only work at Master
+            callbacks = {}        
+            
+            triggered_once = false
+
+            function self:Add(fn, trig_once)
+                table.insert(callbacks, {fn = fn, once = trig_once})
+                return self
+            end
+            function self:Remove(fn)
+                for i, v in ipairs(callbacks) do
+                    if v.fn == fn then
+                        return table.remove(callbacks, i)
+                    end
+                end
+            end
+        end
+
+        local original_callback = _G.Networking_ModOutOfDateAnnouncement
+
+
+        -- register netvars 
+        recorder.netvar.is_announcement_suppressed = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_announcement_suppressed', 'ms_modoutofdate_announcement_state_changed')
+        recorder.netvar.is_mod_outofdate = net_bool(recorder.inst.GUID, 'shard_serverinforecord.is_mod_outofdate', 'ms_modoutofdate_state_changed')
+
+        local is_announcement_suppressed = false
+        local is_mod_outofdate = false
+
+        function self:SetSuppressAnnouncement(val)
+            recorder:SetNetVar('is_announcement_suppressed', val)
+        end
+        function self:SetIsModOutofDate()
+            recorder:SetNetVar('is_mod_outofdate', true)
+        end
+        
+        function self:GetSuppressAnnouncement()
+            return is_announcement_suppressed
+        end
+
+        function self:GetOriginalCallback()
+            return original_callback
+        end
+
+
+        -- hook target function
+        _G.Networking_ModOutOfDateAnnouncement = function(mod)
+            -- suppress the announcement on server side is useless for clients,
+            -- this should affects the server log, so we just remain it
+            -- if not is_announcement_suppressed then
+            original_callback(mod)
+            -- end
+
+            recorder.world:PushEvent('ms_modoutofdate', mod)
+
+            dbg('Networking_ModOutOfDateAnnouncement is called')
+        end
+
+        -- raised from Networking_ModOutOfDateAnnouncement
+        recorder.inst:ListenForEvent('ms_modoutofdate', function(src, modname)
+            self:SetIsModOutofDate()
+            dbg('ms_modoutofdate')
+        end, recorder.world)
+
+        -- netvar events
+        recorder.inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function(src)
+            is_announcement_suppressed = recorder.netvar.is_announcement_suppressed:value()
+            if is_announcement_suppressed then
+                log('mod out of date announcement is suppressed')
+
+            else
+                log('mod out of date announcement is recovered')
+            end
+        end)
+        recorder.inst:ListenForEvent('ms_modoutofdate_state_changed', function(src)
+            dbg('ms_modoutofdate_state_changed')
+            is_mod_outofdate = recorder.netvar.is_mod_outofdate:value()
+            if is_mod_outofdate then
+                -- mod is out of date
+                flog('received an event from shard %s that mod is out of date', tostring(src))
+                
+                if recorder.world.ismastersim then
+                    
+                    for _, v in ipairs(callbacks) do
+                        if not (v.once and triggered_once) then
+                            v.fn()
+                        end
+                    end
+
+                    triggered_once = true
+                end
+            else
+                -- state is reset
+                dbg('received an event from shard ', tostring(src), ' that mod out of date state is reset')
+            end
+        end)
+
+    end)(
+        -- a sigleton instance
+        self
+    )
+    
+
+end
 
 -- add a time stamp field, to optimize record data transmission costs between server & client 
 -- everytime the function is called, timestamp will update
@@ -76,13 +210,16 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
 
     self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-        dbg('ms_playerjoined on master')
-        self:UpdateNewPlayerWallState()
+        dbg('ms_playerjoined(master):', player.userid)
+        TheWorld:DoTaskInTime(0, function()
+            self:RecordPlayer(player.userid) 
+            self:UpdateNewPlayerWallState() 
+        end)
     end, self.world)
 
     self.inst:ListenForEvent('ms_playerleft_from_a_shard', function()
         dbg('ms_playerleft_from_a_shard on master')
-        self:UpdateNewPlayerWallState()
+        self:UpdateNewPlayerWallState() 
     end)
 
     self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
@@ -98,6 +235,7 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         dbg('update once new player wall')
         self:UpdateNewPlayerWallState()
     end)
+
 
 end or function() end
 
@@ -223,8 +361,8 @@ end
 
 function ShardServerInfoRecord:SetPermission(userid, permission_level)
     -- broadcast to every shards
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION), 
+    SendRPCToShard(
+        'SHARD_SET_PLAYER_PERMISSION', 
         nil, 
         userid, 
         permission_level
@@ -232,16 +370,16 @@ function ShardServerInfoRecord:SetPermission(userid, permission_level)
 end
 
 function ShardServerInfoRecord:RecordPlayer(userid)
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER), 
+    SendRPCToShard(
+        'SHARD_RECORD_PLAYER', 
         nil, 
         userid
     )
 end
 
 function ShardServerInfoRecord:RecordOnlinePlayers(do_permission_elevate)
-    SendModRPCToShard(
-        GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS), 
+    SendRPCToShard(
+        'SHARD_RECORD_ONLINE_PLAYERS', 
         nil, 
         do_permission_elevate
     ) 
@@ -250,13 +388,19 @@ end
 function ShardServerInfoRecord:SetNetVar(name, value, force_update)
     -- must be set on master
     if TheShard:IsMaster() then
+
+        -- pass boolean from rpc will be cast to nil if it is false, 
+        -- however netvar does not accept nil, it will cause crash
+        -- so we have to cast it back
+        value = value ~= nil and value or false
+
         if force_update then
             self.netvar[name]:set_local(value)
         end
         self.netvar[name]:set(value)
     else
-        SendModRPCToShard(
-            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR),
+        SendRPCToShard(
+            'SHARD_SET_NET_VAR',
             SHARDID.MASTER, 
             name, value, force_update
         )
@@ -267,8 +411,8 @@ function ShardServerInfoRecord:PushNetEvent(name)
     if TheShard:IsMaster() then
         self.netvar[name]:push()
     else
-        SendModRPCToShard(
-            GetShardModRPC(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT),
+        SendRPCToShard(
+            'SHARD_PUSH_NET_EVENT',
             SHARDID.MASTER, 
             name
         )
@@ -277,13 +421,13 @@ end
 
 local function SendPlayerRecord(acceptor_userid, record_userid, record)
     if IsPlayerOnline(record_userid) then
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+        SendRPCToClient(
+            'ONLINE_PLAYER_RECORD_SYNC', acceptor_userid, 
             record_userid, record.permission_level
         )
     else
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC), acceptor_userid, 
+        SendRPCToClient(
+            'OFFLINE_PLAYER_RECORD_SYNC', acceptor_userid, 
             record_userid, record.netid, record.name, record.age, record.skin, record.permission_level
         )
     end
@@ -303,8 +447,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
                 SendPlayerRecord(userid, record_userid, record)
             end
         end
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED), userid,
+        SendRPCToClient(
+            'PLAYER_RECORD_SYNC_COMPLETED', userid,
             false -- has_more
         )
 
@@ -320,8 +464,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
             record.update_timestamp >= last_query_timestamp then
 
             -- always push the updated online player records
-            SendModRPCToClient(
-                GetClientModRPC(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC), userid, 
+            SendRPCToClient(
+                'ONLINE_PLAYER_RECORD_SYNC', userid, 
                 record_userid, record.permission_level
             )
         elseif from <= i and i <= to then
@@ -331,8 +475,8 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
         end
     end
 
-    SendModRPCToClient(
-        GetClientModRPC(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED), userid,
+    SendRPCToClient(
+        'PLAYER_RECORD_SYNC_COMPLETED', userid,
         to < #self.player_record_userid_list -- has_more
     )
 
@@ -343,9 +487,9 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
     if not slots then return end
 
     for i, v in ipairs(slots) do
-        SendModRPCToClient(
-            GetClientModRPC(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC), userid, 
-            i, v.snapshot_id, v.day, v.season
+        SendRPCToClient(
+            'SNAPSHOT_INFO_SYNC', userid, 
+            i, v.snapshot_id, v.day, v.season, v.phase
         )
     end
 end
@@ -356,7 +500,7 @@ function ShardServerInfoRecord:OnSave()
     -- OnSave will be call everytime while world is saved
     -- not just while server is shutting down
 
-    self.world:DoTaskInTime(3, function()
+    self.world:DoTaskInTime(0, function()
         self:UpadateSaveInfo()
     end)
 
@@ -425,24 +569,42 @@ end
 
 
 function ShardServerInfoRecord:RegisterShardRPCs()
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
+
+    AddShardRPC('SHARD_RECORD_PLAYER', function(sender_shard_id, userid)
         self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
+    end, true) -- no_response
+    AddShardRPC('SHARD_RECORD_ONLINE_PLAYERS', function(sender_shard_id, do_permission_elevate)
         self:ShardRecordOnlinePlayers(do_permission_elevate)
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
+    end, true)
+    AddShardRPC('SHARD_SET_PLAYER_PERMISSION', function(sender_shard_id, userid, permission_level)
         self:ShardSetPermission(userid, permission_level)
-    end)
-
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
+    end, true)
+    
+    AddShardRPC('SHARD_SET_NET_VAR', function(sender_shard_id, name, value, force_update)
         self:SetNetVar(name, value, force_update)
-    end)
-    AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
+    end, true)
+    AddShardRPC('SHARD_PUSH_NET_EVENT', function(sender_shard_id, name)
         self:PushNetEvent(name)
-    end)
+    end, true)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
+    --     self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
+    --     self:ShardRecordOnlinePlayers(do_permission_elevate)
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
+    --     self:ShardSetPermission(userid, permission_level)
+    -- end)
+
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
+    --     self:SetNetVar(name, value, force_update)
+    -- end)
+    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
+    --     self:PushNetEvent(name)
+    -- end)
 end
 
 function ShardServerInfoRecord:InitNetVars()
@@ -499,7 +661,8 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
     
     dbg('updating new player wall state...')
     local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
-    local old_state = TheNet:GetAllowNewPlayersToConnect()
+    -- local old_state = TheNet:GetAllowNewPlayersToConnect()
+    local old_state = self.netvar.allow_new_players_to_connect:value()
     local new_state
 
     if required_min_level == M.PERMISSION.MINIMUM then
@@ -509,7 +672,9 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         dbg('judging...')
         local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
-            local level = self.player_record[client.userid].permission_level
+            local record = self.player_record[client.userid] 
+            -- in case record not exists
+            local level = record and record.permission_level or M.PERMISSION.USER
             dbg('client: ', client, ', level: ', level)
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
@@ -543,17 +708,22 @@ function ShardServerInfoRecord:LoadSaveInfo()
     --      .snapshot_id 
     --      .day
     --      .season
+    --      .phase
 
     local function set_day_season_info(slot, worlddata)
-        -- days
+        -- days & phase
         if worlddata.clock ~= nil then
             self.snapshot_info.slots[slot].day = (worlddata.clock.cycles or 0) + 1
+
+            -- phase: {'day', 'dusk', 'night'}
+            self.snapshot_info.slots[slot].phase = worlddata.clock.phase
         end
         
         -- seasons
         if worlddata.seasons ~= nil and worlddata.seasons.season ~= nil then
             self.snapshot_info.slots[slot].season = M.SEASONS[worlddata.seasons.season]
         end
+
     end
 
     local function make_on_read_world_file(slot)
@@ -646,7 +816,8 @@ function ShardServerInfoRecord:UpadateSaveInfo()
             table.insert(new_slots, {
                 snapshot_id = v.snapshot_id, 
                 day = slot.day,             -- -slot's day and season data might missing, it will be nil, but never mind it
-                season = slot.season
+                season = slot.season,
+                phase = slot.phase
             })
         else
             -- this slot is new
@@ -665,6 +836,7 @@ function ShardServerInfoRecord:UpadateSaveInfo()
         -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
         self.snapshot_info.slots[1].day = self.world.state.cycles + 1
         self.snapshot_info.slots[1].season = M.SEASONS[self.world.state.season]
+        self.snapshot_info.slots[1].phase = self.world.state.phase
     end)
    
     self.snapshot_info.slots = new_slots
@@ -674,18 +846,32 @@ function ShardServerInfoRecord:UpadateSaveInfo()
 
 end
 
-function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
+-- function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
+--     index = index or 1
+--     return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
+-- end
+-- function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
+--     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
+--     for _, v in ipairs(self.snapshot_info.slots) do
+--         if v.snapshot_id == snapshot_id then
+--             return M.BuildDaySeasonString(v.day, v.season)
+--         end
+--     end
+--     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
+-- end
+
+function ShardServerInfoRecord:BuildSnapshotBriefStringByIndex(fmt, index, substitute_table)
     index = index or 1
-    return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
+    return M.BuildSnapshotBriefString(fmt, self.snapshot_info.slots[index], substitute_table)
 end
-function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
+function ShardServerInfoRecord:BuildSnapshotBriefStringByID(fmt, snapshot_id, substitute_table)
     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
     for _, v in ipairs(self.snapshot_info.slots) do
         if v.snapshot_id == snapshot_id then
-            return M.BuildDaySeasonString(v.day, v.season)
+            return M.BuildSnapshotBriefString(fmt, v, substitute_table)
         end
     end
-    return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
+    return M.BuildSnapshotBriefString(fmt, {}, substitute_table) -- this function can correctly handle empty table arguments
 end
 
 function ShardServerInfoRecord:SnapshotIDExists(snapshot_id)
@@ -706,5 +892,6 @@ function ShardServerInfoRecord:MakeModeratorUseridList()
     end
     return result
 end
+
 
 return ShardServerInfoRecord

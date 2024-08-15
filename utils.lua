@@ -3,8 +3,6 @@
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
--- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-
 function M.using_namespace(...)
     -- local oldmetatable = GLOBAL.getmetatable(env)
     local nss = {...}
@@ -133,6 +131,10 @@ function M.log(...)
     print('[ManageTogether]', ...)
 end
 
+function M.flog(pattern, ...)
+    M.log(string.format(pattern, ...))
+end
+
 function M.GetPlayerByUserid(userid)
     for _, player in ipairs(AllPlayers) do
         if player.userid == userid then
@@ -156,12 +158,12 @@ function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
     if type(varname_or_table) == 'table' then
         new_env = varname_or_table
         setfenv(fn,  
-            setmetatable(varname_or_table, { __index = new_env or GLOBAL })
+            setmetatable(varname_or_table, { __index = new_env or getfenv(fn) })
         )
     else
         setfenv(fn,  
             setmetatable({ [varname_or_table] = new_var }, 
-                { __index = new_env or GLOBAL }
+                { __index = new_env or getfenv(fn) }
             )
         )
     end
@@ -205,6 +207,12 @@ function M.GetPlayerFromUserid(userid)
     return nil
 end
 
+
+-- this should be import after log, dbg functions,
+-- but some of the utils functions needs asyncutil :)
+-- execute_in_time
+modimport('asyncutil')
+
 -- this is come from seasons.lua
 -- which doesn't exports from the file so we just simply make a copy 
 M.SEASON_NAMES = {
@@ -226,9 +234,34 @@ function M.BuildSeasonString(season_enum)
         S.SEASONS[string.upper(M.SEASON_NAMES[season_enum])] or 
         S.UNKNOWN_SEASON
 end
+function M.BuildPhaseString(phase, fullname)
+    return fullname and (phase and S.PHASES[phase:upper()] or '') or (phase and S.PHASES_SHORTTEN[phase:upper()] or S.UNKNOWN_PHASE)
+end
 
-function M.BuildDaySeasonString(day, season_enum)
-    return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
+-- function M.BuildDaySeasonString(day, season_enum)
+--     return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
+-- end
+local build_string_substitute_table = {
+    day = M.BuildDayString,
+    season = M.BuildSeasonString,
+    phase = M.BuildPhaseString,
+    -- phase_shortten = function(phase) return M.BuildPhaseString(phase, true) end
+}
+function M.BuildSnapshotBriefString(fmt, datatable, substitute_table)
+    local substitutor = substitute_table and setmetatable({}, {
+        __index = function(t, k)
+            return substitute_table[k] or build_string_substitute_table[k]
+        end 
+    }) or build_string_substitute_table
+
+    --[[
+        example: 
+        BuildSnapshotBriefString('{day}-{season} {phase}', {day = 1, season = 1, phase = 'night'})
+        == 'Day 1-Winter Night'
+    ]]
+    return string.gsub(fmt, '%{(%w+)%}', function(capture)
+        return substitutor[capture](datatable[capture])
+    end)
 end
 
 function M.IsNewestRollbackSlotValid()
@@ -388,7 +421,7 @@ function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     for _, v in ipairs(AllPlayers) do
         if v.userid == userid then
             local delay_serialize_time = fn(v, ...) or 0
-            TheWorld:DoTaskInTime(delay_serialize_time, function()
+            execute_in_time_nonstatic(delay_serialize_time, function()
                 v:OnDespawn()
                 SerializeUserSession(v)
                 v:Remove()
@@ -678,5 +711,6 @@ function M.ReadModeratorDataFromPersistentFile()
     end)
     return result_list or {}
 end
+
 
 end -- is server

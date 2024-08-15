@@ -58,6 +58,20 @@ STRINGS.UI.MANAGE_TOGETHER = {
     DAY_UNKNOWN = STRINGS.UI.SERVERADMINSCREEN.DAY_UNKNOWN, 
     SEASONS = STRINGS.UI.SERVERLISTINGSCREEN.SEASONS, 
     UNKNOWN_SEASON = STRINGS.UI.SERVERLISTINGSCREEN.UNKNOWN_SEASON,
+    PHASES = STRINGS.UI.SERVERLISTINGSCREEN.PHASES, 
+    PHASES_SHORTTEN = STRINGS.UI.SERVERLISTINGSCREEN.PHASES,
+
+    -- PHASES_SHORTTEN = {
+    --     any idea?
+    --     DAY = 'M',  (Moon)
+    --     DUSK = 'D', 
+    --     NIGHT = 'N',
+    -- },
+    UNKNOWN_PHASE = 'Unknown Phase',
+    
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = 'server will restart when it is empty, warning announcement is turned off now',
+    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = 'mod out of date warning announcement is turned off',
+    MODOUTOFDATE_REVOTE = 'vote will be start again in %d minute(s)',
 
     -- vote related strings
     VOTE = {
@@ -111,6 +125,14 @@ STRINGS.UI.MANAGE_TOGETHER = {
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = 'should we make a statistics for %s for these items: %s',
             TITLE = 'should we execute a inventory item statistics?'
+        },
+        MODOUTOFDATE = {
+            FMT_ANNOUNCE = 'server mod is out of date, should we do something', 
+            TITLE = 'serer mod is out of date, we should...', 
+            SHUTDOWN = 'restart server now', 
+            SHUTDOWN_WHEN_NOBODY = 'restart server when it is empty', 
+            SUPPRESS_ANNOUNCEMENT = 'turn off warning announcement', 
+            DELAY = 'vote it later',
         }
     }
 }
@@ -141,6 +163,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
     ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = 'this snapshot is disabled due to a very recent saving time(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
+    FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
+
     REGENERATE_WORLD = 'Regengerate World',
     REGENERATE_WORLD_DESC = 'distory EVERYTHING of the world, and then generate a new world',
     REGENERATE_WORLD_REQUIRE_SERVER_NAME = 'server name',
