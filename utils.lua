@@ -143,13 +143,63 @@ function M.GetPlayerByUserid(userid)
 end
 
 -- debug print
+
+--[[
+    dbg format:
+    DBG ::= {VF} | {{.+}}
+    V ::= [\w.]+    -- a valid simple identifier
+    F ::= ε | [^}]+ -- print format
+
+
+    {var[print fmt]}
+    eg: ($var represents the value of the var)
+    {var = }  --> var = $var
+    {var: }   --> var: $var
+    {var}     --> $var
+    {var }    --> var $var 
+    { .+}    --> .+     (a pair of literal '{}') (replaced in second pass) 
+
+]]
+
+local moretostring = M.moretostring
+
+function M.dbg_format(s)
+    local result = string.gsub(s, '%{([^%{%}]+)%}', function(item)
+        local varname, tailing = string.match(item, '^([%w_.]+)(.*)$')
+        if not varname then
+            -- not a variable, simplely return it by the original
+            return item
+        end
+        
+        local node = getfenv(2)
+        for field in string.gmatch(varname, '([%w_]+)%.?') do
+            if type(node) ~= 'table' then
+                if tailing == '' then
+                    return 'bad-index-field'
+                else
+                    return item .. 'bad-index-field'
+                end
+            end
+            node = node[field]
+        end
+        if tailing == '' then
+            return moretostring(node)
+        else
+            return item .. moretostring(node)
+        end
+    end)
+    return result
+end
+
+local dbg_format = M.dbg_format
+
 M.dbg = M.DEBUG and function(...)
-    local s = ''
+    local buffer = {}
     for _, v in varg_pairs(...) do
-        s = s .. ' ' .. M.moretostring(v)
+        insert(buffer, type(v) == 'string' and dbg_format(v) or moretostring(v))
     end
-    print('[ManageTogetherDBG] ' .. s)
-end or function(...) end
+    print('[ManageTogetherDBG]', concat(buffer, ' '))
+end or function() end
 
 
 function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
