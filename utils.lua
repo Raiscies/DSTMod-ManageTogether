@@ -159,7 +159,7 @@ end
     {var: }   --> var: $var
     {var}     --> $var
     {var }    --> var $var 
-    { .+}    --> .+     (a pair of literal '{}') (replaced in second pass) 
+    { .+}     -->  .+     (a pair of literal '{}')
 
 ]]
 
