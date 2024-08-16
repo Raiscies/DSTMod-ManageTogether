@@ -44,7 +44,7 @@ local ShardServerInfoRecord = Class(
         if not TheShard:IsMaster() then 
             -- master will listen for this event in self:MasterOnlyInit() 
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-                dbg('ms_playerjoined:', player.userid)
+                dbg('ms_playerjoined: {player.userid = }')
                 TheWorld:DoTaskInTime(0, function()
                     self:RecordPlayer(player.userid)
                 end)
@@ -210,7 +210,7 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
     -- master only
 
     self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-        dbg('ms_playerjoined(master):', player.userid)
+        dbg('ms_playerjoined(master): {player.userid = }')
         TheWorld:DoTaskInTime(0, function()
             self:RecordPlayer(player.userid) 
             self:UpdateNewPlayerWallState() 
@@ -224,7 +224,7 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
 
     self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
         local allowed = not not self.netvar.allow_new_players_to_connect:value()
-        dbg('event: ms_new_player_joinability_changed: ', allowed)
+        dbg('event: ms_new_player_joinability_changed: {allowed = }')
         TheNet:SetAllowNewPlayersToConnect(allowed)
     end)
 
@@ -675,13 +675,13 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
             local record = self.player_record[client.userid] 
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
-            dbg('client: ', client, ', level: ', level)
+            dbg('{client: }, {level: }')
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end
-            dbg('current_highest_online_player_level: ', current_highest_online_player_level)
+            dbg('{current_highest_online_player_level: }')
         end
-        dbg('required_min_level:', required_min_level)
+        dbg('{required_min_level: }')
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
         new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
@@ -691,7 +691,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
     if old_state ~= new_state then
         self:SetAllowNewPlayersToConnect(new_state)
     end
-    dbg('finished to update new player wall state, old_state = ', old_state, ', new_state = ', new_state, ', required_min_level = ', required_min_level)
+    dbg('finished to update new player wall state, {old_state = }, {new_state = }, {required_min_level = }')
     self.world:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function() end

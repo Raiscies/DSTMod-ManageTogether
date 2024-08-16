@@ -1119,7 +1119,7 @@ M.SHARD_COMMAND = {
         if not TheShard:IsMaster() then
             -- this is not as excepted
             dbg('error: M.SHARD_COMMAND.START_VOTE() is called on secondary shard')
-            dbg('sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+            dbg('{sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
             return
         end
         
@@ -1169,7 +1169,7 @@ M.SHARD_COMMAND = {
             end
         end)
 
-        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+        dbg('intent to start a vote, {sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
     end
 }
 
@@ -1178,7 +1178,7 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
+        dbg('SEND_COMMAND: {player = }, {cmd = }, {arg = }')
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
@@ -1199,7 +1199,7 @@ local function RegisterRPCs()
     -- shard rpcs
 
     AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
-        dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
+        dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
         if M.SHARD_COMMAND[cmd] then
             return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
             -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
@@ -1223,16 +1223,16 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
-            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', arg = ', ...)
+            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', {arg = }')
             return nil
         end
     else
-        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
         return SendRPCToShard(
             'SHARD_SEND_COMMAND',
             GLOBAL.SHARDID.MASTER, 
@@ -1242,7 +1242,7 @@ local function ForwardToMasterShard(cmd, ...)
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
-    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
     return SendRPCToShard(
         'SHARD_SEND_COMMAND',  
         nil, 
@@ -1341,7 +1341,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
     end
 
 
-    dbg('received command request from player: ', executor.name, ', cmd = ', CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
+    dbg('received command request from player: {executor.name = }, cmd = ', CommandEnumToName(cmd), ', {is_vote = }, {arg = }')
 
     local result = M.COMMAND[cmd].fn(executor, ...)
     -- nil(by default) means success
@@ -1449,7 +1449,7 @@ if TheShard:IsMaster() then
 -- listen for newplayerwall state change
 AddPrefabPostInit('world', function(inst)
     inst:ListenForEvent('master_newplayerwallupdate', function(src, data)
-        dbg('listened master_newplayerwallupdate, data = ', data)
+        dbg('listened master_newplayerwallupdate, {data = }')
         -- redirect MINIMUM level to USER
         local required_min_level = data.required_min_level == M.PERMISSION.MINIMUM and M.PERMISSION.USER or data.required_min_level
         if data.old_state == data.new_state then return end
@@ -1502,7 +1502,7 @@ end
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
         GetTime() - classified.last_query_player_record_timestamp <= 1 then 
-        dbg('Current Time: ', GetTime(), 'Last Query Time: ', classified.last_query_player_record_timestamp)
+        dbg('Current Time: ', GetTime(), ', {classified.last_query_player_record_timestamp = }')
         dbg('ignored a request for query history record, because one request has just sended')
         return
     end
@@ -1537,13 +1537,13 @@ end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
     local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
-    dbg('on RequestToExecuteCommand: future =', future, ', success =', success)
+    dbg('on RequestToExecuteCommand: {future = }, {success = }')
     future:set_callback(function(result)
         local name = M.CommandEnumToName(cmd)
         if CHECKERS.error_code(result) then
-            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(result))
+            dbg('received result from server(send command), {name = }, result = ', M.ErrorCodeToName(result))
         else
-            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', result)
+            dbg('received result from server(send command): {name = }, server drunk, {result = }')
         end
         
     end)
@@ -1554,9 +1554,9 @@ local function RequestToExecuteVoteCommand(classified, cmd, ...)
     SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(result)
         local name = M.CommandEnumToName(cmd)
         if CHECKERS.error_code(result) then
-            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(result))
+            dbg('received from server(send vote command), {name = }, result = ', M.ErrorCodeToName(result))
         else
-            dbg('received result from server(send vote command): cmd =', name, ', server drunk')
+            dbg('received result from server(send vote command): {name = }, server drunk, {result = }')
         end
     end )
 end
@@ -1567,7 +1567,7 @@ end
 -- and it does not work for other players, 
 -- cause the player_classified entity not exists on the other clients
 local function SetPermission(classified, level)
-    dbg('setting player permission: ', classified, ', level =', level)
+    dbg('setting player permission: {classified = }, {level = }')
 
     -- permission level
     classified.net_permission_level:set(level)
@@ -1643,22 +1643,22 @@ AddPrefabPostInit('player_classified', function(inst)
 
     inst:ListenForEvent('permission_level_changed', function()
         inst.permission_level = inst.net_permission_level:value()
-        dbg('player_classified: permission_level_changed: ', inst.permission_level)
+        dbg('player_classified: permission_level_changed: {inst.permission_level = }')
     end)
     
     inst:ListenForEvent('permission_mask_changed', function()
         inst.permission_mask = M.concatbit32to64(inst.net_permission_masks[1]:value(), inst.net_permission_masks[2]:value())
-        dbg('player_classified: permission_mask_changed: ', inst.permission_mask)
+        dbg('player_classified: permission_mask_changed: {inst.permission_mask = }')
     end)
     
     inst:ListenForEvent('vote_permission_mask_changed', function()
         inst.vote_permission_mask = M.concatbit32to64(inst.net_vote_permission_masks[1]:value(), inst.net_vote_permission_masks[2]:value())
-        dbg('player_classified: vote_permission_mask_changed: ', inst.vote_permission_mask)
+        dbg('player_classified: vote_permission_mask_changed: {inst.vote_permission_mask = }')
     end)
     
     inst:ListenForEvent('new_player_joinability_changed', function()
         inst.allow_new_players_to_connect = inst.net_allow_new_players_to_connect:value()
-        dbg('player_classified: new_player_joinability_changed: ', inst.allow_new_players_to_connect)
+        dbg('player_classified: new_player_joinability_changed, {inst.allow_new_players_to_connect = }')
     end)
 
     inst:ListenForEvent('suppress_mod_outofdate_annoucement_state_changed', function()
@@ -1672,7 +1672,7 @@ AddPrefabPostInit('player_classified', function(inst)
 
     if TheWorld then
         inst:ListenForEvent('player_record_sync_completed', function(src, has_more)
-            dbg('listened player_record_sync_completed, has_more = ', has_more, 'this index = ', inst.next_query_player_record_block_index)
+            dbg('listened player_record_sync_completed, {has_more = }, this index = ', inst.next_query_player_record_block_index)
             if has_more then
                 local last = inst.next_query_player_record_block_index
                 inst.next_query_player_record_block_index = last and (last + 1) or 1
@@ -1707,7 +1707,7 @@ AddPrefabPostInit('player_classified', function(inst)
 
                 if inst._parent then
                     local mask = M.PERMISSION_MASK[PermissionLevel(inst._parent.userid)]
-                    dbg('inst._parent: ', inst._parent, 'userid: ', inst._parent.userid, 'mask: ', mask)
+                    dbg('{inst._parent: }, {inst._parent.userid: }, {mask: }')
                     if M.HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, mask) then
                         inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
                         dbg('finished to set new player joinability')

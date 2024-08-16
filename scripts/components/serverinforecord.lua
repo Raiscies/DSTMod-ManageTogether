@@ -69,7 +69,7 @@ function ServerInfoRecord:RegisterRPCs()
     AddClientRPC('PLAYER_RECORD_SYNC_COMPLETED', function(has_more)
         self.has_more_player_records = has_more
         self.inst:PushEvent('player_record_sync_completed', has_more)
-        dbg('player record sync completed, has_more = ', has_more)
+        dbg('player record sync completed, {has_more = }')
     end, true)
 
     AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season, phase)
