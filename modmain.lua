@@ -255,7 +255,7 @@ end
 
 
 local function AnnounceItemStat(stat)
-    dbg('stat: ', stat)
+    dbg('{stat: }')
     for userid, v in pairs(stat) do
         local name = GetPlayerRecord(userid).name or '???'
 

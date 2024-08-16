@@ -204,7 +204,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
 
         -- here is client side
         if not self:SetContextResult(RPC_CATEGORY.SERVER, id, {...}) then
-            dbg('failed to get return value from server rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from server rpc, {id = }, context is not exists')
             return
         end
         wake(self.contexts[RPC_CATEGORY.SERVER][id].task)
@@ -217,7 +217,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
 
         -- here is server side
         if not self:AddContextResult(RPC_CATEGORY.CLIENT, id, player, {...}) then
-            dbg('failed to get return value from client rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from client rpc, {id = }, context is not exists')
             return
         end
         local context = self.contexts[RPC_CATEGORY.CLIENT][id]
@@ -232,7 +232,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
         -- shard1 -shardRPC-> shardn (call) could be more than one target
         -- shardnetworking -shardRPC-> shard1 (return value)
         if not self:AddContextResult(RPC_CATEGORY.SHARD, id, sender_shard_id, {...}) then
-            dbg('failed to get return value from shard rpc, id =', id, ', context is not exists')
+            dbg('failed to get return value from shard rpc, {id = }, context is not exists')
             return
         end
         
@@ -292,7 +292,7 @@ function AsyncRPCManager:AddServerRPC(name, fn, no_response)
         AddModRPCHandler(self.namespace, name, function(player, id, ...)
             -- here is server side
             -- return results to client
-            dbg('on server rpc: player =', player, ', id =', id, ', args =', ...)
+            dbg('on server rpc: {player = }, {id = }, {arg = }')
             async(fn, player, ...):set_callback(function(...)
                 local result = {...}
                 if #result ~= 0 then
@@ -353,7 +353,7 @@ end
 local send_server_rpc_impl = function(rpc_manager, name, attempted_response_count, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.SERVER, staticScheduler.tasks[coroutine.running()], attempted_response_count)
     
-    dbg('sending async server RPC: name =', name)
+    dbg('sending async server RPC: {name = }')
 
     SendModRPCToServer(GetModRPC(rpc_manager.namespace, name), id, ...)
 
@@ -366,7 +366,7 @@ end
 local send_client_rpc_impl = function(rpc_manager, name, target, attempted_response_count, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.CLIENT, staticScheduler.tasks[coroutine.running()], attempted_response_count)
 
-    dbg('sending async client RPC: name =', name)
+    dbg('sending async client RPC: {name = }')
 
     SendModRPCToClient(GetClientModRPC(rpc_manager.namespace, name), target, id, ...)
 
@@ -379,7 +379,7 @@ end
 local send_shard_rpc_impl = function(rpc_manager, name, target, attempted_response_count, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.SHARD, staticScheduler.tasks[coroutine.running()], attempted_response_count)
 
-    dbg('sending async shard RPC: name =', name)
+    dbg('sending async shard RPC: {name = }')
 
     SendModRPCToShard(GetShardModRPC(rpc_manager.namespace, name), target, id, ...)
 
@@ -392,15 +392,15 @@ end
 function AsyncRPCManager:SendRPCToServer(name, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.SERVER][name]
     if not rpc then
-        dbg('error: failed to send a RPC to server: RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to server: RPC {name } not found.')
         return nil, false
     end
     if rpc.no_response then
-        dbg('sending no response server RPC: name =', name)
+        dbg('sending no response server RPC: {name = }')
         SendModRPCToServer(GetModRPC(self.namespace, name), ...)
         return nil, true
     else
-        dbg('try asyncly send server RPC, name =', name)
+        dbg('try asyncly send server RPC, {name = }')
         return async(send_server_rpc_impl, self, name, 1, ...), true
     end
 end
@@ -408,11 +408,11 @@ end
 function AsyncRPCManager:SendRPCToClient(name, target, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.CLIENT][name]
     if not rpc then
-        dbg('error: failed to send a RPC to client(', target, '): RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to client {target = } RPC {name } not found.')
         return nil, false
     end
     if rpc.no_response then
-        dbg('sending no response client RPC: name =', name)
+        dbg('sending no response client RPC: {name = }')
         SendModRPCToClient(GetClientModRPC(self.namespace, name), target, ...)
         return nil, true
     end
@@ -429,19 +429,19 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
         dbg('bad RPC target: ', target)
         return nil, false
     end
-    dbg('try asyncly send client RPC, name =', name, ', target count =', attempted_response_count)
+    dbg('try asyncly send client RPC, {name = }, {attempted_response_count = }')
     return async(send_client_rpc_impl, self, name, target, attempted_response_count, ...), true
 end
 
 function AsyncRPCManager:SendRPCToShard(name, target, ...)
     local rpc = self.rpc_names[RPC_CATEGORY.SHARD][name]
     if not rpc then
-        dbg('error: failed to send a RPC to shard(', target, '): RPC name(', name, ') not found.')
+        dbg('error: failed to send a RPC to shard, {target = }: RPC {name } not found.')
         return nil, false
     end
     if rpc.no_response then
         -- here, arg1 is a normal argument of rpc
-        dbg('sending no response shard RPC: name =', name)
+        dbg('sending no response shard RPC: {name = }')
         SendModRPCToShard(GetShardModRPC(self.namespace, name), target, ...)
         return nil, true
     end
@@ -454,11 +454,11 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
     elseif type(target) == 'table' then
         attempted_response_count = #target
     else
-        dbg('bad RPC target: ', target)
+        dbg('bad RPC {target: }')
         return nil, false
     end
 
-    dbg('try asyncly send shard RPC, name =', name, ', target count =', attempted_response_count)
+    dbg('try asyncly send shard RPC, {name = }, {attempted_response_count = }')
     return async(send_shard_rpc_impl, self, name, target, attempted_response_count, ...), true
 
 end
