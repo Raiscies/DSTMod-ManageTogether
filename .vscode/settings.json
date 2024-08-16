@@ -154,7 +154,8 @@
         "AddClientRPC",
         "StartStaticThread",
         "staticScheduler",
-        "execute_in_time_nonstatic"
+        "execute_in_time_nonstatic",
+        "ShardList"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

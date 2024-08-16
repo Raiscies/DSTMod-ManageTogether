@@ -6,6 +6,7 @@ local M = manage_together
 -- M.usingnamespace(M)
 
 local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+local IsPlayerOnline = M.IsPlayerOnline
 
 local AddServerRPC = M.AddServerRPC
 local AddClientRPC = M.AddClientRPC
@@ -14,7 +15,6 @@ local SendRPCToServer = M.SendRPCToServer
 local SendRPCToClient = M.SendRPCToClient
 local SendRPCToShard = M.SendRPCToShard
 
--- local IsPlayerOnline = M.IsPlayerOnline
 
 local ShardServerInfoRecord = Class(
     function(self, inst)

@@ -1178,6 +1178,7 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
+        dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
@@ -1342,7 +1343,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
 
     dbg('received command request from player: ', executor.name, ', cmd = ', CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
 
-    local result = M.COMMAND[cmd].fn(...)
+    local result = M.COMMAND[cmd].fn(executor, ...)
     -- nil(by default) means success
     return result == nil and M.ERROR_CODE.SUCCESS or result
 
@@ -1535,12 +1536,14 @@ local function QueryServerData(classified)
 end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
-    SendRPCToServer('SEND_COMMAND', cmd, ...):set_callback(function(result)
+    local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
+    dbg('on RequestToExecuteCommand: future =', future, ', success =', success)
+    future:set_callback(function(result)
         local name = M.CommandEnumToName(cmd)
         if CHECKERS.error_code(result) then
             dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(result))
         else
-            dbg('received result from server(send command): cmd =', name, ', server drunk')
+            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', result)
         end
         
     end)

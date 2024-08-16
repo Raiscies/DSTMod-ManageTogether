@@ -196,7 +196,9 @@ function M.announce_vote_fmt(pattern, ...)
 end
 
 function M.IsPlayerOnline(userid)
-    return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- this may faster, I guess
+    return userid and TheNet:GetNetIdForUser(userid) ~= nil or false
 end
 function M.GetPlayerFromUserid(userid)
     for _, v in ipairs(AllPlayers) do
