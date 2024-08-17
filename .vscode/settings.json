@@ -155,7 +155,8 @@
         "StartStaticThread",
         "staticScheduler",
         "execute_in_time_nonstatic",
-        "ShardList"
+        "ShardList",
+        "select_first"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

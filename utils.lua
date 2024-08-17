@@ -71,6 +71,16 @@ function M.select_one(n, ...)
     return ({select(n, ...)})[1]
 end
 
+function M.select_first(...)
+    local first = ...
+    return first
+end
+
+function M.select_second(...)
+    local first, second = ...
+    return second
+end
+
 function M.moretostring(obj)
     if type(obj) == 'table' then
         if obj.is_a == nil then

@@ -145,6 +145,7 @@ M.ERROR_CODE = table.invert({
     'COMMAND_NOT_VOTABLE',
     'INTERNAL_ERROR', 
     'MISSING_RESPONSE', 
+    'HAS_MORE_DATA',
 })
 M.ERROR_CODE.SUCCESS = 0
 
@@ -652,9 +653,9 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
 
-            for shardid, res in pairs(result) do
+            for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
                     -- player is killed in this shard, command executed successfully
@@ -693,9 +694,9 @@ M.AddCommands(
             -- kill and ban a player
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
-            for shardid, res in pairs(result) do
+            for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
                     -- player is killed in this shard, command executed successfully
@@ -892,7 +893,7 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
@@ -1110,7 +1111,7 @@ M.SHARD_COMMAND = {
         
         end
 
-        return true -- return a non-nil value in order to force to send a result to broadcast raiser
+        return true -- return a non-nil value in order to forcely send a result to broadcast raiser
     end,
 
     -- just for internal use
@@ -1140,9 +1141,12 @@ M.SHARD_COMMAND = {
             starter_userid = starter_userid, 
             args = args, 
         })
+
+        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
         Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
         local vote_started = false
+        local taskself = staticScheduler:GetCurrentTask()
         local function on_vote_started()
             if not vote_started then 
                 vote_started = true
@@ -1153,23 +1157,25 @@ M.SHARD_COMMAND = {
                 M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
                 -- listen only once
                 TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
+
+                WakeTask(taskself)
             end
         end
 
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
 
-        -- check for voting whether is filed to start
-        execute_in_time(1, function()
-            if not vote_started then
-                -- remove the event listener anyway
-                M.ResetVoteEnv()
-                M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
-                dbg('failed to start a vote.')
-                TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
-            end
-        end)
+        Sleep(1)
 
-        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+        -- check for voting whether is filed to start
+        if not vote_started then
+            -- remove the event listener anyway
+            M.ResetVoteEnv()
+            M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
+            dbg('failed to start a vote.')
+            TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
+        end
+
+        return vote_started
     end
 }
 
@@ -1183,6 +1189,7 @@ local function RegisterRPCs()
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
+        dbg('SEND_COMMAND result: ', result)
         return result
     end)
 
@@ -1224,7 +1231,9 @@ local function ForwardToMasterShard(cmd, ...)
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
             dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-            return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...)
+            
+            -- this future holds simple results...
+            return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
@@ -1233,21 +1242,35 @@ local function ForwardToMasterShard(cmd, ...)
         end
     else
         dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-        return SendRPCToShard(
-            'SHARD_SEND_COMMAND',
-            GLOBAL.SHARDID.MASTER, 
-            cmd, ...
-        )
+
+        return async(function(...)
+            local missing_response_count, result_table = SendRPCToShard(
+                'SHARD_SEND_COMMAND',
+                SHARDID.MASTER, 
+                cmd, ...
+            ):get()
+
+            if missing_response_count == 1 or not result_table then
+                dbg('error on SHARD_SEND_COMMAND: missing result, result table is ', result_table)
+                return nil
+            end
+            local master_result = result_table[SHARDID.MASTER]
+            if not master_result then
+                dbg('error no SHARD_SEND_COMMAND: missing master result: result table is ', result_table)
+                return nil
+            end
+            return unpack(master_result)
+        end, ...)
     end
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
     dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-    return SendRPCToShard(
+    return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
         nil, 
         cmd, ...
-    )
+    )) --> future: missing_response_count, result_table[shardids]
 end
 
 
@@ -1371,15 +1394,15 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
-    local voter_state, is_get_failed = chain_get(GLOBAL.TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
+    local voter_state, is_get_failed = chain_get(TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
     if is_get_failed then
         return M.ERROR_CODE.INTERNAL_ERROR
     elseif voter_state == true then
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
-    -- this function is attempted to be execute in another coroutine
-    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get()
+    -- future returns whether vote is started
+    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get() and M.ERROR_CODE.SUCCESS or M.ERROR_CODE.INTERNAL_ERROR
 end
 
 function M.ExecuteCommand(executor, cmd, ...)
@@ -1538,12 +1561,17 @@ end
 local function RequestToExecuteCommand(classified, cmd, ...)
     local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
     dbg('on RequestToExecuteCommand: future =', future, ', success =', success)
-    future:set_callback(function(result)
+    future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
-        if CHECKERS.error_code(result) then
-            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(result))
+        if not retcode or missing_response_count == 1 then
+            dbg('SEND_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)    
+            return
+        end
+
+        if CHECKERS.error_code(retcode) then
+            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', result)
+            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', retcode)
         end
         
     end)
@@ -1551,12 +1579,17 @@ end
 
 local function RequestToExecuteVoteCommand(classified, cmd, ...)
     -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
-    SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(result)
-        local name = M.CommandEnumToName(cmd)
-        if CHECKERS.error_code(result) then
-            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(result))
+    SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(missing_response_count, retcode)
+        local name = M.CommandEnumToName(cmd)        
+        if not retcode or missing_response_count == 1 then
+            dbg('SEND_VOTE_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)   
+            return 
+        end
+        
+        if CHECKERS.error_code(retcode) then
+            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send vote command): cmd =', name, ', server drunk')
+            dbg('received result from server(send vote command): cmd =', name, ', server drunk, result =', retcode)
         end
     end )
 end
