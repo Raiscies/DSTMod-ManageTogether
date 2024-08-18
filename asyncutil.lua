@@ -342,7 +342,6 @@ function AsyncRPCManager:AddShardRPC(name, fn, no_response)
                 if #result ~= 0 then
                     self:SendRPCToShard('RESULT_SHARD_RPC', sender_shard_id, id, ...) 
                 end
-                
             end)
         end)
     end

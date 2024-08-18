@@ -175,7 +175,25 @@ end
 
 local moretostring = M.moretostring
 
-function M.dbg_format(s)
+function M.dbg_format(s, local_variable_cache, fn_depth)
+    local getlocal = debug.getlocal
+    local caller_fenv = getfenv(fn_depth or 2)
+
+    -- local local_variable_cache = nil
+    if not local_variable_cache then
+        local_variable_cache = {}
+        -- catch all of the local value of the caller function
+        while true do
+            name_local, value_local = getlocal(fn_depth, index)
+            if name_local == nil then
+                break
+            else
+                local_variable_cache[name_local] = value_local
+            end
+            index = index + 1
+        end
+    end
+   
     local result = string.gsub(s, '%{([^%{%}]+)%}', function(item)
         local varname, tailing = string.match(item, '^([%w_.]+)(.*)$')
         if not varname then
@@ -183,32 +201,58 @@ function M.dbg_format(s)
             return item
         end
         
-        local node = getfenv(2)
+        local node = nil
+        local path = {}
+        
+        -- find from environment
         for field in string.gmatch(varname, '([%w_]+)%.?') do
-            if type(node) ~= 'table' then
-                if tailing == '' then
-                    return 'bad-index-field'
-                else
-                    return item .. 'bad-index-field'
-                end
-            end
-            node = node[field]
+            insert(path, field)
         end
+
+        -- the root node
+        node = local_variable_cache[path[1]]
+        if node then
+            -- find from local field
+            for i = 2, #path, 1 do 
+                if not node then
+                    -- invalid identifier chain
+                    node = 'undefined_field'
+                    break
+                end
+                node = node[path[i]]
+            end
+        else
+            -- find from the environment
+            node = caller_fenv
+            for _, iden in ipairs(path) do
+                if not node then
+                    node = 'undefined_field'
+                    break
+                end
+                node = node[iden]
+            end
+        end
+
+        print('final node =', moretostring(node))
         if tailing == '' then
             return moretostring(node)
         else
             return item .. moretostring(node)
         end
     end)
-    return result
+    return result, local_variable_cache
 end
+
 
 local dbg_format = M.dbg_format
 
 M.dbg = M.DEBUG and function(...)
     local buffer = {}
+    local local_variable_cache = nil -- one sentence of dbg shares the same local variable context(environment)
     for _, v in varg_pairs(...) do
-        insert(buffer, type(v) == 'string' and dbg_format(v) or moretostring(v))
+        local formatted_val
+        formatted_val, local_variable_cache = dbg_format(v, local_variable_cache, 2 + 1) -- fn_depth: caller is dbg()'s caller
+        insert(buffer, type(v) == 'string' and formatted_val or moretostring(v))
     end
     print('[ManageTogetherDBG]', concat(buffer, ' '))
 end or function() end
