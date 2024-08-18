@@ -161,7 +161,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = 'wrong rollback index',
     ERR_ROLLBACK_DESC_BAD_INDEX = 'this slot is not valid, please check it again',
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
-    ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = 'this snapshot is disabled due to a very recent saving time(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = 'this snapshot is generated just now(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
 

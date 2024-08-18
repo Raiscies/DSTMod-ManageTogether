@@ -163,7 +163,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = '错误的回档索引',
     ERR_ROLLBACK_DESC_BAD_INDEX = '这个存档槽不是合法的, 请重新检查',
     ROLLBACK_SPINNER_NEWEST = '(最近)',
-    ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = '这个存档快照是刚刚生成的(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
 

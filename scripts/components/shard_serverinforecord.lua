@@ -620,11 +620,22 @@ function ShardServerInfoRecord:InitNetVars()
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)
     if b == nil then
-        self:SetNetVar('is_rolling_back', true) 
-    else
-        self:SetNetVar('is_rolling_back', b)   
+        b = true
+    end
+
+    if self:GetIsRollingBack() and b then
+        return
+    end
+    self:SetNetVar('is_rolling_back', b)   
+    
+    if b == true then
+        execute_in_time(60, function()
+            -- reset the flag automatically
+            self:SetNetVar('is_rolling_back', false)
+        end)
     end
 end
+
 function ShardServerInfoRecord:GetIsRollingBack()
     return self.netvar.is_rolling_back:value()
 end
