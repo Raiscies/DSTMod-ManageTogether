@@ -136,13 +136,13 @@ local async_nonstatic = M.async_nonstatic
 
 function M.execute_in_time(time, fn, ...)
     -- local scheduler = staticScheduler
-    staticScheduler:ExecuteInTime(time, fn, staticScheduler:GetCurrentTask().id, ...)
+    staticScheduler:ExecuteInTime(time, fn, nil, ...)
 end
 
 function M.execute_in_time_nonstatic(time, fn, ...)
     -- but normal scheduler will pause when server is paused 
     -- while staticScheduler will ignore it 
-    scheduler:ExecuteInTime(time, fn, scheduler:GetCurrentTask().id, ...)
+    scheduler:ExecuteInTime(time, fn, nil, ...)
 end
 
 
@@ -451,7 +451,7 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
     
     local expected_response_count
     if target == nil then
-        expected_response_count = #ShardList -- shardnetworking.lua
+        expected_response_count = GetTableSize(ShardList) + 1 -- shardnetworking.lua -- + 1: including sender itself
     elseif type(target) == 'string' then
         expected_response_count = 1
     elseif type(target) == 'table' then

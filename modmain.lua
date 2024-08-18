@@ -725,28 +725,29 @@ M.AddCommands(
         -- a better rollback command, which can let client specify the appointed rollback slot, but not saving point index
         name = 'ROLLBACK', 
         can_vote = true, 
-        checker = {                'snapshot_id_existed'},
-        args_description = function(target_snapshot_id)
+        checker = {                'snapshot_id_existed', 'optnumber'},
+        args_description = function(target_snapshot_id, delay_seconds)
             return GetServerInfoComponent():BuildSnapshotBriefStringByID(target_snapshot_id)
         end,
-        fn = function(doer, target_snapshot_id)
+        fn = function(doer, target_snapshot_id, delay_seconds)
             local comp = GetServerInfoComponent()
             if comp:GetIsRollingBack() then
                 announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
-            if M.RollbackBySnapshotID(target_snapshot_id) then
-                -- this flag will be automatically reset while world is reloading
-                comp:SetIsRollingBack()
-                announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
-                    doer.name, 
-                    comp:BuildSnapshotBriefStringByID(target_snapshot_id)
-                )
-                return M.ERROR_CODE.SUCCESS
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
+                doer.name, 
+                comp:BuildSnapshotBriefStringByID(target_snapshot_id)
+            )
+            if not delay_seconds or delay_seconds < 0 then
+                delay_seconds = 5
+            end 
+            -- this flag will be automatically reset when world is reloading
+            -- or reset in 1 minutes, this means we failed to rollback 
+            comp:SetIsRollingBack()
+
+            execute_in_time(delay_seconds, M.RollbackBySnapshotID, target_snapshot_id)
         end
     },
     {
@@ -758,11 +759,8 @@ M.AddCommands(
                 delay_seconds = 5
             end 
             announce_fmt(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
-            execute_in_time(delay_seconds, function()
-                TheNet:SendWorldResetRequestToServer()
-            end)
+            execute_in_time(delay_seconds, TheNet.SendWorldResetRequestToServer, TheNet)
 
-            
         end
     },
     {
@@ -781,14 +779,6 @@ M.AddCommands(
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
             execute_in_time(delay_seconds, c_shutdown)
-            -- if TheWorld then
-            --     TheWorld:DoTaskInTime(delay_seconds, function()
-            --         c_shutdown()
-            --     end)
-            -- else
-            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
-            --     c_shutdown()
-            -- end
 
         end
     },
@@ -894,6 +884,7 @@ M.AddCommands(
                 )
             end
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
@@ -1143,8 +1134,7 @@ M.SHARD_COMMAND = {
         })
 
         dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
-        Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
-
+        
         local vote_started = false
         local taskself = staticScheduler:GetCurrentTask()
         local function on_vote_started()
@@ -1157,15 +1147,16 @@ M.SHARD_COMMAND = {
                 M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
                 -- listen only once
                 TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
-
+                
                 WakeTask(taskself)
             end
         end
 
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
 
-        Sleep(1)
+        Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
+        Sleep(1)
         -- check for voting whether is filed to start
         if not vote_started then
             -- remove the event listener anyway
