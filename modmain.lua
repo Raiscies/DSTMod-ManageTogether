@@ -727,7 +727,7 @@ M.AddCommands(
         can_vote = true, 
         checker = {                'snapshot_id_existed', 'optnumber'},
         args_description = function(target_snapshot_id, delay_seconds)
-            return GetServerInfoComponent():BuildSnapshotBriefStringByID(target_snapshot_id)
+            return GetServerInfoComponent():BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
         end,
         fn = function(doer, target_snapshot_id, delay_seconds)
             local comp = GetServerInfoComponent()
@@ -738,7 +738,7 @@ M.AddCommands(
 
             announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
                 doer.name, 
-                comp:BuildSnapshotBriefStringByID(target_snapshot_id)
+                comp:BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
             )
             if not delay_seconds or delay_seconds < 0 then
                 delay_seconds = 5

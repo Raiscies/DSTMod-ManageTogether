@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_SAVE_REQUEST = '%s raised a save request',
     FMT_SENDED_ROLLBACK_REQUEST = '%s raised a rollback request, to the %dth saving point:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s raised a rollback request, to the saving point: %s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s raised a world regenerating request, the world will regenerate in %d second(s)',
 
     FMT_SET_NEW_PLAYER_JOINABILITY = {

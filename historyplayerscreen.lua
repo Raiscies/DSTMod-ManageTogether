@@ -518,9 +518,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                     
-                     
-
                     ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
             )
@@ -790,6 +787,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     
     -- build/rebuild rollback_slots anyway
     local first_slot_is_new = M.IsNewestRollbackSlotValid()
+    
     if #self.recorder.snapshot_info ~= 0 then
         -- for new command ROLLBACK
         if first_slot_is_new then
@@ -798,7 +796,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
                 table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
             end
         else
-            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #self.recorder.snapshot_info do
                 table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
@@ -879,7 +877,7 @@ function HistoryPlayerScreen:OnUpdate(dt)
                 if not self.rollback_spinner.has_moved_to_first_slot and not first_slot_is_new and self.rollback_spinner:GetSelectedIndex() == 1 then
                     -- disable this option
                     self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_SLOT_NEW_CREATED)
-                    self.rollback_spinner:SetTextColour(UICOLOURS.HIGHLIGHT_GOLD)
+                    self.rollback_spinner:SetTextColour(UICOLOURS.GOLD_SELECTED)
                     -- self.rollback:Select()
                     self.rollback_spinner.has_moved_to_first_slot = true
                 elseif self.rollback_spinner.has_moved_to_first_slot and (first_slot_is_new or self.rollback_spinner:GetSelectedIndex() ~= 1) then

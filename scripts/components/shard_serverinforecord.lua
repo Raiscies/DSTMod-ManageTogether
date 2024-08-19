@@ -586,25 +586,7 @@ function ShardServerInfoRecord:RegisterShardRPCs()
     AddShardRPC('SHARD_PUSH_NET_EVENT', function(sender_shard_id, name)
         self:PushNetEvent(name)
     end, true)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
-    --     self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
-    --     self:ShardRecordOnlinePlayers(do_permission_elevate)
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
-    --     self:ShardSetPermission(userid, permission_level)
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
-    --     self:SetNetVar(name, value, force_update)
-    -- end)
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
-    --     self:PushNetEvent(name)
-    -- end)
+    
 end
 
 function ShardServerInfoRecord:InitNetVars()
@@ -629,7 +611,7 @@ function ShardServerInfoRecord:SetIsRollingBack(b)
     self:SetNetVar('is_rolling_back', b)   
     
     if b == true then
-        execute_in_time(60, function()
+        M.execute_in_time(60, function()
             -- reset the flag automatically
             self:SetNetVar('is_rolling_back', false)
         end)
@@ -856,20 +838,6 @@ function ShardServerInfoRecord:UpadateSaveInfo()
     end
 
 end
-
--- function ShardServerInfoRecord:BuildDaySeasonStringByInfoIndex(index)
---     index = index or 1
---     return M.BuildDaySeasonString(self.snapshot_info.slots[index].day, self.snapshot_info.slots[index].season)
--- end
--- function ShardServerInfoRecord:BuildDaySeasonStringBySnapshotID(snapshot_id)
---     snapshot_id = snapshot_id or TheNet:GetCurrentSnapshot()
---     for _, v in ipairs(self.snapshot_info.slots) do
---         if v.snapshot_id == snapshot_id then
---             return M.BuildDaySeasonString(v.day, v.season)
---         end
---     end
---     return M.BuildDaySeasonString(nil, nil) -- this function can correctly handle nil arguments
--- end
 
 function ShardServerInfoRecord:BuildSnapshotBriefStringByIndex(fmt, index, substitute_table)
     index = index or 1
