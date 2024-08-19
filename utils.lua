@@ -344,9 +344,6 @@ function M.BuildPhaseString(phase, fullname)
     return fullname and (phase and S.PHASES[phase:upper()] or '') or (phase and S.PHASES_SHORTTEN[phase:upper()] or S.UNKNOWN_PHASE)
 end
 
--- function M.BuildDaySeasonString(day, season_enum)
---     return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
--- end
 local build_string_substitute_table = {
     day = M.BuildDayString,
     season = M.BuildSeasonString,
@@ -365,7 +362,7 @@ function M.BuildSnapshotBriefString(fmt, datatable, substitute_table)
         BuildSnapshotBriefString('{day}-{season} {phase}', {day = 1, season = 1, phase = 'night'})
         == 'Day 1-Winter Night'
     ]]
-    return string.gsub(fmt, '%{(%w+)%}', function(capture)
+    return string.gsub(fmt, '%{([%w_]+)%}', function(capture)
         return substitutor[capture](datatable[capture])
     end)
 end

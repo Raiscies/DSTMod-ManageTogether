@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_KILLBANNED_PLAYER = '%s(%s)已被杀死并封禁',
     FMT_SENDED_SAVE_REQUEST = '%s发起了存档请求',
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
 
