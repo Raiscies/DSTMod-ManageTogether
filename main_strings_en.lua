@@ -49,7 +49,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s) don\'t have any target item%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', the player exists deeper container(s) that haven\'t been search',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = ' exists deeper container(s) that haven\'t been search, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
     ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
     ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 

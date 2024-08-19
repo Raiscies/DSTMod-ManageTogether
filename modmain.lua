@@ -883,8 +883,10 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
+            announce(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            announce(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
