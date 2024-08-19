@@ -1175,12 +1175,12 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
+        -- dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
-        dbg('SEND_COMMAND result: ', result)
+        -- dbg('SEND_COMMAND result: ', result)
         return result
     end)
 
@@ -1221,7 +1221,7 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
@@ -1303,15 +1303,15 @@ function M.CheckArgs(checkers, ...)
                 last_checker_fn = this_checker
             elseif type(this_checker) == 'string' then
                 local the_checker_fn = CHECKERS[this_checker]
-                dbg('the_checker: ', this_checker)
+                -- dbg('the_checker: ', this_checker)
                 assert(the_checker_fn ~= nil)
-                dbg('the_checker_fn: ', the_checker_fn)
+                -- dbg('the_checker_fn: ', the_checker_fn)
                 -- bad argument 
                 if not the_checker_fn(this_arg) then
-                    dbg('check result: no')
+                    -- dbg('check result: no')
                     return false
                 end
-                dbg('check result: yes')
+                -- dbg('check result: yes')
                 last_checker_fn = the_checker_fn
             end
         end

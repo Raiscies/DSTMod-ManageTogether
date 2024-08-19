@@ -94,8 +94,8 @@ local Future = Class(function(self, fn)
         
         wake_all_waiting_tasks()
         if callback_ then
-            dbg('async future value: ', value_)
-            dbg('future.get_nowait: ', self:get_nowait())
+            -- dbg('async future value: ', value_)
+            -- dbg('future.get_nowait: ', self:get_nowait())
             callback_(self:get_nowait())
         end
     end
@@ -399,11 +399,10 @@ function AsyncRPCManager:SendRPCToServer(name, ...)
         return nil, false
     end
     if rpc.no_response then
-        dbg('sending no response server RPC: name =', name)
+        dbg('sending server RPC: name =', name)
         SendModRPCToServer(GetModRPC(self.namespace, name), ...)
         return nil, true
     else
-        dbg('try asyncly send server RPC, name =', name)
         return async(send_server_rpc_impl, self, name, ...), true
     end
 end
@@ -415,7 +414,7 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
         return nil, false
     end
     if rpc.no_response then
-        dbg('sending no response client RPC: name =', name)
+        dbg('sending client RPC: name =', name)
         SendModRPCToClient(GetClientModRPC(self.namespace, name), target, ...)
         return nil, true
     end
@@ -432,7 +431,6 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
         dbg('bad RPC target: ', target)
         return nil, false
     end
-    dbg('try asyncly send client RPC, name =', name, ', target count =', expected_response_count)
     return async(send_client_rpc_impl, self, name, target, expected_response_count, ...), true
 end
 
@@ -444,7 +442,7 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
     end
     if rpc.no_response then
         -- here, arg1 is a normal argument of rpc
-        dbg('sending no response shard RPC: name =', name)
+        dbg('sending shard RPC: name =', name)
         SendModRPCToShard(GetShardModRPC(self.namespace, name), target, ...)
         return nil, true
     end
@@ -461,7 +459,6 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
         return nil, false
     end
 
-    dbg('try asyncly send shard RPC, name =', name, ', target count =', expected_response_count)
     return async(send_shard_rpc_impl, self, name, target, expected_response_count, ...), true
 
 end
