@@ -654,6 +654,10 @@ M.AddCommands(
             -- kill a player, and let it drop everything
 
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            -- dbg('on KILL: missing_cou',)
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
 
             for shardid, res in pairs(result_table) do
                 local status = res[1]
@@ -664,12 +668,7 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
@@ -696,6 +695,10 @@ M.AddCommands(
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
+
             for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
@@ -705,19 +708,14 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
         name = 'SAVE', 
         fn = function(doer)
             -- save the world
-            GLOBAL.TheWorld:PushEvent('ms_save')
+            TheWorld:PushEvent('ms_save')
             announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
         end
     },
@@ -883,10 +881,10 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
-            announce(S.MAKE_ITEM_STAT_DELIM)
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
             -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
-            announce(S.MAKE_ITEM_STAT_DELIM)
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
@@ -1039,6 +1037,7 @@ M.SHARD_COMMAND = {
                 dbg('error: failed to kill a offline player')
                 return 1
             end
+            return 2
         end
     end,
 
