@@ -654,6 +654,10 @@ M.AddCommands(
             -- kill a player, and let it drop everything
 
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            -- dbg('on KILL: missing_cou',)
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
 
             for shardid, res in pairs(result_table) do
                 local status = res[1]
@@ -664,12 +668,7 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
@@ -696,6 +695,10 @@ M.AddCommands(
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
+
             for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
@@ -705,19 +708,14 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
         name = 'SAVE', 
         fn = function(doer)
             -- save the world
-            GLOBAL.TheWorld:PushEvent('ms_save')
+            TheWorld:PushEvent('ms_save')
             announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
         end
     },
@@ -883,8 +881,10 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
@@ -1037,6 +1037,7 @@ M.SHARD_COMMAND = {
                 dbg('error: failed to kill a offline player')
                 return 1
             end
+            return 2
         end
     end,
 
@@ -1175,12 +1176,12 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        dbg('SEND_COMMAND: {player = }, {cmd = }, {arg = }')
+        -- dbg('SEND_COMMAND: {player = }, {cmd = }, {arg = }')
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
-        dbg('SEND_COMMAND result: ', result)
+        -- dbg('SEND_COMMAND result: ', result)
         return result
     end)
 
@@ -1221,7 +1222,7 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
+            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
@@ -1303,15 +1304,15 @@ function M.CheckArgs(checkers, ...)
                 last_checker_fn = this_checker
             elseif type(this_checker) == 'string' then
                 local the_checker_fn = CHECKERS[this_checker]
-                dbg('the_checker: ', this_checker)
+                -- dbg('the_checker: ', this_checker)
                 assert(the_checker_fn ~= nil)
-                dbg('the_checker_fn: ', the_checker_fn)
+                -- dbg('the_checker_fn: ', the_checker_fn)
                 -- bad argument 
                 if not the_checker_fn(this_arg) then
-                    dbg('check result: no')
+                    -- dbg('check result: no')
                     return false
                 end
-                dbg('check result: yes')
+                -- dbg('check result: yes')
                 last_checker_fn = the_checker_fn
             end
         end

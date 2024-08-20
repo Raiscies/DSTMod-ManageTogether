@@ -50,7 +50,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无任何目标物品%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
     MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = '物品栏物品统计已结束, 但没有收到部分服务器分片的结束通知', 
     MAKE_ITEM_STAT_FINISHED = '物品栏物品统计已完成',
 

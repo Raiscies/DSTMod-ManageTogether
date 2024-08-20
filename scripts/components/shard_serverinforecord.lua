@@ -662,19 +662,19 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         -- auto new player wall state: allow new players to join
         new_state = true
     else
-        dbg('judging...')
+        -- dbg('judging...')
         local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local record = self.player_record[client.userid] 
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
-            dbg('{client: }, {level: }')
+            dbg('{client.name: }, {level: }')
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end
-            dbg('{current_highest_online_player_level: }')
+            -- dbg('{current_highest_online_player_level: }')
         end
-        dbg('{required_min_level: }')
+        -- dbg('{required_min_level: }')
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
         new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
