@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_SAVE_REQUEST = '%s raised a save request',
     FMT_SENDED_ROLLBACK_REQUEST = '%s raised a rollback request, to the %dth saving point:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s raised a rollback request, to the saving point: %s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s raised a world regenerating request, the world will regenerate in %d second(s)',
 
     FMT_SET_NEW_PLAYER_JOINABILITY = {
@@ -48,7 +49,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s) don\'t have any target item%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', the player exists deeper container(s) that haven\'t been search',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = ' exists deeper container(s) that haven\'t been search, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
     ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
     ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 
@@ -161,7 +162,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = 'wrong rollback index',
     ERR_ROLLBACK_DESC_BAD_INDEX = 'this slot is not valid, please check it again',
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
-    ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = 'this snapshot is disabled due to a very recent saving time(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = 'this snapshot is generated just now(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
 

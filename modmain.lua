@@ -145,6 +145,7 @@ M.ERROR_CODE = table.invert({
     'COMMAND_NOT_VOTABLE',
     'INTERNAL_ERROR', 
     'MISSING_RESPONSE', 
+    'HAS_MORE_DATA',
 })
 M.ERROR_CODE.SUCCESS = 0
 
@@ -652,9 +653,13 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            -- dbg('on KILL: missing_cou',)
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
 
-            for shardid, res in pairs(result) do
+            for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
                     -- player is killed in this shard, command executed successfully
@@ -663,12 +668,7 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
@@ -693,9 +693,13 @@ M.AddCommands(
             -- kill and ban a player
 
             GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
-            for shardid, res in pairs(result) do
+            if missing_count > 0 or result_table == nil then
+                return M.ERROR_CODE.MISSING_RESPONSE
+            end
+
+            for shardid, res in pairs(result_table) do
                 local status = res[1]
                 if status == 2 then
                     -- player is killed in this shard, command executed successfully
@@ -704,19 +708,14 @@ M.AddCommands(
                     return M.ERROR_CODE.INTERNAL_ERROR
                 end
             end
-            if missing_count > 0 then
-                return M.ERROR_CODE.MISSING_RESPONSE
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
-
+            return M.ERROR_CODE.INTERNAL_ERROR
         end
     },
     {
         name = 'SAVE', 
         fn = function(doer)
             -- save the world
-            GLOBAL.TheWorld:PushEvent('ms_save')
+            TheWorld:PushEvent('ms_save')
             announce_fmt(S.FMT_SENDED_SAVE_REQUEST, doer.name)
         end
     },
@@ -724,28 +723,29 @@ M.AddCommands(
         -- a better rollback command, which can let client specify the appointed rollback slot, but not saving point index
         name = 'ROLLBACK', 
         can_vote = true, 
-        checker = {                'snapshot_id_existed'},
-        args_description = function(target_snapshot_id)
-            return GetServerInfoComponent():BuildSnapshotBriefStringByID(target_snapshot_id)
+        checker = {                'snapshot_id_existed', 'optnumber'},
+        args_description = function(target_snapshot_id, delay_seconds)
+            return GetServerInfoComponent():BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
         end,
-        fn = function(doer, target_snapshot_id)
+        fn = function(doer, target_snapshot_id, delay_seconds)
             local comp = GetServerInfoComponent()
             if comp:GetIsRollingBack() then
                 announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
             end
 
-            if M.RollbackBySnapshotID(target_snapshot_id) then
-                -- this flag will be automatically reset while world is reloading
-                comp:SetIsRollingBack()
-                announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
-                    doer.name, 
-                    comp:BuildSnapshotBriefStringByID(target_snapshot_id)
-                )
-                return M.ERROR_CODE.SUCCESS
-            else
-                return M.ERROR_CODE.BAD_TARGET
-            end
+            announce_fmt(S.FMT_SENDED_ROLLBACK2_REQUEST, 
+                doer.name, 
+                comp:BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
+            )
+            if not delay_seconds or delay_seconds < 0 then
+                delay_seconds = 5
+            end 
+            -- this flag will be automatically reset when world is reloading
+            -- or reset in 1 minutes, this means we failed to rollback 
+            comp:SetIsRollingBack()
+
+            execute_in_time(delay_seconds, M.RollbackBySnapshotID, target_snapshot_id)
         end
     },
     {
@@ -757,9 +757,8 @@ M.AddCommands(
                 delay_seconds = 5
             end 
             announce_fmt(S.FMT_SENDED_REGENERATE_WORLD_REQUEST, doer.name, delay_seconds)
-            execute_in_time(delay_seconds, function()
-                TheNet:SendWorldResetRequestToServer()
-            end)
+            execute_in_time(delay_seconds, TheNet.SendWorldResetRequestToServer, TheNet)
+
         end
     },
     {
@@ -778,6 +777,15 @@ M.AddCommands(
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
             execute_in_time(delay_seconds, c_shutdown)
+            -- if TheWorld then
+            --     TheWorld:DoTaskInTime(delay_seconds, function()
+            --         c_shutdown()
+            --     end)
+            -- else
+            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
+            --     c_shutdown()
+            -- end
+
         end
     },
     {
@@ -885,7 +893,10 @@ M.AddCommands(
                     table.concat(item_names, ', ')
                 )
             end
-            local result, missing_count = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
+            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
             else
@@ -1038,6 +1049,7 @@ M.SHARD_COMMAND = {
                 dbg('error: failed to kill a offline player')
                 return 1
             end
+            return 2
         end
     end,
 
@@ -1103,7 +1115,7 @@ M.SHARD_COMMAND = {
         
         end
 
-        return true -- return a non-nil value in order to force to send a result to broadcast raiser
+        return true -- return a non-nil value in order to forcely send a result to broadcast raiser
     end,
 
     -- just for internal use
@@ -1133,9 +1145,11 @@ M.SHARD_COMMAND = {
             starter_userid = starter_userid, 
             args = args, 
         })
-        Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
+        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+        
         local vote_started = false
+        local taskself = staticScheduler:GetCurrentTask()
         local function on_vote_started()
             if not vote_started then 
                 vote_started = true
@@ -1146,23 +1160,26 @@ M.SHARD_COMMAND = {
                 M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
                 -- listen only once
                 TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
+                
+                WakeTask(taskself)
             end
         end
 
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
 
-        -- check for voting whether is filed to start
-        execute_in_time(1, function()
-            if not vote_started then
-                -- remove the event listener anyway
-                M.ResetVoteEnv()
-                M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
-                dbg('failed to start a vote.')
-                TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
-            end
-        end)
+        Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
 
-        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+        Sleep(1)
+        -- check for voting whether is filed to start
+        if not vote_started then
+            -- remove the event listener anyway
+            M.ResetVoteEnv()
+            M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
+            dbg('failed to start a vote.')
+            TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
+        end
+
+        return vote_started
     end
 }
 
@@ -1171,10 +1188,12 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
+        -- dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
+        -- dbg('SEND_COMMAND result: ', result)
         return result
     end)
 
@@ -1215,8 +1234,10 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: Here Is Already Master Shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-            return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...)
+            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+            
+            -- this future holds simple results...
+            return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
@@ -1225,21 +1246,35 @@ local function ForwardToMasterShard(cmd, ...)
         end
     else
         dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-        return SendRPCToShard(
-            'SHARD_SEND_COMMAND',
-            GLOBAL.SHARDID.MASTER, 
-            cmd, ...
-        )
+
+        return async(function(...)
+            local missing_response_count, result_table = SendRPCToShard(
+                'SHARD_SEND_COMMAND',
+                SHARDID.MASTER, 
+                cmd, ...
+            ):get()
+
+            if missing_response_count == 1 or not result_table then
+                dbg('error on SHARD_SEND_COMMAND: missing result, result table is ', result_table)
+                return nil
+            end
+            local master_result = result_table[SHARDID.MASTER]
+            if not master_result then
+                dbg('error no SHARD_SEND_COMMAND: missing master result: result table is ', result_table)
+                return nil
+            end
+            return unpack(master_result)
+        end, ...)
     end
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
     dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
-    return SendRPCToShard(
+    return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
         nil, 
         cmd, ...
-    )
+    )) --> future: missing_response_count, result_table[shardids]
 end
 
 
@@ -1281,15 +1316,15 @@ function M.CheckArgs(checkers, ...)
                 last_checker_fn = this_checker
             elseif type(this_checker) == 'string' then
                 local the_checker_fn = CHECKERS[this_checker]
-                dbg('the_checker: ', this_checker)
+                -- dbg('the_checker: ', this_checker)
                 assert(the_checker_fn ~= nil)
-                dbg('the_checker_fn: ', the_checker_fn)
+                -- dbg('the_checker_fn: ', the_checker_fn)
                 -- bad argument 
                 if not the_checker_fn(this_arg) then
-                    dbg('check result: no')
+                    -- dbg('check result: no')
                     return false
                 end
-                dbg('check result: yes')
+                -- dbg('check result: yes')
                 last_checker_fn = the_checker_fn
             end
         end
@@ -1335,7 +1370,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
 
     dbg('received command request from player: ', executor.name, ', cmd = ', CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
 
-    local result = M.COMMAND[cmd].fn(...)
+    local result = M.COMMAND[cmd].fn(executor, ...)
     -- nil(by default) means success
     return result == nil and M.ERROR_CODE.SUCCESS or result
 
@@ -1363,15 +1398,15 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
-    local voter_state, is_get_failed = chain_get(GLOBAL.TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
+    local voter_state, is_get_failed = chain_get(TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
     if is_get_failed then
         return M.ERROR_CODE.INTERNAL_ERROR
     elseif voter_state == true then
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
-    -- this function is attempted to be execute in another coroutine
-    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get()
+    -- future returns whether vote is started
+    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get() and M.ERROR_CODE.SUCCESS or M.ERROR_CODE.INTERNAL_ERROR
 end
 
 function M.ExecuteCommand(executor, cmd, ...)
@@ -1519,12 +1554,19 @@ local function QueryServerData(classified)
 end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
-    SendRPCToServer('SEND_COMMAND', cmd, ...):set_callback(function(result)
+    local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
+    dbg('on RequestToExecuteCommand: future =', future, ', success =', success)
+    future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
-        if CHECKERS.error_code(result) then
-            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(result))
+        if not retcode or missing_response_count == 1 then
+            dbg('SEND_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)    
+            return
+        end
+
+        if CHECKERS.error_code(retcode) then
+            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send command): cmd =', name, ', server drunk')
+            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', retcode)
         end
         
     end)
@@ -1532,12 +1574,17 @@ end
 
 local function RequestToExecuteVoteCommand(classified, cmd, ...)
     -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
-    SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(result)
-        local name = M.CommandEnumToName(cmd)
-        if CHECKERS.error_code(result) then
-            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(result))
+    SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(missing_response_count, retcode)
+        local name = M.CommandEnumToName(cmd)        
+        if not retcode or missing_response_count == 1 then
+            dbg('SEND_VOTE_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)   
+            return 
+        end
+        
+        if CHECKERS.error_code(retcode) then
+            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send vote command): cmd =', name, ', server drunk')
+            dbg('received result from server(send vote command): cmd =', name, ', server drunk, result =', retcode)
         end
     end )
 end

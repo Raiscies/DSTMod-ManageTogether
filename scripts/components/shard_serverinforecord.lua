@@ -6,6 +6,7 @@ local M = manage_together
 -- M.usingnamespace(M)
 
 local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+local IsPlayerOnline = M.IsPlayerOnline
 
 local AddServerRPC = M.AddServerRPC
 local AddClientRPC = M.AddClientRPC
@@ -14,7 +15,6 @@ local SendRPCToServer = M.SendRPCToServer
 local SendRPCToClient = M.SendRPCToClient
 local SendRPCToShard = M.SendRPCToShard
 
--- local IsPlayerOnline = M.IsPlayerOnline
 
 local ShardServerInfoRecord = Class(
     function(self, inst)
@@ -585,25 +585,7 @@ function ShardServerInfoRecord:RegisterShardRPCs()
     AddShardRPC('SHARD_PUSH_NET_EVENT', function(sender_shard_id, name)
         self:PushNetEvent(name)
     end, true)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_PLAYER, function(sender_shard_id, userid)
-    --     self:ShardRecordPlayer(userid, tostring(sender_shard_id) == TheShard:GetShardId())
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_RECORD_ONLINE_PLAYERS, function(sender_shard_id, do_permission_elevate)
-    --     self:ShardRecordOnlinePlayers(do_permission_elevate)
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_PLAYER_PERMISSION, function(sender_shard_id, userid, permission_level)
-    --     self:ShardSetPermission(userid, permission_level)
-    -- end)
-
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_SET_NET_VAR, function(sender_shard_id, name, value, force_update)
-    --     self:SetNetVar(name, value, force_update)
-    -- end)
-    -- AddShardModRPCHandler(M.RPC.NAMESPACE, M.RPC.SHARD_PUSH_NET_EVENT, function(sender_shard_id, name)
-    --     self:PushNetEvent(name)
-    -- end)
+    
 end
 
 function ShardServerInfoRecord:InitNetVars()
@@ -619,11 +601,22 @@ function ShardServerInfoRecord:InitNetVars()
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)
     if b == nil then
-        self:SetNetVar('is_rolling_back', true) 
-    else
-        self:SetNetVar('is_rolling_back', b)   
+        b = true
+    end
+
+    if self:GetIsRollingBack() and b then
+        return
+    end
+    self:SetNetVar('is_rolling_back', b)   
+    
+    if b == true then
+        M.execute_in_time(60, function()
+            -- reset the flag automatically
+            self:SetNetVar('is_rolling_back', false)
+        end)
     end
 end
+
 function ShardServerInfoRecord:GetIsRollingBack()
     return self.netvar.is_rolling_back:value()
 end
@@ -666,19 +659,19 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         -- auto new player wall state: allow new players to join
         new_state = true
     else
-        dbg('judging...')
+        -- dbg('judging...')
         local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local record = self.player_record[client.userid] 
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
-            dbg('client: ', client, ', level: ', level)
+            dbg('client: ', client.name, ', level: ', level)
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end
-            dbg('current_highest_online_player_level: ', current_highest_online_player_level)
+            -- dbg('current_highest_online_player_level: ', current_highest_online_player_level)
         end
-        dbg('required_min_level:', required_min_level)
+        -- dbg('required_min_level:', required_min_level)
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
         new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)

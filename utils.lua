@@ -71,6 +71,16 @@ function M.select_one(n, ...)
     return ({select(n, ...)})[1]
 end
 
+function M.select_first(...)
+    local first = ...
+    return first
+end
+
+function M.select_second(...)
+    local first, second = ...
+    return second
+end
+
 function M.moretostring(obj)
     if type(obj) == 'table' then
         if obj.is_a == nil then
@@ -200,7 +210,9 @@ function M.announce_vote_fmt(pattern, ...)
 end
 
 function M.IsPlayerOnline(userid)
-    return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- this may faster, I guess
+    return userid and TheNet:GetNetIdForUser(userid) ~= nil or false
 end
 function M.GetPlayerFromUserid(userid)
     for _, v in ipairs(AllPlayers) do
@@ -242,9 +254,6 @@ function M.BuildPhaseString(phase, fullname)
     return fullname and (phase and S.PHASES[phase:upper()] or '') or (phase and S.PHASES_SHORTTEN[phase:upper()] or S.UNKNOWN_PHASE)
 end
 
--- function M.BuildDaySeasonString(day, season_enum)
---     return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
--- end
 local build_string_substitute_table = {
     day = M.BuildDayString,
     season = M.BuildSeasonString,
@@ -263,11 +272,13 @@ function M.BuildSnapshotBriefString(fmt, datatable, substitute_table)
         BuildSnapshotBriefString('{day}-{season} {phase}', {day = 1, season = 1, phase = 'night'})
         == 'Day 1-Winter Night'
     ]]
-    return string.gsub(fmt, '%{(%w+)%}', function(capture)
+    return string.gsub(fmt, '%{([%w_]+)%}', function(capture)
         return substitutor[capture](datatable[capture])
     end)
 end
 
+-- newest rollback slot is always available with c_reset() or c_rollback(0)
+-- but may not available when calling c_rollback(1)
 function M.IsNewestRollbackSlotValid()
     if TheWorld.net == nil or 
         TheWorld.net.components.autosaver == nil or 
@@ -463,11 +474,22 @@ function M.GetSnapshotPlayerData(userid, component_name)
     return data
 end
 
-function M.RollbackBySnapshotID(snapshot_id)
+--[[
+    logic of TheNet:SendWorldRollbackRequestToServer(count):
+    if count == 0, always rollback to the last save file
+    if count ~= 0, there are to cases:
+        1. last save time from now is longer than 30s, rollback to the last 'count' snapshots;
+        -- such as: count = 1: same as count = 0
+        --          count = 2: rollback to the last 2 snapshot
+
+        2. last save time from now is not longer than 30s, rollback to the last 'count' + 1 snapshots.
+        -- such as: count = 1: rollback to the last 2 snapshot
+
+]]
+function M.RollbackBySnapshotID(snapshot_id) --> return none
     local current_id = TheNet:GetCurrentSnapshot()
     if snapshot_id > current_id then
         -- bad snapshot id
-        return nil
     elseif snapshot_id == current_id then
         -- do a reset
         -- if the index is zero, server will not do the following judgement
@@ -483,18 +505,17 @@ function M.RollbackBySnapshotID(snapshot_id)
                 local rollback_index = current_id - snapshot_id -- >= 1 
                 if M.IsNewestRollbackSlotValid() then
                     TheNet:SendWorldRollbackRequestToServer(rollback_index)
-                elseif rollback_index ~= 1 then
-                    TheNet:SendWorldRollbackRequestToServer(rollback_index - 1)
+                -- elseif rollback_index ~= 1 then
                 else
-                    -- rollback_index - 1 == 0
-                    -- this snapshot is un-reachable, cuz it is too new
-                    return nil
+                    TheNet:SendWorldRollbackRequestToServer(rollback_index - 1)
+
+                -- else
+                    -- rollbakc_index - 1 == 0
+
                 end
-                return i
             end
         end
-        -- does not exists
-        return nil
+        -- snapshot does not exists
     end
 end
 

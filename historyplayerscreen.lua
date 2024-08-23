@@ -525,9 +525,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 vote_state and (S.START_A_VOTE .. S.ROLLBACK) or S.ROLLBACK, 
                 string.format(S.FMT_ROLLBACK_TO, screen.rollback_spinner:GetSelected().text), 
                 function() 
-                     
-                     
-
                     ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ROLLBACK, screen.recorder.snapshot_info[screen.rollback_spinner:GetSelected().data].snapshot_id)
                 end
             )
@@ -647,7 +644,9 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.recorder = TheWorld.net.components.serverinforecord
 
     self.on_snapshot_info_dirty = function()
+        dbg('on_snapshot_info_dirty')
         if not self.needs_update_snapshot_info then
+            dbg('querying snapshot infos')
             ThePlayer.player_classified:QuerySnapshotInformations() 
             -- make a flag, in case the event broadcast frequently in a short time
             self.needs_update_snapshot_info = true
@@ -817,16 +816,17 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
     self.rollback_slots = {}
     
     -- build/rebuild rollback_slots anyway
-    local first_slot_valid = M.IsNewestRollbackSlotValid()
+    local first_slot_is_new = M.IsNewestRollbackSlotValid()
+    
     if #self.recorder.snapshot_info ~= 0 then
         -- for new command ROLLBACK
-        if first_slot_valid then
+        if first_slot_is_new then
             table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #self.recorder.snapshot_info do
                 table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i) .. ')', data = i})
             end
         else
-            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = nil})
+            table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(1) .. S.ROLLBACK_SPINNER_NEWEST, data = 1})
             for i = 2, #self.recorder.snapshot_info do
                 table.insert(self.rollback_slots, {text = self:BuildSnapshotBriefStringByInfoIndex(i) .. '(' .. tostring(i - 1) .. ')', data = i}) -- data keeps its real index, cuz we use new rollback command
             end
@@ -848,7 +848,8 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 22}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
-        self.rollback_spinner.first_slot_valid = first_slot_valid
+        self.rollback_spinner.first_slot_is_new = first_slot_is_new
+        self.rollback_spinner.has_moved_to_first_slot = false
 
         local x, y = self.rollback:GetPositionXYZ()
 
@@ -894,23 +895,26 @@ function HistoryPlayerScreen:OnUpdate(dt)
     if TheFrontEnd:GetFadeLevel() > 0 then
         self:Close()
     else
+        -- no need to disable the newest slot 
         if self.rollback_spinner then
-            local first_slot_valid = M.IsNewestRollbackSlotValid()
+            local first_slot_is_new = M.IsNewestRollbackSlotValid()
 
-            if first_slot_valid ~= self.rollback_spinner.first_slot_valid then
+            if first_slot_is_new ~= self.rollback_spinner.first_slot_is_new then
                 -- needs rebuild rollback_spinner
                 self:DoInitRollbackSpinner()
-                self.rollback_spinner.first_slot_valid = first_slot_valid
+                self.rollback_spinner.first_slot_is_new = first_slot_is_new
             else
-                if not self.rollback:IsSelected() and not first_slot_valid and self.rollback_spinner:GetSelectedIndex() == 1 then
+                if not self.rollback_spinner.has_moved_to_first_slot and not first_slot_is_new and self.rollback_spinner:GetSelectedIndex() == 1 then
                     -- disable this option
-                    self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_NEWEST_SLOT_INVALID)
-                    self.rollback_spinner:SetTextColour(UICOLOURS.GREY)
-                    self.rollback:Select()
-                elseif self.rollback:IsSelected() and (first_slot_valid or self.rollback_spinner:GetSelectedIndex() ~= 1) then
+                    self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_SLOT_NEW_CREATED)
+                    self.rollback_spinner:SetTextColour(UICOLOURS.GOLD_SELECTED)
+                    -- self.rollback:Select()
+                    self.rollback_spinner.has_moved_to_first_slot = true
+                elseif self.rollback_spinner.has_moved_to_first_slot and (first_slot_is_new or self.rollback_spinner:GetSelectedIndex() ~= 1) then
                     self.rollback_spinner:ClearHoverText()
                     self.rollback_spinner:SetTextColour(UICOLOURS.GOLD)
-                    self.rollback:Unselect()
+                    -- self.rollback:Unselect()
+                    self.rollback_spinner.has_moved_to_first_slot = false
                 end
             end
         end

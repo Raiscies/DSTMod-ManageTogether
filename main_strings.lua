@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_KILLBANNED_PLAYER = '%s(%s)已被杀死并封禁',
     FMT_SENDED_SAVE_REQUEST = '%s发起了存档请求',
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
 
@@ -49,7 +50,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无任何目标物品%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
     MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = '物品栏物品统计已结束, 但没有收到部分服务器分片的结束通知', 
     MAKE_ITEM_STAT_FINISHED = '物品栏物品统计已完成',
 
@@ -163,7 +164,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = '错误的回档索引',
     ERR_ROLLBACK_DESC_BAD_INDEX = '这个存档槽不是合法的, 请重新检查',
     ROLLBACK_SPINNER_NEWEST = '(最近)',
-    ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = '这个存档快照是刚刚生成的(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
 
