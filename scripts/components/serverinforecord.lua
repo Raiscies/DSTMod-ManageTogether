@@ -5,6 +5,7 @@ local M = manage_together
 -- M.usingnamespace(M)
 
 local dbg = M.dbg
+local bool = M.bool
 local AddServerRPC = M.AddServerRPC
 local AddClientRPC = M.AddClientRPC
 local AddShardRPC = M.AddShardRPC
@@ -37,6 +38,7 @@ local ServerInfoRecord = Class(function(self, inst)
     end
     
     self:RegisterRPCs()
+    self:InitNetVars()
 end)
 
 function ServerInfoRecord:RegisterRPCs()
@@ -94,7 +96,7 @@ end
 
 function ServerInfoRecord:InitNetVars()
     -- all of these netvars are in public area - all of the clients are available to accept it
-    self.netver = {
+    self.netvar = {
         allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
         auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'manage_together.auto_new_player_wall_enabled', 'auto_new_player_wall_changed'),
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
@@ -107,13 +109,13 @@ function ServerInfoRecord:InitNetVars()
             local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
             dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
 
-            self.netver.allow_new_players_to_connect:set(connectable)
+            self.netvar.allow_new_players_to_connect:set(connectable)
         end, TheWorld.shard) -- event broadcaster is shard_network
 
         self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function()
             local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
             dbg('ServerInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
-            self.netver.auto_new_player_wall_enabled:set(enabled)
+            self.netvar.auto_new_player_wall_enabled:set(enabled)
             self.netvar.auto_new_player_wall_min_level:set(min_level)
         end, TheWorld.shard)
     end

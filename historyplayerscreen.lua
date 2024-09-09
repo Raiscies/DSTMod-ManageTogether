@@ -419,8 +419,11 @@ local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, com
         screen.servermenunumbtns = screen.servermenunumbtns + 1 
         
         local cmd = M.COMMAND_ENUM[name:upper()]
-        local perm, vote_perm = ThePlayer.player_classified:HasPermission(cmd)
-        if cmd == nil or perm then
+        local perm, vote_perm = true, false
+        if cmd ~= nil then
+            perm, vote_perm = ThePlayer.player_classified:HasPermission(cmd)
+        end
+        if perm then
             screen.server_button_x = screen.server_button_x + screen.server_button_offset
             button:SetPosition(screen.server_button_x, 200)
             button:Show()
@@ -564,7 +567,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                 -- title
                 (vote_state and S.START_A_VOTE or '') .. S.SET_NEW_PLAYER_JOINABILITY_TITLE, 
                 -- desc
-                string.format(S.FMT_SET_NEW_PLAYER_JOINABILITY_DESC,  desc_table[joinability_key], desc_table[wall_enabled_key], text_min_level)
+                string.format(S.FMT_SET_NEW_PLAYER_JOINABILITY_DESC,  desc_table[joinability_key], desc_table[wall_enabled_key], text_min_level),
                 -- buttons
                 {
                     -- 1. switch player joinability
@@ -572,7 +575,7 @@ local function DoInitServerRelatedCommnadButtons(screen)
                         ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) 
                         TheFrontEnd:PopScreen()
                     end}, 
-                    -- 2. switch autowall - only when player has permission
+                    -- 2. switch autowall - only when player has a permission
                     (has_set_wall_permission or has_set_wall_vote_permission) and 
                         {text = desc_table.WALL_BUTTON[wall_enabled_key], cb = function() 
                             ExecuteOrStartVote((not has_set_wall_permission) or vote_state, M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL, not wall_enabled)

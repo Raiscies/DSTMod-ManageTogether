@@ -216,8 +216,8 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
 
         WALL_BUTTON = {
             -- button action inverts the current state
-            WALL_ENABLED = '开启新玩家可加入性动态调整',
-            WALL_DISABLED = '关闭新玩家可加入性动态调整',
+            WALL_ENABLED = '关闭新玩家可加入性动态调整',
+            WALL_DISABLED = '开启新玩家可加入性动态调整',
         },
 
          WALL_LEVEL = {

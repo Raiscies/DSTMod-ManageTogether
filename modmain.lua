@@ -1739,8 +1739,14 @@ end)
 
 AddPrefabPostInit('world', function(inst)
     dbg('AddPrefabPostInit: world')
-
-    inst.net:AddComponent('serverinforecord')
+    inst:DoTaskInTime(1, function()
+        if inst.net then
+            inst.net:AddComponent('serverinforecord')
+        else
+            dbg('error: failed to add component for inst.net')
+        end
+        
+    end)
     
 end)
 

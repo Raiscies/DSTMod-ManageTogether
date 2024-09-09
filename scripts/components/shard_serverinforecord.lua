@@ -5,7 +5,7 @@ local M = manage_together
 
 -- M.usingnamespace(M)
 
-local dbg, log, flog, chain_get = M.dbg, M.log, M.flog, M.chain_get
+local dbg, log, flog, chain_get, bool = M.dbg, M.log, M.flog, M.chain_get, M.bool
 local IsPlayerOnline = M.IsPlayerOnline
 
 local AddServerRPC = M.AddServerRPC
@@ -93,7 +93,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
         
         local triggered_once
         local callbacks
-        if recorder.world.ismastersim then
+        if TheShard:IsMaster() then
                 
             -- callbacks are only work at Master
             callbacks = {}        
