@@ -2,22 +2,31 @@
 
 local M = manage_together
 
-local dbg, chain_get = M.dbg, M.chain_get
+-- M.usingnamespace(M)
+
+local dbg = M.dbg
+local bool = M.bool
+local AddServerRPC = M.AddServerRPC
+local AddClientRPC = M.AddClientRPC
+local AddShardRPC = M.AddShardRPC
+local SendRPCToServer = M.SendRPCToServer
+local SendRPCToClient = M.SendRPCToClient
+local SendRPCToShard = M.SendRPCToShard
 
 local ServerInfoRecord = Class(function(self, inst)
     dbg('ServerInfoRecord: init')
-    self.inst = inst
+    self.inst = inst -- TheWorld.net, or say xx_network
     self.world = TheWorld
 
     if TheWorld.ismastersim then
         inst:DoTaskInTime(0, function()
              
             -- on server side
-            self.shard_serverinforecord = TheWorld.shard.components.shard_serverinforecord
+            self.shard_recorder = TheWorld.shard.components.shard_serverinforecord
             
             -- alias
-            self.player_record = self.shard_serverinforecord.player_record
-            self.snapshot_info = self.shard_serverinforecord.snapshot_info
+            self.player_record = self.shard_recorder.player_record
+            self.snapshot_info = self.shard_recorder.snapshot_info
         
         end)
     else
@@ -29,12 +38,13 @@ local ServerInfoRecord = Class(function(self, inst)
     end
     
     self:RegisterRPCs()
+    self:InitNetVars()
 end)
 
 function ServerInfoRecord:RegisterRPCs()
     dbg('ServerInfoRecord:RegisterRPCs()')
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.OFFLINE_PLAYER_RECORD_SYNC, function(userid, netid, name, age, skin, permission_level)
+    AddClientRPC('OFFLINE_PLAYER_RECORD_SYNC', function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {
             netid = netid, 
             name = name, 
@@ -45,9 +55,9 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received offline player record sync from server: ', self.player_record[userid])
 
         self.inst:PushEvent('player_record_updated', userid)
-    end)
+    end, true) -- no response
     
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.ONLINE_PLAYER_RECORD_SYNC, function(userid, permission_level)
+    AddClientRPC('ONLINE_PLAYER_RECORD_SYNC', function(userid, permission_level)
         if not self.player_record[userid] then
             self.player_record[userid] = {}
         end
@@ -56,15 +66,15 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received online player record sync from server: ', self.player_record[userid])
 
         self.inst:PushEvent('player_record_updated', userid)
-    end)
+    end, true)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.PLAYER_RECORD_SYNC_COMPLETED, function(has_more)
+    AddClientRPC('PLAYER_RECORD_SYNC_COMPLETED', function(has_more)
         self.has_more_player_records = has_more
         self.inst:PushEvent('player_record_sync_completed', has_more)
         dbg('player record sync completed, has_more = ', has_more)
-    end)
+    end, true)
 
-    AddClientModRPCHandler(M.RPC.NAMESPACE, M.RPC.SNAPSHOT_INFO_SYNC, function(index, snapshot_id, day, season, phase)
+    AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season, phase)
         if index == 1 then
             -- clear all of the old snapshot info
             self.snapshot_info = {}
@@ -80,13 +90,48 @@ function ServerInfoRecord:RegisterRPCs()
         dbg('received snapshot info sync from server: ', self.snapshot_info[index])
 
         self.inst:PushEvent('snapshot_info_updated', index)
-    end)
+    end, true)
 
+end
+
+function ServerInfoRecord:InitNetVars()
+    -- all of these netvars are in public area - all of the clients are available to accept it
+    self.netvar = {
+        allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'manage_together.auto_new_player_wall_enabled', 'auto_new_player_wall_changed'),
+        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
+    }
+
+    if TheWorld.ismastersim then
+         
+            -- listen for events from recorder
+        self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
+            local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
+            dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
+
+            self.netvar.allow_new_players_to_connect:set(connectable)
+        end, TheWorld.shard) -- event broadcaster is shard_network
+
+        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function()
+            local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
+            dbg('ServerInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            self.netvar.auto_new_player_wall_enabled:set(enabled)
+            self.netvar.auto_new_player_wall_min_level:set(min_level)
+        end, TheWorld.shard)
+    end
+end
+
+function ServerInfoRecord:GetAllowNewPlayersToConnect()
+    return bool(self.netvar.allow_new_players_to_connect:value())
+end
+
+function ServerInfoRecord:GetAutoNewPlayerWall()
+    return bool(self.netvar.auto_new_player_wall_enabled:value()), self.netvar.auto_new_player_wall_min_level:value()
 end
 
 if not TheWorld.ismastersim then
     -- client side
-
+    
 function ServerInfoRecord:RecordClientData(userid)
     local client = TheNet:GetClientTableForUser(userid)
     local record = self.player_record[userid]

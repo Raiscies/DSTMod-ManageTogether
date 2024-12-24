@@ -20,6 +20,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_SENDED_SAVE_REQUEST = '%s发起了存档请求',
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
     FMT_ROLLBACK_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
+    FMT_ROLLBACK_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
 
@@ -194,7 +195,12 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么新玩家可加入状态将于服务器不满足「%s」时被自动关闭, 否则自动开启',
     
     -- button hovertext
+    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么新玩家可加入状态将于服务器不满足「%s」时被自动关闭, 否则自动开启',
+    
+    -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = '切换新玩家可加入状态\n当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '切换新玩家可加入状态\n当前已禁止新玩家加入', 
         ALLOW_ALL_PLAYER = '切换新玩家可加入状态\n当前已允许新玩家加入', 
         ALLOW_OLD_PLAYER = '切换新玩家可加入状态\n当前已禁止新玩家加入', 
     },

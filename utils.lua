@@ -3,8 +3,6 @@
 local M = GLOBAL.manage_together
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
 
--- GLOBAL.setmetatable(env, {__index = function(t, k) return GLOBAL.rawget(GLOBAL, k) end})
-
 function M.using_namespace(...)
     -- local oldmetatable = GLOBAL.getmetatable(env)
     local nss = {...}
@@ -73,6 +71,16 @@ function M.select_one(n, ...)
     return ({select(n, ...)})[1]
 end
 
+function M.select_first(...)
+    local first = ...
+    return first
+end
+
+function M.select_second(...)
+    local first, second = ...
+    return second
+end
+
 function M.moretostring(obj)
     if type(obj) == 'table' then
         if obj.is_a == nil then
@@ -114,6 +122,10 @@ function M.in_int_range(a, b, x)
         a <= x and x <= b
 end
 
+function M.bool(val)
+    return not not val -- forcely cast a value to bool
+end
+
 function M.key_exists(tab, key) return tab[key] ~= nil end
 
 -- little endian
@@ -131,6 +143,10 @@ end
 -- log print
 function M.log(...)
     print('[ManageTogether]', ...)
+end
+
+function M.flog(pattern, ...)
+    M.log(string.format(pattern, ...))
 end
 
 function M.GetPlayerByUserid(userid)
@@ -156,12 +172,12 @@ function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
     if type(varname_or_table) == 'table' then
         new_env = varname_or_table
         setfenv(fn,  
-            setmetatable(varname_or_table, { __index = new_env or GLOBAL })
+            setmetatable(varname_or_table, { __index = new_env or getfenv(fn) })
         )
     else
         setfenv(fn,  
             setmetatable({ [varname_or_table] = new_var }, 
-                { __index = new_env or GLOBAL }
+                { __index = new_env or getfenv(fn) }
             )
         )
     end
@@ -194,7 +210,9 @@ function M.announce_vote_fmt(pattern, ...)
 end
 
 function M.IsPlayerOnline(userid)
-    return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- return userid and TheNet:GetClientTableForUser(userid) ~= nil or false
+    -- this may faster, I guess
+    return userid and TheNet:GetNetIdForUser(userid) ~= nil or false
 end
 function M.GetPlayerFromUserid(userid)
     for _, v in ipairs(AllPlayers) do
@@ -204,6 +222,12 @@ function M.GetPlayerFromUserid(userid)
     end
     return nil
 end
+
+
+-- this should be import after log, dbg functions,
+-- but some of the utils functions needs asyncutil :)
+-- execute_in_time
+modimport('asyncutil')
 
 -- this is come from seasons.lua
 -- which doesn't exports from the file so we just simply make a copy 
@@ -230,9 +254,6 @@ function M.BuildPhaseString(phase, fullname)
     return fullname and (phase and S.PHASES[phase:upper()] or '') or (phase and S.PHASES_SHORTTEN[phase:upper()] or S.UNKNOWN_PHASE)
 end
 
--- function M.BuildDaySeasonString(day, season_enum)
---     return BuildDayString(day) .. '-' .. BuildSeasonString(season_enum)
--- end
 local build_string_substitute_table = {
     day = M.BuildDayString,
     season = M.BuildSeasonString,
@@ -251,11 +272,13 @@ function M.BuildSnapshotBriefString(fmt, datatable, substitute_table)
         BuildSnapshotBriefString('{day}-{season} {phase}', {day = 1, season = 1, phase = 'night'})
         == 'Day 1-Winter Night'
     ]]
-    return string.gsub(fmt, '%{(%w+)%}', function(capture)
+    return string.gsub(fmt, '%{([%w_]+)%}', function(capture)
         return substitutor[capture](datatable[capture])
     end)
 end
 
+-- newest rollback slot is always available with c_reset() or c_rollback(0)
+-- but may not available when calling c_rollback(1)
 function M.IsNewestRollbackSlotValid()
     if TheWorld.net == nil or 
         TheWorld.net.components.autosaver == nil or 
@@ -413,7 +436,7 @@ function M.TemporarilyLoadOfflinePlayer(userid, fn, ...)
     for _, v in ipairs(AllPlayers) do
         if v.userid == userid then
             local delay_serialize_time = fn(v, ...) or 0
-            TheWorld:DoTaskInTime(delay_serialize_time, function()
+            execute_in_time_nonstatic(delay_serialize_time, function()
                 v:OnDespawn()
                 SerializeUserSession(v)
                 v:Remove()
@@ -451,11 +474,22 @@ function M.GetSnapshotPlayerData(userid, component_name)
     return data
 end
 
-function M.RollbackBySnapshotID(snapshot_id)
+--[[
+    logic of TheNet:SendWorldRollbackRequestToServer(count):
+    if count == 0, always rollback to the last save file
+    if count ~= 0, there are to cases:
+        1. last save time from now is longer than 30s, rollback to the last 'count' snapshots;
+        -- such as: count = 1: same as count = 0
+        --          count = 2: rollback to the last 2 snapshot
+
+        2. last save time from now is not longer than 30s, rollback to the last 'count' + 1 snapshots.
+        -- such as: count = 1: rollback to the last 2 snapshot
+
+]]
+function M.RollbackBySnapshotID(snapshot_id) --> return none
     local current_id = TheNet:GetCurrentSnapshot()
     if snapshot_id > current_id then
         -- bad snapshot id
-        return nil
     elseif snapshot_id == current_id then
         -- do a reset
         -- if the index is zero, server will not do the following judgement
@@ -471,18 +505,17 @@ function M.RollbackBySnapshotID(snapshot_id)
                 local rollback_index = current_id - snapshot_id -- >= 1 
                 if M.IsNewestRollbackSlotValid() then
                     TheNet:SendWorldRollbackRequestToServer(rollback_index)
-                elseif rollback_index ~= 1 then
-                    TheNet:SendWorldRollbackRequestToServer(rollback_index - 1)
+                -- elseif rollback_index ~= 1 then
                 else
-                    -- rollback_index - 1 == 0
-                    -- this snapshot is un-reachable, cuz it is too new
-                    return nil
+                    TheNet:SendWorldRollbackRequestToServer(rollback_index - 1)
+
+                -- else
+                    -- rollbakc_index - 1 == 0
+
                 end
-                return i
             end
         end
-        -- does not exists
-        return nil
+        -- snapshot does not exists
     end
 end
 
@@ -703,5 +736,6 @@ function M.ReadModeratorDataFromPersistentFile()
     end)
     return result_list or {}
 end
+
 
 end -- is server

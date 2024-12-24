@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_SENDED_SAVE_REQUEST = '%s raised a save request',
     FMT_SENDED_ROLLBACK_REQUEST = '%s raised a rollback request, to the %dth saving point:%s',
     FMT_SENDED_ROLLBACK2_REQUEST = '%s raised a rollback request, to the saving point: %s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s raised a world regenerating request, the world will regenerate in %d second(s)',
 
     FMT_SET_NEW_PLAYER_JOINABILITY = {
@@ -48,6 +49,7 @@ STRINGS.UI.MANAGE_TOGETHER = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s) don\'t have any target item%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', the player exists deeper container(s) that haven\'t been search',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = ' exists deeper container(s) that haven\'t been search, ',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
 
     MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = 'inventory item statistics has finished, but missing some server shard\'s response',
     MAKE_ITEM_STAT_FINISHED = 'inventory item statistics has finished',
@@ -70,9 +72,9 @@ STRINGS.UI.MANAGE_TOGETHER = {
     --     NIGHT = 'N',
     -- },
     UNKNOWN_PHASE = 'Unknown Phase',
-    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = 'server will restart when nobody online, currently the warning is disabled',
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = 'server will restart when nobody online, currently the warning announcement is disabled',
     MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = 'mod out of date warning is disabled',
-    MODOUTOFDATE_REVOTE = 'mod out of date warning is disabled, vote will restart in %d minute(s)',
+    MODOUTOFDATE_REVOTE = 'mod out of date warning is disabled, vote will be start again in %d minute(s)',
 
     -- vote related strings
     VOTE = {
