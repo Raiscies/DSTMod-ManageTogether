@@ -19,6 +19,7 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_KILLBANNED_PLAYER = '%s(%s)已被杀死并封禁',
     FMT_SENDED_SAVE_REQUEST = '%s发起了存档请求',
     FMT_SENDED_ROLLBACK_REQUEST = '%s发起了回档请求, 到第%d个存档点:%s',
+    FMT_ROLLBACK_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
     FMT_SENDED_ROLLBACK2_REQUEST = '%s发起了到存档点:%s的回档请求',
     FMT_SENDED_REGENERATE_WORLD_REQUEST = '%s发起了世界重置请求, 世界将在%d秒后重新生成',
 
@@ -49,7 +50,10 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     FMT_MAKE_ITEM_STAT_DOES_NOT_HAVE_ITEM = '%s(%s)无任何目标物品%s;',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', 该玩家存在未执行统计的深层容器',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = '存在未执行统计的深层容器, ',
-    MAKE_ITEM_STAT_DELIM = '',
+    MAKE_ITEM_STAT_DELIM = '————————————————————',
+    MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = '物品栏物品统计已结束, 但没有收到部分服务器分片的结束通知', 
+    MAKE_ITEM_STAT_FINISHED = '物品栏物品统计已完成',
+
     -- unused: MAKE_ITEM_STAT_END = '物品栏统计结束',
     ERR_REPEATED_REQUEST = '回档请求未响应: 存在正在进行的回档操作',
     ERR_DATA_INCONSISTENT = '回档请求未响应: 请求与快照索引可能不一致, 请重试',
@@ -67,6 +71,10 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
         NIGHT = '夜',
     },
     UNKNOWN_PHASE = '未知时段',
+
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = '服务器将在无人时重启, 当前已关闭警告',
+    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = '服务器模组过期警告已关闭',
+    MODOUTOFDATE_REVOTE = '投票将会在%d分钟后重新发起',
 
     -- vote related strings
     VOTE = {
@@ -120,6 +128,14 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
             TITLE = '我们应该执行物品栏物品统计吗?'
+        }, 
+        MODOUTOFDATE = {
+            FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么', 
+            TITLE = '服务器模组已过期, 我们应该...', 
+            SHUTDOWN = '立即重启服务器', 
+            SHUTDOWN_WHEN_NOBODY = '服务器无人时重启', 
+            SUPPRESS_ANNOUNCEMENT = '仅关闭警告', 
+            DELAY = '一会再说',
         }
     }
 }
@@ -148,7 +164,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = '错误的回档索引',
     ERR_ROLLBACK_DESC_BAD_INDEX = '这个存档槽不是合法的, 请重新检查',
     ROLLBACK_SPINNER_NEWEST = '(最近)',
-    ROLLBACK_SPINNER_NEWEST_SLOT_INVALID = '这个快照由于距离存档时间太近而被禁用(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = '这个存档快照是刚刚生成的(<30s)',
     ROLLBACK_SPINNER_EMPTY = '空',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season}{phase}', -- eg: 第xx天-秋夜
 
@@ -175,17 +191,50 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
     REMOVE_MODERATOR = '移除监督员',
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = '切换新玩家可加入状态',
+    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么新玩家可加入状态将于服务器不满足「%s」时被自动关闭, 否则自动开启',
+    
+    -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
-        ALLOW_ALL_PLAYER = '禁止新玩家加入\n当前已允许新玩家加入', 
-        ALLOW_OLD_PLAYER = '允许新玩家加入\n当前已禁止新玩家加入', 
+        ALLOW_ALL_PLAYER = '切换新玩家可加入状态\n当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '切换新玩家可加入状态\n当前已禁止新玩家加入', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n新玩家指不曾加入过该服务器的玩家. 如果服务器启用了新玩家自动过滤器, 那么你的设置将可能在玩家数量变动时被覆盖',
+    -- popup dialog button/desc
+    DIALOG_SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = '当前已允许新玩家加入', 
+        ALLOW_OLD_PLAYER = '当前已禁止新玩家加入',
+        
+        JOINABILITY_BUTTON = {
+            -- button action inverts the current state
+            ALLOW_ALL_PLAYER = '禁止新玩家加入', 
+            ALLOW_OLD_PLAYER = '允许新玩家加入', 
+        },
+        
 
+        -- auto new player wall
+        WALL_ENABLED = '新玩家可加入性动态调整已开启',
+        WALL_DISABLED = '新玩家可加入性动态调整已关闭',
+
+        WALL_BUTTON = {
+            -- button action inverts the current state
+            WALL_ENABLED = '关闭新玩家可加入性动态调整',
+            WALL_DISABLED = '开启新玩家可加入性动态调整',
+        },
+
+        WALL_LEVEL = {
+            ADMIN = '管理员在线时',
+            MODERATOR = '管理员或监督员在线时',
+            USER = '任意玩家在线时',
+            UNKNOWN = '*未知条件'
+        }
+    },
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n如果玩家可加入性动态调整已启用, 那么你的设置可能会在玩家状态改变时被覆盖',
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\n目标玩家目前离线. 对于部分命令, 服务器将短暂地加载目标玩家并执行该命令',
 
     FMT_CONFIRM_DIALOG_TITLE = '%s玩家', 
     FMT_CONFIRM_DIALOG_DESC  = '将玩家%s %s%s',
     FMT_INPUT_TO_CONFIRM = '输入%s以确认%s',
 
-    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...'
+    LOAD_MORE_HISTORY_PLAYERS = '加载更多玩家...', 
+    FMT_SERVER_WILL_SHUTDOWN = '服务器将会在%d秒内关闭, 原因: %s',
+    SHUTDOWN_REASON_UPDATE_MOD = '重启并更新模组'
 }
