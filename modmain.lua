@@ -118,7 +118,7 @@ local function InitConfigs()
         GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
 
-    M.RPC_RESPONSE_TIMEOUT = 5
+    M.RPC_RESPONSE_TIMEOUT = 10
 end
 InitConfigs()
 
@@ -353,7 +353,6 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
         votecanstartfn = VoteUtil.DefaultCanStartVote,
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
         serverfn = function(params, caller)
-            dbg('passed vote: serverfn')
             local env = M.GetVoteEnv()
             if not env then
                 log('error: failed to execute vote command: command arguments lost')
@@ -654,7 +653,7 @@ M.AddCommands(
             -- kill a player, and let it drop everything
 
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
-            -- dbg('on KILL: missing_cou',)
+            
             if missing_count > 0 or result_table == nil then
                 return M.ERROR_CODE.MISSING_RESPONSE
             end
@@ -777,6 +776,14 @@ M.AddCommands(
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
             execute_in_time(delay_seconds, c_shutdown)
+            -- if TheWorld then
+            --     TheWorld:DoTaskInTime(delay_seconds, function()
+            --         c_shutdown()
+            --     end)
+            -- else
+            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
+            --     c_shutdown()
+            -- end
 
         end
     },
@@ -811,7 +818,7 @@ M.AddCommands(
         args_description = function(allowed) return allowed and S.ALLOW_NEW_PLAYER_JOIN or S.NOT_ALLOW_NEW_PLAYER_JOIN end,
         fn = function(doer, allowed)
             if allowed ~= nil and type(allowed) ~= 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
-            allowed = not not allowed
+            allowed = bool(allowed)
             GetServerInfoComponent():SetAllowNewPlayersToConnect(allowed)
             M.announce_fmt(S.FMT_SET_NEW_PLAYER_JOINABILITY[allowed and 'ALLOW' or 'NOT_ALLOW'], doer.name)
         end
@@ -823,11 +830,15 @@ M.AddCommands(
         fn = function(doer, enabled, min_online_player_level)
 
             -- only admin can set min_online_player_level
-            -- moderator's argument of this will be ignore
+            -- if moderator passed a non-nil min_online_player_level, a whole command whil be failed to execute
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
-                GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
-                dbg('a non-admin player executed SET_AUTO_NEW_PLAYER_WALL command, min_online_player_level argument is ignored')
+                if min_online_player_level ~= nil then
+                    GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
+                else
+                    dbg('a non-admin player is attempt to execute SET_AUTO_NEW_PLAYER_WALL command but min_online_player_level is not nil')
+                    return M.ERROR_CODE.BAD_ARGUMENT
+                end
             else
                 GetServerInfoComponent():SetAutoNewPlayerWall(enabled, min_online_player_level)
             end
@@ -883,7 +894,7 @@ M.AddCommands(
             end
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
@@ -979,7 +990,7 @@ M.AddCommands(
                         on_server_once_empty()
                     end
 
-                    TheWorld:ListenForEvent('ms_playercounts', function(data)
+                    TheWorld:ListenForEvent('ms_playercounts', function(inst, data)
                         if data.total == 0 then
                             -- server is empty now, but we wait for one more minute
                             on_server_once_empty()
@@ -1176,12 +1187,12 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        -- dbg('SEND_COMMAND: {player = }, {cmd = }, {arg = }')
+        
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
-        -- dbg('SEND_COMMAND result: ', result)
+        
         return result
     end)
 
@@ -1304,15 +1315,15 @@ function M.CheckArgs(checkers, ...)
                 last_checker_fn = this_checker
             elseif type(this_checker) == 'string' then
                 local the_checker_fn = CHECKERS[this_checker]
-                -- dbg('the_checker: ', this_checker)
+                
                 assert(the_checker_fn ~= nil)
-                -- dbg('the_checker_fn: ', the_checker_fn)
+                
                 -- bad argument 
                 if not the_checker_fn(this_arg) then
-                    -- dbg('check result: no')
+                    
                     return false
                 end
-                -- dbg('check result: yes')
+                
                 last_checker_fn = the_checker_fn
             end
         end
@@ -1464,7 +1475,6 @@ if TheShard:IsMaster() then
 -- listen for newplayerwall state change
 AddPrefabPostInit('world', function(inst)
     inst:ListenForEvent('master_newplayerwallupdate', function(src, data)
-        dbg('listened master_newplayerwallupdate, {data = }')
         -- redirect MINIMUM level to USER
         local required_min_level = data.required_min_level == M.PERMISSION.MINIMUM and M.PERMISSION.USER or data.required_min_level
         if data.old_state == data.new_state then return end
@@ -1503,15 +1513,12 @@ modimport('historyplayerscreen')
 -- Client codes end ------------------------------------------------------------
 end
 
-local function HasPermission(classified, cmd)
-    return M.HasPermission(cmd, classified.permission_mask) or false 
-end
 local function HasVotePermission(classified, cmd)
     return M.HasPermission(cmd, classified.vote_permission_mask) or false
 end
 
-local function GetAllowNewPlayersToConnect(classified)
-    return classified.allow_new_players_to_connect
+local function HasPermission(classified, cmd)
+    return (M.HasPermission(cmd, classified.permission_mask) or false), HasVotePermission(classified, cmd) 
 end
 
 local function QueryHistoryPlayers(classified, block_index)
@@ -1521,12 +1528,6 @@ local function QueryHistoryPlayers(classified, block_index)
         dbg('ignored a request for query history record, because one request has just sended')
         return
     end
-
-    -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), 
-    --     M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
-    --     classified.last_query_player_record_timestamp, 
-    --     block_index or classified.next_query_player_record_block_index
-    -- )
 
     SendRPCToServer('SEND_COMMAND', 
         M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, 
@@ -1552,7 +1553,6 @@ end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
     local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
-    dbg('on RequestToExecuteCommand: {future = }, {success = }')
     future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
         if not retcode or missing_response_count == 1 then
@@ -1618,8 +1618,8 @@ local function CommandApplyableForPlayerTarget(classified, cmd, target_userid)
     end
 
     local target_lvl
-    if GLOBAL.TheWorld then
-        target_lvl = chain_get(GLOBAL.TheWorld.components.serverinforecord.player_record, target_userid, 'permission_level')
+    if TheWorld then
+        target_lvl = chain_get(TheWorld.net.components.serverinforecord.player_record, target_userid, 'permission_level')
     end
     if not target_lvl then return M.EXECUTION_CATEGORY.NO end
     if classified:HasPermission(cmd) and M.LevelHigherThan(classified.permission_level, target_lvl) then
@@ -1652,7 +1652,7 @@ AddPrefabPostInit('player_classified', function(inst)
         net_uint(inst.GUID, 'manage_together.vote_permission_masks[1]', 'vote_permission_mask_changed'),
         net_uint(inst.GUID, 'manage_together.vote_permission_masks[2]', 'vote_permission_mask_changed')
     }
-    inst.net_allow_new_players_to_connect = net_bool(inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed')
+
 
     inst.net_suppress_mod_outofdate_announcement = net_bool(inst.GUID, 'manage_together.suppress_mod_outofdate_annoucement', 'suppress_mod_outofdate_annoucement_state_changed')
 
@@ -1661,6 +1661,7 @@ AddPrefabPostInit('player_classified', function(inst)
     inst.permission_mask = 0
     inst.vote_permission_mask = 0
     inst.allow_new_players_to_connect = false
+    inst.auto_new_player_wall_enabled = false
     inst.last_query_player_record_timestamp = nil
     inst.next_query_player_record_block_index = 1
 
@@ -1679,11 +1680,6 @@ AddPrefabPostInit('player_classified', function(inst)
     inst:ListenForEvent('vote_permission_mask_changed', function()
         inst.vote_permission_mask = M.concatbit32to64(inst.net_vote_permission_masks[1]:value(), inst.net_vote_permission_masks[2]:value())
         dbg('player_classified: vote_permission_mask_changed: {inst.vote_permission_mask = }')
-    end)
-    
-    inst:ListenForEvent('new_player_joinability_changed', function()
-        inst.allow_new_players_to_connect = inst.net_allow_new_players_to_connect:value()
-        dbg('player_classified: new_player_joinability_changed, {inst.allow_new_players_to_connect = }')
     end)
 
     inst:ListenForEvent('suppress_mod_outofdate_annoucement_state_changed', function()
@@ -1709,14 +1705,9 @@ AddPrefabPostInit('player_classified', function(inst)
         end, TheWorld)
 
         if TheWorld.ismastersim then
-            local recorder = TheWorld.shard.components.shard_serverinforecord
+            --  server side of player_classified
 
-            inst:ListenForEvent('ms_new_player_joinability_changed', function()
-                dbg('player_classified: listened ms_new_player_joinability_changed: ', recorder:GetAllowNewPlayersToConnect())
-                if HasPermission(inst, M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
-                    inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
-                end
-            end, TheWorld.shard) -- inst == shard_network
+            local recorder = TheWorld.shard.components.shard_serverinforecord
 
             if M.MOD_OUTOFDATE_HANDLER_ENABLED then
                  
@@ -1726,27 +1717,11 @@ AddPrefabPostInit('player_classified', function(inst)
                 end, TheWorld.shard)
                 
             end
-            -- update once
-            inst:DoTaskInTime(1, function()
-                dbg('player_classified: update new player joinability once: ', recorder:GetAllowNewPlayersToConnect())
-
-                if inst._parent then
-                    local mask = M.PERMISSION_MASK[PermissionLevel(inst._parent.userid)]
-                    dbg('{inst._parent: }, {inst._parent.userid: }, {mask: }')
-                    if M.HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS, mask) then
-                        inst.net_allow_new_players_to_connect:set(recorder:GetAllowNewPlayersToConnect())
-                        dbg('finished to set new player joinability')
-                    end
-                else
-                    dbg('error at player_classified: inst._parent is nil')
-                end
-            end)
         end
     end
 
     inst.HasPermission = HasPermission
     inst.HasVotePermission = HasVotePermission
-    inst.GetAllowNewPlayersToConnect = GetAllowNewPlayersToConnect
     inst.SetPermission = SetPermission
     inst.QueryHistoryPlayers = QueryHistoryPlayers
     inst.QuerySnapshotInformations = QuerySnapshotInformations
@@ -1759,10 +1734,25 @@ AddPrefabPostInit('player_classified', function(inst)
 end)
 
 
-AddPrefabPostInit('world', function(inst)
-    dbg('AddPrefabPostInit: world')
 
+-- what a bad idea, this will cause netvar sync problem...
+-- AddPrefabPostInit('world', function(inst)
+--     dbg('AddPrefabPostInit: world')
+--     -- inst:DoTaskInTime(1, function()
+--     --     if inst.net then
+--     --         inst.net:AddComponent('serverinforecord')
+--     --         dbg('added component for inst.net')
+--     --     else
+--     --         dbg('error: failed to add component for inst.net')
+--     --     end
+--     -- end)
+-- end)
+
+AddPrefabPostInit('forest_network', function(inst)
     inst:AddComponent('serverinforecord')
-    
+end)
+
+AddPrefabPostInit('cave_network', function(inst)
+    inst:AddComponent('serverinforecord')
 end)
 

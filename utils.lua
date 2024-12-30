@@ -122,6 +122,10 @@ function M.in_int_range(a, b, x)
         a <= x and x <= b
 end
 
+function M.bool(val)
+    return not not val -- forcely cast a value to bool
+end
+
 function M.key_exists(tab, key) return tab[key] ~= nil end
 
 -- little endian

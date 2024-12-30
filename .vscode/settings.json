@@ -158,7 +158,8 @@
         "ShardList",
         "select_first",
         "StartNextInstance",
-        "RESET_ACTION"
+        "RESET_ACTION",
+        "bool"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",

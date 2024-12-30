@@ -50,6 +50,9 @@ STRINGS.UI.MANAGE_TOGETHER = {
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER1 = ', the player exists deeper container(s) that haven\'t been search',
     MAKE_ITEM_STAT_HAS_DEEPER_CONTAINER2 = ' exists deeper container(s) that haven\'t been search, ',
     MAKE_ITEM_STAT_DELIM = '————————————————————',
+
+    MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE = 'inventory item statistics has finished, but missing some server shard\'s response',
+    MAKE_ITEM_STAT_FINISHED = 'inventory item statistics has finished',
     ERR_REPEATED_REQUEST = 'rollback request does not be accept: a rollback action is already exists',
     ERR_DATA_INCONSISTENT = 'rollback request does not be accept: the request might not consistant with the rollback index, please try again',
 
@@ -69,16 +72,15 @@ STRINGS.UI.MANAGE_TOGETHER = {
     --     NIGHT = 'N',
     -- },
     UNKNOWN_PHASE = 'Unknown Phase',
-    
-    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = 'server will restart when it is empty, warning announcement is turned off now',
-    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = 'mod out of date warning announcement is turned off',
-    MODOUTOFDATE_REVOTE = 'vote will be start again in %d minute(s)',
+    MODOUTOFDATE_SHUTDOWN_WHEN_SERVER_EMPTY = 'server will restart when nobody online, currently the warning announcement is disabled',
+    MODOUTOFDATE_SUPPRESSED_ANNOUNCEMENT = 'mod out of date warning is disabled',
+    MODOUTOFDATE_REVOTE = 'mod out of date warning is disabled, vote will be start again in %d minute(s)',
 
     -- vote related strings
     VOTE = {
         FMT_START = '%s started a vote: %s?',
-        -- only some of the command to vote has there's strings 
         FAILED_TO_START = 'failed to start a vote',
+        -- only some of the command to vote has there's strings
         KICK = {
             -- for vote beginning announcement
             FMT_ANNOUNCE = 'should we kick %s',
@@ -128,12 +130,12 @@ STRINGS.UI.MANAGE_TOGETHER = {
             TITLE = 'should we execute a inventory item statistics?'
         },
         MODOUTOFDATE = {
-            FMT_ANNOUNCE = 'server mod is out of date, should we do something', 
-            TITLE = 'serer mod is out of date, we should...', 
-            SHUTDOWN = 'restart server now', 
-            SHUTDOWN_WHEN_NOBODY = 'restart server when it is empty', 
-            SUPPRESS_ANNOUNCEMENT = 'turn off warning announcement', 
-            DELAY = 'vote it later',
+            FMT_ANNOUNCE = 'server mod is out of date, should we do something?', 
+            TITLE = 'server mod is out of date, should we...', 
+            SHUTDOWN = 'restart the server now', 
+            SHUTDOWN_WHEN_NOBODY = 'restart the server when nobody online', 
+            SUPPRESS_ANNOUNCEMENT = 'only suppress the warning', 
+            DELAY = 'delay the decision',
         }
     }
 }
@@ -151,7 +153,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
 
     -- this website does not accept \n to return line, use <br> instead
     FMT_TEXT_WEB_PAGE = 'Name: %s<br>User ID: %s<br>Steam ID: %s',
-    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#(Refresh_If_Blank_Page)DumpedPlayerData/data:text/plain;base64,%s',
+    FMT_URL_WAB_PAGE = 'https://itty.bitty.site/#ExportedPlayerData/data:text/plain;base64,%s',
     UNKNOWN = 'unknown',
 
     -- server commands
@@ -162,7 +164,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     ERR_ROLLBACK_TITLE_BAD_INDEX = 'wrong rollback index',
     ERR_ROLLBACK_DESC_BAD_INDEX = 'this slot is not valid, please check it again',
     ROLLBACK_SPINNER_NEWEST = '(Most Recent)',
-    ROLLBACK_SPINNER_SLOT_NEW_CREATED = 'this snapshot is generated just now(<30s)',
+    ROLLBACK_SPINNER_SLOT_NEW_CREATED = 'this snapshot is just created(<30s)',
     ROLLBACK_SPINNER_EMPTY = 'Empty',
     FMT_ROLLBACK_SPINNER_BRIEF = '{day}-{season} {phase}', -- eg: Day xx-Winter Night
 
@@ -175,7 +177,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = 'Execute Item Statistics',
     MAKE_ITEM_STAT_DESC = 'Search and make a Statistics for appointted items in all of the online/offline player\'s inventory\nitem name or its prefab name are both accepted',
     MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
-    MAKE_ITEM_STAT_TEXT_PROMPT = 'Cut Grass,yellowstaff',
+    MAKE_ITEM_STAT_TEXT_PROMPT = 'cutgrass,yellowstaff',
     REFRESH_RECORDS = 'Update Data',
     REFRESH_RECORDS_DESC = 'most of the situation you don\'t need to click this button, but if you found something wrong about display, just try it', 
     -- player commands
@@ -189,17 +191,50 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     REMOVE_MODERATOR = 'Remove Moderator',
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = 'modify new player joinability',
+    -- TODO FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\nnew player ...',
+    
+    -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
         ALLOW_ALL_PLAYER = 'forbidden new players to join the server\ncurrently allow new players to join', 
         ALLOW_OLD_PLAYER = 'allow new players to join the server\nncurrently not allow new players to join', 
     },
-    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\nyour setting may be covered while server player state changes if server enabled auto new player filter',
+    -- popup dialog button/desc
+    DIALOG_SET_NEW_PLAYER_JOINABILITY = {
+        ALLOW_ALL_PLAYER = 'currently allowed new players to join', 
+        ALLOW_OLD_PLAYER = 'currently forbiddened new players to join',
+    
+    JOINABILITY_BUTTON = {
+        -- button action inverts the current state
+        ALLOW_ALL_PLAYER = 'forbidden new players to join', 
+        ALLOW_OLD_PLAYER = 'allow new players to join', 
+    },
 
+
+        -- auto new player wall
+        WALL_ENABLED = 'auto new player wall is enabled',
+        WALL_DISABLED = 'auto new player wall is disabled',
+
+        WALL_BUTTON = {
+            -- button action inverts the current state
+            WALL_ENABLED = 'disable auto new player wall',
+            WALL_DISABLED = 'enable auto new player wall',
+        },
+
+        WALL_LEVEL = {
+            ADMIN = 'when admin online',
+            MODERATOR = 'when admin/moderator online',
+            USER = 'when any player online',
+            UNKNOWN = '*unknown condition'
+        }
+    },
+    AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\nyour setting may be covered while server player state changes if server enabled auto new player filter',
     COMFIRM_DIALOG_OFFLINE_PLAYER_DESC = '\nthe target player is offline currently, for some commands, server will temporarily load the player and execute the command',
 
     FMT_CONFIRM_DIALOG_TITLE = '%s the player', 
     FMT_CONFIRM_DIALOG_DESC  = 'execute command to player %s, command is: %s%s', -- player name, action, COMFIRM_DIALOG_OFFLINE_PLAYER_DESC or ''
     FMT_INPUT_TO_CONFIRM = 'input %s to confirm %s',
 
-    LOAD_MORE_HISTORY_PLAYERS = 'Load more player records...'
+    LOAD_MORE_HISTORY_PLAYERS = 'Load more player records...',
+    FMT_SERVER_WILL_SHUTDOWN = 'server will shutdown in %d second(s), reason: %s',
+    SHUTDOWN_REASON_UPDATE_MOD = 'restart and update mods'
 }

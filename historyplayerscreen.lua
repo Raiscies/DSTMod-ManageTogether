@@ -121,23 +121,6 @@ local function DoInitScreenToggleButton(screen, current_or_history_index)
     end
 end
 
-local function PopupConfirmDialog(action_name, action_desc, callback_on_confirmed, ...)
-    local args = {...}
-    local button_ok_item     = {text=STRINGS.UI.PLAYERSTATUSSCREEN.OK, cb = function() TheFrontEnd:PopScreen() callback_on_confirmed(unpack(args)) end}
-    local button_cancel_item = {text=STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
-            
-    TheFrontEnd:PushScreen(
-        PopupDialogScreen(
-            -- name
-            string.format(STRINGS.UI.COMMANDSSCREEN.CONFIRMTITLE, action_name), 
-            -- text
-            action_desc,
-            -- buttons
-            {button_ok_item, button_cancel_item}
-        )
-    )
-end
-
 local InputVerificationDialog = Class(InputDialogScreen, function(self, title, verify_fn, on_confirmed_fn)
     
     InputDialogScreen._ctor(self, title, {
@@ -335,7 +318,14 @@ function ItemStatDialog:GetItemPrefabs()
     return self.the_item_prefabs
 end
 
-local function PopupDialog(title, text)
+local function PopupDialog(title, text, buttons)
+    if not buttons then
+        buttons = {}
+    end
+    table.insert(buttons, 
+        -- a default button
+        {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
+    )
     TheFrontEnd:PushScreen(
         PopupDialogScreen(
             -- name
@@ -343,9 +333,24 @@ local function PopupDialog(title, text)
             -- text
             text,
             -- buttons
-            {
-                {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
-            }
+            buttons
+        )
+    )
+end
+
+local function PopupConfirmDialog(action_name, action_desc, callback_on_confirmed, ...)
+    local args = {...}
+    local button_ok_item     = {text = STRINGS.UI.PLAYERSTATUSSCREEN.OK, cb = function() TheFrontEnd:PopScreen() callback_on_confirmed(unpack(args)) end}
+    local button_cancel_item = {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
+            
+    TheFrontEnd:PushScreen(
+        PopupDialogScreen(
+            -- name
+            string.format(STRINGS.UI.COMMANDSSCREEN.CONFIRMTITLE, action_name), 
+            -- text
+            action_desc,
+            -- buttons
+            {button_ok_item, button_cancel_item}
         )
     )
 end
@@ -414,11 +419,15 @@ local function CreateButtonOfServer(screen, name, img_src, close_on_clicked, com
         screen.servermenunumbtns = screen.servermenunumbtns + 1 
         
         local cmd = M.COMMAND_ENUM[name:upper()]
-        if cmd == nil or ThePlayer.player_classified:HasPermission(cmd) then
+        local perm, vote_perm = true, false
+        if cmd ~= nil then
+            perm, vote_perm = ThePlayer.player_classified:HasPermission(cmd)
+        end
+        if perm then
             screen.server_button_x = screen.server_button_x + screen.server_button_offset
             button:SetPosition(screen.server_button_x, 200)
             button:Show()
-        elseif ThePlayer.player_classified:HasVotePermission(cmd) then
+        elseif vote_perm then
             button:EnableVote()
             screen.server_button_x = screen.server_button_x + screen.server_button_offset
             button:SetPosition(screen.server_button_x, 200)
@@ -488,14 +497,15 @@ local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_nam
         screen.servermenunumbtns = screen.servermenunumbtns + 1 
         
         local cmd = M.COMMAND_ENUM[name:upper()]
-        if cmd ~= nil and not ThePlayer.player_classified:HasPermission(cmd) then
+        local perm, vote_perm = ThePlayer.player_classified:HasPermission(cmd)
+        if cmd ~= nil and not perm then
             button:Hide()
             return
         end
         screen.server_button_x = screen.server_button_x + screen.server_button_offset
         button:SetPosition(screen.server_button_x, 200)
         button:Show()
-        if not ThePlayer.player_classified:HasPermission(cmd) and ThePlayer.player_classified:HasVotePermission(cmd) then
+        if not perm and vote_perm then
             button:EnableVote()
         end
     end
@@ -544,20 +554,41 @@ local function DoInitServerRelatedCommnadButtons(screen)
     CreateSwitchOfServer(screen, 'set_new_player_joinability', 'allow_all_player', 'allow_old_player',
         false, 
         function(current_state, vote_state)
-            local current_state_text = screen.set_new_player_joinability.state_res[current_state].hover_text.text
+            -- local current_state_text = screen.set_new_player_joinability.state_res[current_state].hover_text.text
+            local wall_enabled, wall_min_level = screen.recorder:GetAutoNewPlayerWall()
+            local joinability_key = current_state and 'ALLOW_ALL_PLAYER' or 'ALLOW_OLD_PLAYER'
+            local wall_enabled_key = wall_enabled and 'WALL_ENABLED' or 'WALL_DISABLED'
+            local desc_table = S.DIALOG_SET_NEW_PLAYER_JOINABILITY
+            local text_min_level = desc_table.WALL_LEVEL[M.LevelEnumToName(wall_min_level)] or desc_table.WALL_LEVEL.UNKNOWN
 
-            PopupConfirmDialog(
+            local has_set_wall_permission, has_set_wall_vote_permission = ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL) 
+
+            PopupDialog(
+                -- title
                 (vote_state and S.START_A_VOTE or '') .. S.SET_NEW_PLAYER_JOINABILITY_TITLE, 
-                current_state_text .. S.AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED, 
-                function() ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) end
+                -- desc
+                string.format(S.FMT_SET_NEW_PLAYER_JOINABILITY_DESC,  desc_table[joinability_key], desc_table[wall_enabled_key], text_min_level),
+                -- buttons
+                {
+                    -- 1. switch player joinability
+                    {text = desc_table.JOINABILITY_BUTTON[joinability_key], cb = function() 
+                        ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.SET_NEW_PLAYER_JOINABILITY, not current_state) 
+                        TheFrontEnd:PopScreen()
+                    end}, 
+                    -- 2. switch autowall - only when player has a permission
+                    (has_set_wall_permission or has_set_wall_vote_permission) and 
+                        {text = desc_table.WALL_BUTTON[wall_enabled_key], cb = function() 
+                            ExecuteOrStartVote((not has_set_wall_permission) or vote_state, M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL, not wall_enabled)
+                            TheFrontEnd:PopScreen()
+                        end} or nil 
+                } 
             )
-             
         end
     )
     -- modify 'disabled' texture
     screen.set_new_player_joinability.state_res[true].textures[4] = 'not_allow_all_select.tex'
     screen.set_new_player_joinability.state_res[false].textures[4] = 'not_allow_all_select.tex'
-    local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
+    local new_player_joinability = screen.recorder:GetAllowNewPlayersToConnect()
     if new_player_joinability then
         screen.set_new_player_joinability:TurnOn()
     else
@@ -613,17 +644,15 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.usercommandpickerscreen = nil
     self.show_player_badge = not TheFrontEnd:GetIsOfflineMode() and TheNet:IsOnlineMode()
 
-    self.recorder = TheWorld.components.serverinforecord
+    self.recorder = TheWorld.net.components.serverinforecord
 
     self.on_snapshot_info_dirty = function()
-        dbg('on_snapshot_info_dirty')
         if not self.needs_update_snapshot_info then
-            dbg('querying snapshot infos')
             ThePlayer.player_classified:QuerySnapshotInformations() 
             -- make a flag, in case the event broadcast frequently in a short time
             self.needs_update_snapshot_info = true
-            self.owner:DoTaskInTime(1, function()
-                self.needs_update_snapshot_info = nil
+            execute_in_time(1, function()
+                    self.needs_update_snapshot_info = nil
             end)
         end
     end
@@ -645,7 +674,7 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.on_new_player_joinability_updated = function()
          
         if self.shown then
-            local new_player_joinability = ThePlayer.player_classified:GetAllowNewPlayersToConnect()
+            local new_player_joinability = self.recorder:GetAllowNewPlayersToConnect()
             if new_player_joinability then
                 self.set_new_player_joinability:TurnOn()
             else
@@ -653,6 +682,12 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
             end
         end
     end
+
+    -- self.on_auto_new_player_wall_updated = function()
+    --     if self.shown then
+    --         local enabled, 
+    --     end
+    -- end
 end)
 
 function HistoryPlayerScreen:GenerateSortedKeyList()
@@ -693,10 +728,6 @@ function HistoryPlayerScreen:GenerateSortedKeyList()
     
 end
 
--- function HistoryPlayerScreen:BuildDaySeasonStringByInfoIndex(index)
---     return M.BuildDaySeasonString(self.recorder.snapshot_info[index].day, self.recorder.snapshot_info[index].season)
--- end
-
 function HistoryPlayerScreen:BuildSnapshotBriefStringByInfoIndex(index)
     return M.BuildSnapshotBriefString(S.FMT_ROLLBACK_SPINNER_BRIEF, self.recorder.snapshot_info[index])
 end
@@ -729,17 +760,15 @@ function HistoryPlayerScreen:OnDestroy()
     self:StopFollowMouse()
     self:Hide()
 
-    if TheWorld then
-       if TheWorld.net then
-            self.owner:RemoveEventCallback('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
-        end
-        self.owner:RemoveEventCallback('snapshot_info_updated', self.on_snapshot_info_updated, TheWorld)
-        self.owner:RemoveEventCallback('player_record_sync_completed', self.on_server_data_updated, TheWorld)
+    if TheWorld and TheWorld.net then
+        self.owner:RemoveEventCallback('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
+        self.owner:RemoveEventCallback('snapshot_info_updated', self.on_snapshot_info_updated, TheWorld.net)
+        self.owner:RemoveEventCallback('player_record_sync_completed', self.on_server_data_updated, TheWorld.net)
+        self.owner:RemoveEventCallback('new_player_joinability_changed', self.on_new_player_joinability_updated, TheWorld.net)
     end
 
     if ThePlayer.player_classified then 
         self.owner:RemoveEventCallback('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
-        self.owner:RemoveEventCallback('new_player_joinability_changed', self.on_new_player_joinability_updated, ThePlayer.player_classified)
     end
     
     if self.onclosefn ~= nil then
@@ -817,7 +846,7 @@ function HistoryPlayerScreen:DoInitRollbackSpinner()
         end
     elseif self.bg_rollback_spinner == nil and not TheInput:ControllerAttached() then
         self.bg_rollback_spinner = self.root:AddChild(Image(M.ATLAS, 'bg_rollback_spinner.tex'))
-        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = 22}, nil, 'images/global_redux.xml', spinner_lean_images, true)
+        sp = Spinner(self.rollback_slots, 240, nil, {font = CHATFONT, size = M.LANGUAGE == 'zh' and 20 or 18}, nil, 'images/global_redux.xml', spinner_lean_images, true)
         sp:SetTextColour(UICOLOURS.GOLD)
         self.rollback_spinner = self.bg_rollback_spinner:AddChild(sp)
         self.rollback_spinner.first_slot_is_new = first_slot_is_new
@@ -1484,17 +1513,15 @@ function HistoryPlayerScreen:DoInit()
         end
     end
 
-    if TheWorld then
-        if TheWorld.net then
-            self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
-        end 
-        self.owner:ListenForEvent('snapshot_info_updated', self.on_snapshot_info_updated, TheWorld)
-        self.owner:ListenForEvent('player_record_sync_completed', self.on_server_data_updated, TheWorld)
+    if TheWorld and TheWorld.net then
+        self.owner:ListenForEvent('issavingdirty', self.on_snapshot_info_dirty, TheWorld.net)
+        self.owner:ListenForEvent('snapshot_info_updated', self.on_snapshot_info_updated, TheWorld.net)
+        self.owner:ListenForEvent('player_record_sync_completed', self.on_server_data_updated, TheWorld.net)
+        self.owner:ListenForEvent('new_player_joinability_changed', self.on_new_player_joinability_updated, TheWorld.net)
     end
 
     if ThePlayer.player_classified then 
         self.owner:ListenForEvent('permission_level_changed', self.on_server_data_updated, ThePlayer.player_classified)
-        self.owner:ListenForEvent('new_player_joinability_changed', self.on_new_player_joinability_updated, ThePlayer.player_classified)
     end
 
 end
