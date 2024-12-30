@@ -2,8 +2,6 @@
 
 local M = manage_together
 
--- M.usingnamespace(M)
-
 local dbg = M.dbg
 local bool = M.bool
 local AddServerRPC = M.AddServerRPC
@@ -19,15 +17,15 @@ local ServerInfoRecord = Class(function(self, inst)
     self.world = TheWorld
 
     if TheWorld.ismastersim then
-        inst:DoTaskInTime(0, function()
+        TheWorld:DoTaskInTime(0, function()
              
             -- on server side
             self.shard_recorder = TheWorld.shard.components.shard_serverinforecord
-            
+
             -- alias
             self.player_record = self.shard_recorder.player_record
             self.snapshot_info = self.shard_recorder.snapshot_info
-        
+
         end)
     else
         -- on client side  
@@ -94,7 +92,11 @@ function ServerInfoRecord:RegisterRPCs()
 
 end
 
+
 function ServerInfoRecord:InitNetVars()
+
+    dbg('on ServerInfoRecord: InitNetVars()')
+
     -- all of these netvars are in public area - all of the clients are available to accept it
     self.netvar = {
         allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
@@ -102,22 +104,45 @@ function ServerInfoRecord:InitNetVars()
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
     }
 
+
+    local force_update = function(var, value)
+        value = bool(value)
+        self.netvar[var]:set_local(value)
+        self.netvar[var]:set(value)
+    end
+
     if TheWorld.ismastersim then
-         
-            -- listen for events from recorder
-        self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
-            local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
+
+        -- listen for events from shard_network - shard_serverinforecord forwarded by TheWorld, and then forward to every clients
+        self.inst:ListenForEvent('ms_new_player_joinability_changed', function(connectable)
+            -- local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
             dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
+            
+            force_update('allow_new_players_to_connect', connectable)
+            -- self.netvar.allow_new_players_to_connect:set(connectable)
+        end, TheWorld) 
+        
+        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function(data)
+            -- local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
+            local enabled, min_level = data.enabled, data.level
+            
+            dbg('SerervInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            force_update('auto_new_player_wall_enabled', enabled)
+            force_update('auto_new_player_wall_min_level', min_level)
+        end, TheWorld)
 
-            self.netvar.allow_new_players_to_connect:set(connectable)
-        end, TheWorld.shard) -- event broadcaster is shard_network
+    else
 
-        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function()
-            local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
-            dbg('ServerInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
-            self.netvar.auto_new_player_wall_enabled:set(enabled)
-            self.netvar.auto_new_player_wall_min_level:set(min_level)
-        end, TheWorld.shard)
+        -- on client side
+        self.inst:ListenForEvent('new_player_joinability_changed', function()
+            local connectable = self:GetAllowNewPlayersToConnect()
+            dbg('client: ServerInfoRecord: listened new_player_joinability_changed: ', connectable)
+        end)
+
+        self.inst:ListenForEvent('auto_new_player_wall_changed', function()
+            local enabled, min_level = self:GetAutoNewPlayerWall()
+            dbg('client:  ServerInfoRecord: listened auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+        end)
     end
 end
 

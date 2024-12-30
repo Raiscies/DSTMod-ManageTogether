@@ -15,7 +15,6 @@ local SendRPCToServer = M.SendRPCToServer
 local SendRPCToClient = M.SendRPCToClient
 local SendRPCToShard = M.SendRPCToShard
 
-
 local ShardServerInfoRecord = Class(
     function(self, inst)
         self.inst = inst -- inst is shard_network
@@ -221,18 +220,19 @@ ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
         self:UpdateNewPlayerWallState() 
     end)
 
-    self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
-        local allowed = bool(self.netvar.allow_new_players_to_connect:value())
-        dbg('event: ms_new_player_joinability_changed: ', allowed)
-        TheNet:SetAllowNewPlayersToConnect(allowed)
-    end)
+    -- self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
+    --     local allowed = bool(self.netvar.allow_new_players_to_connect:value())
+    --     dbg('event: ms_new_player_joinability_changed: ', allowed)
+    --     TheNet:SetAllowNewPlayersToConnect(allowed)
+    -- end)
 
     self:SetAllowNewPlayersToConnect(TheNet:GetAllowNewPlayersToConnect(), true) -- force update
-
+    
     TheWorld:DoTaskInTime(0, function()
-          -- update once
+        -- update once
         dbg('update once new player wall')
         self:UpdateNewPlayerWallState()
+
     end)
 
 
@@ -591,12 +591,37 @@ end
 function ShardServerInfoRecord:InitNetVars()
     self.netvar = {
         is_rolling_back = net_bool(self.inst.GUID, 'shard_serverinforecord.is_rolling_back'),
-        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level', 'ms_auto_new_player_wall_changed'), 
-        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled', 'ms_auto_new_player_wall_changed'),
-        allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_changed'),
+        auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_min_level', 'ms_auto_new_player_wall_dirty'), 
+        auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'shard_serverinforecord.auto_new_player_wall_enabled', 'ms_auto_new_player_wall_dirty'),
+        allow_new_players_to_connect = net_bool(self.inst.GUID, 'shard_serverinforecord.allow_new_players_to_connect', 'ms_new_player_joinability_dirty'),
         
         playerleft_from_a_shard = net_event(self.inst.GUID, 'ms_playerleft_from_a_shard')
     }
+
+    self.inst:ListenForEvent('ms_auto_new_player_wall_dirty', function()
+        -- local min_level = self.netvar.auto_new_player_wall_min_level:value()
+        -- local enabled = self.netvar.auto_new_player_wall_enabled:value()
+        
+        local enabled, level = self:GetAutoNewPlayerWall()
+        dbg('ms_auto_new_player_wall_dirty: enabled =', enabled, ', level =', level)
+        local data = {
+            enabled = enabled,
+            level = level
+        }
+
+        TheWorld:PushEvent('ms_auto_new_player_wall_changed', data)
+    end)
+
+    self.inst:ListenForEvent('ms_new_player_joinability_dirty', function()
+        local allowed = bool(self.netvar.allow_new_players_to_connect:value())
+        dbg('ms_new_player_joinability_dirty: ', allowed)
+
+        if TheWorld.ismastershard then
+            TheNet:SetAllowNewPlayersToConnect(allowed)
+        end
+
+        TheWorld:PushEvent('ms_new_player_joinability_changed', allowed)
+    end)
 
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)

@@ -177,7 +177,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
     MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = 'Execute Item Statistics',
     MAKE_ITEM_STAT_DESC = 'Search and make a Statistics for appointted items in all of the online/offline player\'s inventory\nitem name or its prefab name are both accepted',
     MAKE_ITEM_STAT_OPTIONS = STRINGS.UI.MANAGE_TOGETHER.MAKE_ITEM_STAT_OPTIONS,
-    MAKE_ITEM_STAT_TEXT_PROMPT = 'Cut Grass,yellowstaff',
+    MAKE_ITEM_STAT_TEXT_PROMPT = 'cutgrass,yellowstaff',
     REFRESH_RECORDS = 'Update Data',
     REFRESH_RECORDS_DESC = 'most of the situation you don\'t need to click this button, but if you found something wrong about display, just try it', 
     -- player commands

@@ -118,7 +118,7 @@ local function InitConfigs()
         GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
     end
 
-    M.RPC_RESPONSE_TIMEOUT = 5
+    M.RPC_RESPONSE_TIMEOUT = 10
 end
 InitConfigs()
 
@@ -1742,6 +1742,7 @@ AddPrefabPostInit('world', function(inst)
     inst:DoTaskInTime(1, function()
         if inst.net then
             inst.net:AddComponent('serverinforecord')
+            dbg('added component for inst.net')
         else
             dbg('error: failed to add component for inst.net')
         end
