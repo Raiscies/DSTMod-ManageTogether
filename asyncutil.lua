@@ -419,7 +419,7 @@ function AsyncRPCManager:SendRPCToServer(name, ...)
         SendModRPCToServer(GetModRPC(self.namespace, name), ...)
         return nil, true
     else
-        dbg('try asyncly send server RPC, name =', name)
+        dbg('try asyncly send server RPC, {name = }')
         return async(send_server_rpc_impl, self, name, ...), true
     end
 end
@@ -448,7 +448,7 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
         dbg('bad RPC target: ', target)
         return nil, false
     end
-    dbg('try asyncly send client RPC, name =', name, ', target count =', expected_response_count)
+    dbg('try asyncly send client RPC, {name = }, {expected_response_count = }')
     return async(send_client_rpc_impl, self, name, target, expected_response_count, ...), true
 end
 
@@ -477,7 +477,7 @@ function AsyncRPCManager:SendRPCToShard(name, target, ...)
         return nil, false
     end
 
-    dbg('try asyncly send shard RPC, name =', name, ', target count =', expected_response_count)
+    dbg('try asyncly send shard RPC, {name = }, {expected_response_count = }')
     return async(send_shard_rpc_impl, self, name, target, expected_response_count, ...), true
 
 end

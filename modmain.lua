@@ -1254,12 +1254,12 @@ local function ForwardToMasterShard(cmd, ...)
             ):get()
 
             if missing_response_count == 1 or not result_table then
-                dbg('error on SHARD_SEND_COMMAND: missing result, result table is ', result_table)
+                dbg('error on SHARD_SEND_COMMAND: missing result, {result_table: }')
                 return nil
             end
             local master_result = result_table[SHARDID.MASTER]
             if not master_result then
-                dbg('error no SHARD_SEND_COMMAND: missing master result: result table is ', result_table)
+                dbg('error no SHARD_SEND_COMMAND: missing master result: {result_table: }')
                 return nil
             end
             return unpack(master_result)
@@ -1556,7 +1556,7 @@ local function RequestToExecuteCommand(classified, cmd, ...)
     future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
         if not retcode or missing_response_count == 1 then
-            dbg('SEND_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)    
+            dbg('SEND_COMMAND: failed to get result from server, {name = }, {retcode = }, {missing_response_count = }')    
             return
         end
 
@@ -1637,7 +1637,6 @@ local original_mod_out_of_date_callback = Networking_ModOutOfDateAnnouncement
 
 -- this should be call on both server & client 
 AddPrefabPostInit('player_classified', function(inst)
-    dbg('postinit player_classified')
     inst.net_permission_level = net_byte(inst.GUID, 'manage_together.permission_level', 'permission_level_changed')
     
     -- to tell the truth, I don't think the commands will more than 64 in the future...
@@ -1669,17 +1668,17 @@ AddPrefabPostInit('player_classified', function(inst)
 
     inst:ListenForEvent('permission_level_changed', function()
         inst.permission_level = inst.net_permission_level:value()
-        dbg('player_classified: permission_level_changed: {inst.permission_level = }')
+        dbg('player_classified: permission_level_changed: ', inst.permission_level)
     end)
     
     inst:ListenForEvent('permission_mask_changed', function()
         inst.permission_mask = M.concatbit32to64(inst.net_permission_masks[1]:value(), inst.net_permission_masks[2]:value())
-        dbg('player_classified: permission_mask_changed: {inst.permission_mask = }')
+        dbg('player_classified: permission_mask_changed: ', inst.permission_mask)
     end)
     
     inst:ListenForEvent('vote_permission_mask_changed', function()
         inst.vote_permission_mask = M.concatbit32to64(inst.net_vote_permission_masks[1]:value(), inst.net_vote_permission_masks[2]:value())
-        dbg('player_classified: vote_permission_mask_changed: {inst.vote_permission_mask = }')
+        dbg('player_classified: vote_permission_mask_changed: ', inst.vote_permission_mask)
     end)
 
     inst:ListenForEvent('suppress_mod_outofdate_annoucement_state_changed', function()

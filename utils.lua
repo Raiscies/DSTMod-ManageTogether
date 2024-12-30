@@ -158,9 +158,30 @@ function M.GetPlayerByUserid(userid)
     return nil
 end
 
--- debug print
+local moretostring = M.moretostring
 
 --[[
+    debug format/print, this is only for debug purpose, cause it is not vary efficient
+    
+    NOTICE: this function is IN-COMPLETE! 
+    it doesn't support the outro closure variable format capture, 
+
+    eg:
+
+    local function outro(a,b)
+        dbg('use format: {a = }, {b = }')        -- this will work as expected
+        local function intro()
+            dbg('intro: a = ', a, ', b = ', b)   -- this will work as expected
+            dbg('use format: {a = }, {b = }')    -- this will NOT work as expected, a and b are both print with undefined_field
+        end
+        intro()
+    end
+
+    dbg('calling test...')
+    outro(1,2)
+    
+    witch means you must pass closure variables menualy. 
+
     dbg format:
     DBG ::= {VF} | {{.+}}
     V ::= [\w.]+    -- a valid simple identifier
@@ -177,8 +198,6 @@ end
 
 ]]
 
-local moretostring = M.moretostring
-
 function M.dbg_format(s, local_variable_cache, fn_depth)
     local getlocal = debug.getlocal
     local caller_fenv = getfenv(fn_depth or 2)
@@ -187,6 +206,7 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
     if not local_variable_cache then
         local_variable_cache = {}
         -- catch all of the local value of the caller function
+        local index = 1
         while true do
             name_local, value_local = getlocal(fn_depth, index)
             if name_local == nil then
@@ -237,7 +257,7 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
             end
         end
 
-        print('final node =', moretostring(node))
+        -- print('final node =', moretostring(node))
         if tailing == '' then
             return moretostring(node)
         else
@@ -255,8 +275,12 @@ M.dbg = M.DEBUG and function(...)
     local local_variable_cache = nil -- one sentence of dbg shares the same local variable context(environment)
     for _, v in varg_pairs(...) do
         local formatted_val
-        formatted_val, local_variable_cache = dbg_format(v, local_variable_cache, 2 + 1) -- fn_depth: caller is dbg()'s caller
-        insert(buffer, type(v) == 'string' and formatted_val or moretostring(v))
+        if type(v) == 'string' then
+            formatted_val, local_variable_cache = dbg_format(v, local_variable_cache, 2 + 1) -- fn_depth: caller is dbg()'s caller
+        else
+            formatted_val = moretostring(v)
+        end 
+        insert(buffer, formatted_val)
     end
     print('[ManageTogetherDBG]', concat(buffer, ' '))
 end or function() end
