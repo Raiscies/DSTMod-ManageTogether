@@ -647,9 +647,7 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.recorder = TheWorld.net.components.serverinforecord
 
     self.on_snapshot_info_dirty = function()
-        dbg('on_snapshot_info_dirty')
         if not self.needs_update_snapshot_info then
-            dbg('querying snapshot infos')
             ThePlayer.player_classified:QuerySnapshotInformations() 
             -- make a flag, in case the event broadcast frequently in a short time
             self.needs_update_snapshot_info = true

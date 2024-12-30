@@ -56,14 +56,7 @@ local ShardServerInfoRecord = Class(
                 self:UpdateNewPlayerWallState() 
             end)
 
-            -- self.inst:ListenForEvent('ms_new_player_joinability_changed', function()
-            --     local allowed = bool(self.netvar.allow_new_players_to_connect:value())
-            --     dbg('event: ms_new_player_joinability_changed: ', allowed)
-            --     TheNet:SetAllowNewPlayersToConnect(allowed)
-            -- end)
-
             TheWorld:DoTaskInTime(0, function()
-                dbg('update once new player wall')
                 self:UpdateNewPlayerWallState(true) -- force update
             end)
         else
@@ -493,7 +486,6 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
 end
 
 function ShardServerInfoRecord:OnSave()
-    dbg('ShardServerInfoRecord OnSave')
 
     -- OnSave will be call everytime while world is saved
     -- not just while server is shutting down
@@ -523,7 +515,6 @@ function ShardServerInfoRecord:OnSave()
 end
 
 function ShardServerInfoRecord:OnLoad(data)
-    dbg('ShardServerInfoRecord OnLoad')
     if data ~= nil then 
         if data.player_record ~= nil then
             for userid, player in pairs(data.player_record) do
@@ -542,7 +533,6 @@ function ShardServerInfoRecord:OnLoad(data)
         end
         
         if data.snapshot_info then
-            dbg('assigning snapshot_info')
             self.snapshot_info = data.snapshot_info
             self:UpadateSaveInfo()
         else
@@ -671,9 +661,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         return
     end
     
-    dbg('updating new player wall state...')
     local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
-    -- local old_state = TheNet:GetAllowNewPlayersToConnect()
     local old_state = self.netvar.allow_new_players_to_connect:value()
     local new_state
 
@@ -681,7 +669,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         -- auto new player wall state: allow new players to join
         new_state = true
     else
-        -- dbg('judging...')
+        
         local current_highest_online_player_level = M.PERMISSION.MINIMUM
         for _, client in ipairs(GetPlayerClientTable()) do
             local record = self.player_record[client.userid] 
@@ -691,9 +679,9 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end
-            -- dbg('current_highest_online_player_level: ', current_highest_online_player_level)
+            
         end
-        -- dbg('required_min_level:', required_min_level)
+        
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
         new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
@@ -706,7 +694,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
     TheWorld:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function()
-    -- dbg('UpdateNewPlayerWallState is not called on secondary shard')
+    
 end
 
 -- this function is expensive
@@ -814,7 +802,7 @@ end
 --    eg. rollback, or game first generated
 
 function ShardServerInfoRecord:UpadateSaveInfo()
-    -- dbg('UpadateSaveInfo')
+    
     local index = ShardGameIndex
     local snapshot_info = TheNet:ListSnapshots(index.session_id, index.server.online_mode, 10)
     local new_slots = {}

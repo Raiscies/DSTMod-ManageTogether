@@ -353,7 +353,6 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
         votecanstartfn = VoteUtil.DefaultCanStartVote,
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
         serverfn = function(params, caller)
-            dbg('passed vote: serverfn')
             local env = M.GetVoteEnv()
             if not env then
                 log('error: failed to execute vote command: command arguments lost')
@@ -654,7 +653,7 @@ M.AddCommands(
             -- kill a player, and let it drop everything
 
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
-            -- dbg('on KILL: missing_cou',)
+            
             if missing_count > 0 or result_table == nil then
                 return M.ERROR_CODE.MISSING_RESPONSE
             end
@@ -895,7 +894,7 @@ M.AddCommands(
             end
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            -- dbg('item_stat: missing_count =', missing_count, ', result_table =', result_table)
+            
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
@@ -1188,12 +1187,12 @@ local function RegisterRPCs()
     -- server rpcs
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        -- dbg('SEND_COMMAND: player =', player, ', cmd =', cmd, ', args =', ...)
+        
         local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
-        -- dbg('SEND_COMMAND result: ', result)
+        
         return result
     end)
 
@@ -1316,15 +1315,15 @@ function M.CheckArgs(checkers, ...)
                 last_checker_fn = this_checker
             elseif type(this_checker) == 'string' then
                 local the_checker_fn = CHECKERS[this_checker]
-                -- dbg('the_checker: ', this_checker)
+                
                 assert(the_checker_fn ~= nil)
-                -- dbg('the_checker_fn: ', the_checker_fn)
+                
                 -- bad argument 
                 if not the_checker_fn(this_arg) then
-                    -- dbg('check result: no')
+                    
                     return false
                 end
-                -- dbg('check result: yes')
+                
                 last_checker_fn = the_checker_fn
             end
         end
@@ -1554,7 +1553,6 @@ end
 
 local function RequestToExecuteCommand(classified, cmd, ...)
     local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
-    dbg('on RequestToExecuteCommand: future =', future, ', success =', success)
     future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
         if not retcode or missing_response_count == 1 then
@@ -1751,16 +1749,10 @@ end)
 -- end)
 
 AddPrefabPostInit('forest_network', function(inst)
-    dbg('AddPrefabPostInit: forest_network')
-
     inst:AddComponent('serverinforecord')
-    
 end)
 
 AddPrefabPostInit('cave_network', function(inst)
-    dbg('AddPrefabPostInit: cave_network')
-
     inst:AddComponent('serverinforecord')
-
 end)
 

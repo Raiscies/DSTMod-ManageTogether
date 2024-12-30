@@ -40,7 +40,7 @@ local ServerInfoRecord = Class(function(self, inst)
 end)
 
 function ServerInfoRecord:RegisterRPCs()
-    -- dbg('ServerInfoRecord:RegisterRPCs()')
+    
 
     AddClientRPC('OFFLINE_PLAYER_RECORD_SYNC', function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {
@@ -69,7 +69,7 @@ function ServerInfoRecord:RegisterRPCs()
     AddClientRPC('PLAYER_RECORD_SYNC_COMPLETED', function(has_more)
         self.has_more_player_records = has_more
         self.inst:PushEvent('player_record_sync_completed', has_more)
-        -- dbg('player record sync completed, has_more = ', has_more)
+        
     end, true)
 
     AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season, phase)
@@ -95,7 +95,7 @@ end
 
 function ServerInfoRecord:InitNetVars()
 
-    -- dbg('ServerInfoRecord: InitNetVars()')
+    
 
     -- all of these netvars are in public area - all of the clients are available to accept it
     self.netvar = {
@@ -117,7 +117,7 @@ function ServerInfoRecord:InitNetVars()
         -- listen for events from shard_network - shard_serverinforecord forwarded by TheWorld, and then forward to every clients
         self.inst:ListenForEvent('ms_new_player_joinability_changed', function(inst, connectable)
             -- local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
-            dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
+            dbg('event ms_new_player_joinability_changed: ', connectable)
             
             force_update('allow_new_players_to_connect', connectable)
             -- self.netvar.allow_new_players_to_connect:set(connectable)
@@ -127,24 +127,22 @@ function ServerInfoRecord:InitNetVars()
             -- local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
             local enabled, min_level = data.enabled, data.level
             
-            dbg('SerervInfoRecord: listened ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            dbg('event ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
             force_update('auto_new_player_wall_enabled', enabled)
             force_update('auto_new_player_wall_min_level', min_level)
         end, TheWorld)
 
-        
-        dbg('registered listen for event: ms_new_player_joinability_changed, ms_auto_new_player_wall_changed')
     else
 
         -- on client side
         self.inst:ListenForEvent('new_player_joinability_changed', function()
             local connectable = self:GetAllowNewPlayersToConnect()
-            dbg('client: ServerInfoRecord: listened new_player_joinability_changed: ', connectable)
+            dbg('client event new_player_joinability_changed: ', connectable)
         end)
 
         self.inst:ListenForEvent('auto_new_player_wall_changed', function()
             local enabled, min_level = self:GetAutoNewPlayerWall()
-            dbg('client:  ServerInfoRecord: listened auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            dbg('client event auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
         end)
     end
 end
