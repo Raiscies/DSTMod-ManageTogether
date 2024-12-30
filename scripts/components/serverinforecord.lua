@@ -12,9 +12,9 @@ local SendRPCToClient = M.SendRPCToClient
 local SendRPCToShard = M.SendRPCToShard
 
 local ServerInfoRecord = Class(function(self, inst)
-    dbg('ServerInfoRecord: init')
+    dbg('ServerInfoRecord: init: ', inst)
     self.inst = inst -- TheWorld.net, or say xx_network
-    self.world = TheWorld
+    -- self.world = TheWorld
 
     if TheWorld.ismastersim then
         TheWorld:DoTaskInTime(0, function()
@@ -40,7 +40,7 @@ local ServerInfoRecord = Class(function(self, inst)
 end)
 
 function ServerInfoRecord:RegisterRPCs()
-    dbg('ServerInfoRecord:RegisterRPCs()')
+    -- dbg('ServerInfoRecord:RegisterRPCs()')
 
     AddClientRPC('OFFLINE_PLAYER_RECORD_SYNC', function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {
@@ -69,7 +69,7 @@ function ServerInfoRecord:RegisterRPCs()
     AddClientRPC('PLAYER_RECORD_SYNC_COMPLETED', function(has_more)
         self.has_more_player_records = has_more
         self.inst:PushEvent('player_record_sync_completed', has_more)
-        dbg('player record sync completed, has_more = ', has_more)
+        -- dbg('player record sync completed, has_more = ', has_more)
     end, true)
 
     AddClientRPC('SNAPSHOT_INFO_SYNC', function(index, snapshot_id, day, season, phase)
@@ -95,7 +95,7 @@ end
 
 function ServerInfoRecord:InitNetVars()
 
-    dbg('on ServerInfoRecord: InitNetVars()')
+    -- dbg('ServerInfoRecord: InitNetVars()')
 
     -- all of these netvars are in public area - all of the clients are available to accept it
     self.netvar = {
@@ -104,9 +104,10 @@ function ServerInfoRecord:InitNetVars()
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
     }
 
-
     local force_update = function(var, value)
-        value = bool(value)
+        if value == nil then
+            value = false
+        end
         self.netvar[var]:set_local(value)
         self.netvar[var]:set(value)
     end
@@ -114,7 +115,7 @@ function ServerInfoRecord:InitNetVars()
     if TheWorld.ismastersim then
 
         -- listen for events from shard_network - shard_serverinforecord forwarded by TheWorld, and then forward to every clients
-        self.inst:ListenForEvent('ms_new_player_joinability_changed', function(connectable)
+        self.inst:ListenForEvent('ms_new_player_joinability_changed', function(inst, connectable)
             -- local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
             dbg('ServerInfoRecord: listened ms_new_player_joinability_changed: ', connectable)
             
@@ -122,7 +123,7 @@ function ServerInfoRecord:InitNetVars()
             -- self.netvar.allow_new_players_to_connect:set(connectable)
         end, TheWorld) 
         
-        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function(data)
+        self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function(inst, data)
             -- local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
             local enabled, min_level = data.enabled, data.level
             
@@ -131,6 +132,8 @@ function ServerInfoRecord:InitNetVars()
             force_update('auto_new_player_wall_min_level', min_level)
         end, TheWorld)
 
+        
+        dbg('registered listen for event: ms_new_player_joinability_changed, ms_auto_new_player_wall_changed')
     else
 
         -- on client side

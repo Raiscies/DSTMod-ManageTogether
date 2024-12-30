@@ -991,7 +991,7 @@ M.AddCommands(
                         on_server_once_empty()
                     end
 
-                    TheWorld:ListenForEvent('ms_playercounts', function(data)
+                    TheWorld:ListenForEvent('ms_playercounts', function(inst, data)
                         if data.total == 0 then
                             -- server is empty now, but we wait for one more minute
                             on_server_once_empty()
@@ -1476,7 +1476,6 @@ if TheShard:IsMaster() then
 -- listen for newplayerwall state change
 AddPrefabPostInit('world', function(inst)
     inst:ListenForEvent('master_newplayerwallupdate', function(src, data)
-        dbg('listened master_newplayerwallupdate, data = ', data)
         -- redirect MINIMUM level to USER
         local required_min_level = data.required_min_level == M.PERMISSION.MINIMUM and M.PERMISSION.USER or data.required_min_level
         if data.old_state == data.new_state then return end
@@ -1737,17 +1736,31 @@ AddPrefabPostInit('player_classified', function(inst)
 end)
 
 
-AddPrefabPostInit('world', function(inst)
-    dbg('AddPrefabPostInit: world')
-    inst:DoTaskInTime(1, function()
-        if inst.net then
-            inst.net:AddComponent('serverinforecord')
-            dbg('added component for inst.net')
-        else
-            dbg('error: failed to add component for inst.net')
-        end
-        
-    end)
+
+-- what a bad idea, this will cause netvar sync problem...
+-- AddPrefabPostInit('world', function(inst)
+--     dbg('AddPrefabPostInit: world')
+--     -- inst:DoTaskInTime(1, function()
+--     --     if inst.net then
+--     --         inst.net:AddComponent('serverinforecord')
+--     --         dbg('added component for inst.net')
+--     --     else
+--     --         dbg('error: failed to add component for inst.net')
+--     --     end
+--     -- end)
+-- end)
+
+AddPrefabPostInit('forest_network', function(inst)
+    dbg('AddPrefabPostInit: forest_network')
+
+    inst:AddComponent('serverinforecord')
     
+end)
+
+AddPrefabPostInit('cave_network', function(inst)
+    dbg('AddPrefabPostInit: cave_network')
+
+    inst:AddComponent('serverinforecord')
+
 end)
 
