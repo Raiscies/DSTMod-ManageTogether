@@ -78,7 +78,7 @@ local Future = Class(function(self, fn)
         return self:get_nowait()
     end
 
-    function self:get_before(time)
+    function self:get_within(time)
         if not valid_ then
             self:wait_for(time)
         end

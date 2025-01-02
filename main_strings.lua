@@ -226,7 +226,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
         },
 
         -- auto new player wall
-        WALL_ENABLED = '新玩家可加入性动态调整已开启',
+        WALL_ENABLED = '新玩家可加入性动态调整已开启, 你的手动设置可能会在玩家状态改变时被覆盖',
         WALL_DISABLED = '新玩家可加入性动态调整已关闭',
 
         WALL_BUTTON = {
@@ -239,7 +239,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
             ADMIN = '管理员在线时',
             MODERATOR = '管理员或监督员在线时',
             USER = '任意玩家在线时',
-            UNKNOWN = '*未知条件'
+            UNKNOWN = '*未知条件*'
         }
     },
     AUTO_NEW_PLAYER_WALL_PROBALY_ENABLED = '\n如果玩家可加入性动态调整已启用, 那么你的设置可能会在玩家状态改变时被覆盖',

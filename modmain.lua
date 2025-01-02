@@ -201,7 +201,7 @@ end
 -- simple get functions, only available at server side
 local function GetServerInfoComponent()
     if not M.the_component then
-        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord    
+        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord
     end
     return M.the_component
 end
@@ -364,10 +364,11 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
                 table.insert(env.args, caller)
             end
 
+            dbg('{env.starter_userid = }, {env.starter_permission = }, {env.args = }, M.GetPlayerByUserid(env.starter_userid) =', M.GetPlayerByUserid(env.starter_userid))
+
             async(execute_command_impl, M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)):set_callback(function(result)
-                log('executed vote command: cmd =', name, 'args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
-            end)
-            
+                log('executed vote command: {name = }, args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
+            end) 
             M.ResetVoteEnv()
         end,
     }
@@ -772,19 +773,9 @@ M.AddCommands(
                 delay_seconds = 5
             end
             if reason then
-                -- announce(reason)
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
             execute_in_time(delay_seconds, c_shutdown)
-            -- if TheWorld then
-            --     TheWorld:DoTaskInTime(delay_seconds, function()
-            --         c_shutdown()
-            --     end)
-            -- else
-            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
-            --     c_shutdown()
-            -- end
-
         end
     },
     {
@@ -1200,7 +1191,7 @@ local function RegisterRPCs()
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
         
-        local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+        local result = ExecuteCommand(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
@@ -1209,7 +1200,7 @@ local function RegisterRPCs()
     end)
 
     AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
-        local result = StartCommandVote(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+        local result = StartCommandVote(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
@@ -1223,7 +1214,7 @@ local function RegisterRPCs()
     AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
         dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
         if M.SHARD_COMMAND[cmd] then
-            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
             -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
         else
             dbg('shard command not exists')
@@ -1586,7 +1577,7 @@ local function RequestToExecuteVoteCommand(classified, cmd, ...)
     SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)        
         if not retcode or missing_response_count == 1 then
-            dbg('SEND_VOTE_COMMAND: failed to get result from server, command {name = } {retcode = }, {missing_response_count = }')   
+            dbg('SEND_VOTE_COMMAND: failed to get result from server, command {name = }, {retcode = }, {missing_response_count = }')   
             return 
         end
         
