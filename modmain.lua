@@ -826,14 +826,14 @@ M.AddCommands(
     {
         name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
-        checker = {         'bool',  fun(key_exists)[M.PERMISSION_ORDER]}, 
+        checker = {         'bool',  fun(CHECKERS.none) *OR* fun(key_exists)[M.PERMISSION_ORDER] }, 
         fn = function(doer, enabled, min_online_player_level)
 
             -- only admin can set min_online_player_level
             -- if moderator passed a non-nil min_online_player_level, a whole command whil be failed to execute
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
-                if min_online_player_level ~= nil then
+                if min_online_player_level == nil then
                     GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
                 else
                     dbg('a non-admin player is attempt to execute SET_AUTO_NEW_PLAYER_WALL command but min_online_player_level is not nil')
