@@ -17,7 +17,7 @@ M.PERMISSION = table.invert({
     'MINIMUM'
 })
 
-assert(GetTableSize(M.PERMISSION) <= 255, 'permission level amount exceeded the limitation(255)')
+assert(GetTableSize(M.PERMISSION) <= 255, 'permission level count exceeded the limitation(255)')
 
 -- use this to order the permission level, cuz M.PERMISSION's map relation shouldn't be change
 -- currently the order is same as M.PERMISSION, but who knows in the future?
@@ -827,9 +827,21 @@ M.AddCommands(
         name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
         checker = {         'bool',  fun(CHECKERS.none) *OR* fun(key_exists)[M.PERMISSION_ORDER] }, 
+        args_description = function(enabled, min_online_player_level)
+            local desc = enabled and S.ENABLE_AUTO_NEW_PLAYER_WALL or S.DISABLE_AUTO_NEW_PLAYER_WALL
+            if min_online_player_level == nil then
+                return desc
+            else
+                return desc .. S.FMT_SET_AUTO_NEW_PLAYER_WALL:format( 
+                    S.AUTO_NEW_PLAYER_WALL_LEVEL[min_online_player_level] or S.AUTO_NEW_PLAYER_WALL_LEVEL.UNKNOWN
+                )
+            end
+        end,
         fn = function(doer, enabled, min_online_player_level)
 
-            -- only admin can set min_online_player_level
+            enabled = bool(enabled)
+            
+            -- currently only admin can set min_online_player_level
             -- if moderator passed a non-nil min_online_player_level, a whole command whil be failed to execute
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then

@@ -194,7 +194,7 @@ local moretostring = M.moretostring
     {var: }   --> var: $var
     {var}     --> $var
     {var }    --> var $var 
-    { .+}     -->  .+     (a pair of literal '{}')
+    { .+}     --> { .+}     (a pair of literal '{}')
 
 ]]
 

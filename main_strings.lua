@@ -30,8 +30,19 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
     ALLOW_NEW_PLAYER_JOIN = '允许新玩家加入服务器', 
     NOT_ALLOW_NEW_PLAYER_JOIN = '禁止新玩家加入服务器',
 
-    FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家连接性自动控制, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
-    FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家连接性自动控制',
+    
+    DISABLE_AUTO_NEW_PLAYER_WALL = '关闭新玩家可加入性动态调整',
+    ENABLE_AUTO_NEW_PLAYER_WALL = '开启新玩家可加入性动态调整',
+    FMT_SET_AUTO_NEW_PLAYER_WALL_LEVEL = ', 当%s, 服务器将允许新玩家加入',
+    AUTO_NEW_PLAYER_WALL_LEVEL = {
+        [1] = '管理员在线时',
+        [2] = '管理员或监督员在线时',
+        [3] = '任意玩家在线时',
+        UNKNOWN = '*未知条件*时'
+    },
+
+    FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s开启了新玩家连接性自动调整, 当在线玩家不满足要求时服务器会禁止新玩家加入',  
+    FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s关闭了新玩家连接性自动调整',
     FMT_AUTO_NEW_PLAYER_WALL_STATE_NOT_ALLOW = '服务器当前没有%s或更高权限的玩家在线, 已禁止新玩家加入服务器',
     AUTO_NEW_PLAYER_WALL_STATE_ALLOW = '已允许新玩家加入服务器',
     
@@ -125,10 +136,14 @@ STRINGS.UI.MANAGE_TOGETHER_DEFAULT = {
             FMT_ANNOUNCE = '是否%s',
             TITLE = '我们应该修改新玩家可加入状态吗?'
         },
+        SET_AUTO_NEW_PLAYER_WALL = {
+            FMT_ANNOUNCE = '是否%s',
+            TITLE = '我们应该修改新玩家可加入性动态调整的状态吗?'
+        },
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = '是否对%s统计如下物品: %s',
             TITLE = '我们应该执行物品栏物品统计吗?'
-        }, 
+        },
         MODOUTOFDATE = {
             FMT_ANNOUNCE = '服务器模组已过期, 是否要做些什么', 
             TITLE = '服务器模组已过期, 我们应该...', 
@@ -192,7 +207,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = '切换新玩家可加入状态',
     -- button hovertext
-    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么新玩家可加入状态将于服务器不满足「%s」时被自动关闭, 否则自动开启',
+    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\n新玩家指不曾加入过该服务器的玩家. 如果开启了新玩家可加入性动态调整, 那么当「%s」, 服务器将允许新玩家加入, 否则将禁止新玩家加入',
     
     -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
@@ -209,7 +224,6 @@ STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT = {
             ALLOW_ALL_PLAYER = '禁止新玩家加入', 
             ALLOW_OLD_PLAYER = '允许新玩家加入', 
         },
-        
 
         -- auto new player wall
         WALL_ENABLED = '新玩家可加入性动态调整已开启',
