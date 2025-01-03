@@ -5,7 +5,7 @@ local M = manage_together
 
 -- M.usingnamespace(M)
 
-local dbg, log, flog, chain_get, bool = M.dbg, M.log, M.flog, M.chain_get, M.bool
+local dbg, log, bool = M.dbg, M.log, M.bool
 local IsPlayerOnline = M.IsPlayerOnline
 
 local AddServerRPC = M.AddServerRPC
@@ -193,7 +193,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             is_mod_outofdate = recorder.netvar.is_mod_outofdate:value()
             if is_mod_outofdate then
                 -- mod is out of date
-                flog('received an event from shard %s that mod is out of date', tostring(src))
+                log(string.format('received an event from shard %s that mod is out of date', tostring(src)))
                 
                 if recorder.world.ismastersim then
                     
@@ -224,11 +224,6 @@ end
 function ShardServerInfoRecord:ShardUpdateRecordTimeStamp(userid)
     self.player_record[userid].update_timestamp = GetTime()
 end
-
--- ShardServerInfoRecord.MasterOnlyInit = TheShard:IsMaster() and function(self)
---     -- master only
-
--- end or function() end
 
 function ShardServerInfoRecord:ShardSetPermission(userid, permission_level)
     
@@ -486,13 +481,13 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
 end
 
 function ShardServerInfoRecord:OnSave()
+-- OnSave will be called every time the world is saved
+-- not just when the server is shutting down
 
-    -- OnSave will be call everytime while world is saved
-    -- not just while server is shutting down
-
-    TheWorld:DoTaskInTime(0, function()
-        self:UpadateSaveInfo()
-    end)
+    -- do we really need a delay?
+    -- TheWorld:DoTaskInTime(0, function()
+    self:UpadateSaveInfo()
+    -- end)
 
     if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
         M.WriteModeratorDataToPersistentFile(self:MakeModeratorUseridList())
@@ -830,12 +825,18 @@ function ShardServerInfoRecord:UpadateSaveInfo()
         
     -- set the newest slot's day and season data
     -- the data is just current day, season and phase
-    TheWorld:DoTaskInTime(0, function()
-        -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
-        self.snapshot_info.slots[1].day = TheWorld.state.cycles + 1
-        self.snapshot_info.slots[1].season = M.SEASONS[TheWorld.state.season]
-        self.snapshot_info.slots[1].phase = TheWorld.state.phase
-    end)
+    
+    -- do we really need a delay?
+    -- TheWorld:DoTaskInTime(0, function()
+    
+    -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
+    local first_slot = self.snapshot_info.slots[1]
+    first_slot.day = TheWorld.state.cycles + 1
+    first_slot.season = M.SEASONS[TheWorld.state.season]
+    first_slot.phase = TheWorld.state.phase
+    -- end)
+
+    dbg('updated save info, newest slot: {first_slot}')
    
     self.snapshot_info.slots = new_slots
     if not self.snapshot_info.session_id then
