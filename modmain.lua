@@ -141,7 +141,8 @@ M.ERROR_CODE = table.invert({
     'BAD_ARGUMENT',       -- = ...
     'BAD_TARGET',
     'DATA_NOT_PRESENT',
-    'VOTE_CONFLICT', 
+    'VOTE_CONFLICT',
+    'VOTE_FAILED', 
     'COMMAND_NOT_VOTABLE',
     'INTERNAL_ERROR', 
     'MISSING_RESPONSE', 
@@ -321,7 +322,7 @@ local ITEM_STAT_CATEGORY = {
 
 local execute_command_impl
 
-local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_original_params)
+local function AddOfficalVoteCommand(name, voteresultfn, override_args)
 
     -- to modify more usercommand arguments, set arguments in override_args table 
     
@@ -352,25 +353,34 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
         
         votecanstartfn = VoteUtil.DefaultCanStartVote,
         voteresultfn = voteresultfn or VoteUtil.YesNoMajorityVote,
-        serverfn = function(params, caller)
+        serverfn = function(params, _)
             local env = M.GetVoteEnv()
             if not env then
                 log('error: failed to execute vote command: command arguments lost')
                 return
             end
 
-            if forward_original_params then
-                table.insert(env.args, params)
-                table.insert(env.args, caller)
+            dbg('on serverfn: vote passed, {voteselection = }, {votecount = }')
+
+            env.promise:set_value({
+                passed = true, 
+                voteselection = params.voteselection, 
+                votecount = params.votecount
+            }) -- vote passed
+
+        end,
+        votefailedserverfn = function(params, _)
+            local env = M.GetVoteEnv()
+            if not env then
+                log('error: on votefailedserverfn command arguments lost')
+                return
             end
 
-            dbg('{env.starter_userid = }, {env.starter_permission = }, {env.args = }, M.GetPlayerByUserid(env.starter_userid) =', M.GetPlayerByUserid(env.starter_userid))
+            dbg('on votefailedserverfn: vote failed.')
 
-            async(execute_command_impl, M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)):set_callback(function(result)
-                log('executed vote command: {name = }, args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
-            end) 
-            M.ResetVoteEnv()
-        end,
+            env.promise:set_value({passed = false}) -- vote not passed
+
+        end
     }
 
     AddUserCommand('MANAGE_TOGETHER_' .. name,  
@@ -422,7 +432,7 @@ function M.AddCommand(command_info, command_fn, regen_permission_mask)
     M.COMMAND[cmd_enum] = command_info
 
     if command_info.can_vote then
-        AddOfficalVoteCommand(command_info.name, vote_result_fn, command_info.vote_override_args, command_info.vote_forward_original_params)
+        AddOfficalVoteCommand(command_info.name, vote_result_fn, command_info.vote_override_args)
     end
 
     if regen_permission_mask == true then
@@ -514,7 +524,8 @@ function M.CommandEnumToName(cmd)
             return name
         end
     end
-    return 'UNKNOWN_COMMAND_ENUM'
+    
+    return cmd == 'START_VOTE' and cmd or 'UNKNOWN_COMMAND_ENUM'
 end
 function M.LevelEnumToName(level)
     for name, lvl in pairs(M.PERMISSION) do
@@ -911,7 +922,7 @@ M.AddCommands(
         can_vote = true, 
         -- this command should only be call on server  
         permission = M.PERMISSION.ADMIN,
-        vote_forward_original_params = true,
+        vote_forward_voteresults = true,
         vote_override_args = {
             voteresultfn = VoteUtil.DefaultMajorityVote,
             voteminpasscount = 1,
@@ -931,18 +942,18 @@ M.AddCommands(
                 --  (no explicit option) 5. do nothing
             }
         },
-        checker = {        'optnumber', 'opttable', 'any'},
-        fn = function(doer, selection, params, fucking_caller) -- params and caller is forwarded from the original vote params
+        checker = {        'optnumber', 'optnumber', 'optnumber'},
+        fn = function(doer, selection, voteselection, votecount)
             
             -- selection is used for directly command execution, 
             -- param is used for accept vote result 
 
             log(string.format('mod out of date command is being executed by %s(%s)', doer.userid, doer.name))
 
-            if params then
+            if voteselection then
                 M.MOD_OUTOFDATE_VOTE_PASSED_FLAG = true
                 if not selection then
-                    selection = params.voteselection
+                    selection = voteselection
                 end
             end
             
@@ -1127,25 +1138,21 @@ M.SHARD_COMMAND = {
             -- this is not as excepted
             dbg('error: M.SHARD_COMMAND.START_VOTE() is called on secondary shard')
             dbg('{sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
-            return
+            return nil, nil
         end
         
         -- this is broken while it's called on server side
         -- GLOBAL.TheNet:StartVote(M.CmdEnumToVoteHash(cmd), M.COMMAND[cmd].user_targetted and arg or nil)
         
-        
-        -- first arg will be target_userid if cmd is user_targetted
-        -- the real arg are stored to M.VOTE_ENVIRONMENT
-        -- this is because the offical function ONLY accepts a target_userid or nil as a arg 
-        -- and further more, vote command will be failed to execute if target is offline 
-        -- so we just pass a fucking nil to offical function
 
         -- shardnetworking.lua
         local args = {...}
+        local promise = Promise()
 
         M.SetVoteEnv({
-            starter_userid = starter_userid, 
-            args = args, 
+            -- starter_userid = starter_userid, 
+            -- args = args, 
+            promise = promise
         })
         dbg('intent to start a vote, {sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
 
@@ -1169,8 +1176,12 @@ M.SHARD_COMMAND = {
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
 
         Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
+        dbg('Shard_StartVote() is called')
 
+
+        -- notice: if vote is started successfully, sleep will be awaken in advance
         Sleep(1)
+
         -- check for voting whether is filed to start
         if not vote_started then
             -- remove the event listener anyway
@@ -1178,10 +1189,19 @@ M.SHARD_COMMAND = {
             M.announce_vote_fmt(S.VOTE.FAILED_TO_START)
             dbg('failed to start a vote.')
             TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
-        end
 
-        return vote_started
-        
+            M.ResetVoteEnv()
+            --     vote_started, voteresults
+            return false, nil
+        else
+            dbg('waiting for a vote promise')
+            local res = promise:get_future():get()
+            M.ResetVoteEnv()
+
+            -- TODO: is that really needs to be forwarded? 
+            dbg('successed to start a vote: {res = }')
+            return true, res.passed, res.voteselection, res.votecount
+        end
     end
 }
 
@@ -1236,18 +1256,18 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
+            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', {arg = }')
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
-            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', {arg = }')
+            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', {arg = }')
             return nil
         end
     else
-        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
+        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', {arg = }')
 
         return async(function(...)
             local missing_response_count, result_table = SendRPCToShard(
@@ -1384,9 +1404,13 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
-    elseif not M.COMMAND[cmd].can_vote then
+    end
+
+    local info = M.COMMAND[cmd]
+
+    if not info.can_vote then
         return M.ERROR_CODE.COMMAND_NOT_VOTABLE
-    elseif M.COMMAND[cmd].user_targetted then
+    elseif info.user_targetted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = GetPlayerRecord(select_one(1, ...))
         if not target_record then
@@ -1396,19 +1420,42 @@ local start_command_vote_impl = function(executor, cmd, ...)
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
-    elseif not CheckArgs(M.COMMAND[cmd].checker, ...) then
+    elseif not CheckArgs(info.checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
-    
-    local voter_state, is_get_failed = chain_get(TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
-    if is_get_failed then
+
+    local voter_state
+    local worldvoter = TheWorld and TheWorld.net and TheWorld.net.components.worldvoter or nil
+    if not worldvoter then
         return M.ERROR_CODE.INTERNAL_ERROR
-    elseif voter_state == true then
+    end
+
+    if worldvoter:IsVoteActive() == true then
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
     -- future returns whether vote is started
-    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get() and M.ERROR_CODE.SUCCESS or M.ERROR_CODE.INTERNAL_ERROR
+    
+    local vote_started, vote_passed, vote_selection, vote_count = ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get()
+    -- here is the shard that command vote starter is in
+
+    dbg('{vote_started = }, {vote_passed = }, {vote_selection = }, {vote_count = }')
+
+    if not vote_started then
+        return M.ERROR_CODE.INTERNAL_ERROR
+    elseif not vote_passed then
+        return M.ERROR_CODE.VOTE_FAILED
+    end
+    
+    -- execute command
+    local result
+    if info.vote_forward_voteresults then
+        result = info.fn(executor, ..., vote_selection, vote_count)
+    else
+        result = info.fn(executor, ...)
+    end
+    return result == nil and M.ERROR_CODE.SUCCESS or result
+
 end
 
 function M.ExecuteCommand(executor, cmd, ...)
@@ -1494,6 +1541,21 @@ AddPrefabPostInit('world', function(inst)
     end)
 end)
 
+
+local OldFinishVote = UserCommands.FinishVote
+
+-- is this really works?
+UserCommands.FinishVote = function(commandname, params, voteresults)
+    local passed = OldFinishVote(commandname, params, voteresults)
+    if not passed then
+
+        -- vote not passed
+        local command = UserCommands.GetCommandFromName(commandname)
+        if command.votefailedserverfn then
+            command.votefailedserverfn(params, nil)
+        end
+    end
+end
 
 end
 

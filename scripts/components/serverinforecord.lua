@@ -94,10 +94,7 @@ end
 
 
 function ServerInfoRecord:InitNetVars()
-
-    
-
-    -- all of these netvars are in public area - all of the clients are available to accept it
+    -- all of these netvars are in public area - all of the clients are available to access it
     self.netvar = {
         allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
         auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'manage_together.auto_new_player_wall_enabled', 'auto_new_player_wall_changed'),

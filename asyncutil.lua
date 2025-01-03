@@ -18,88 +18,122 @@ local sleep = Sleep
 
 -- a future class, maintain a return value from a coroutine when it is finished to execute
 local Future = Class(function(self, fn)
-    local value_ = nil
-    local valid_ = false
-    local callback_ = nil
-    
-    local waiting_tasks_ = {}
+    self._value = nil
+    self._valid = false
+    self._callback = nil
+    self._waiting_tasks = {}
 
-    self.fn = fn
-
-
-    local function add_waiting_task()
-        table.insert(waiting_tasks_, staticScheduler.tasks[coroutine.running()])
-    end
-    local function wake_all_waiting_tasks()
-        for _, t in ipairs(waiting_tasks_) do
-            wake(t)
-        end
-    end
-
-    -- this task will be packaged to scheduler.Task - a coroutine
-    function self:get_nowait()
-        -- return value_ ~= nil and unpack(value_)
-        if value_ ~= nil then
-            return unpack(value_)
-        end
-    end
-
-    function self:wait()
-        add_waiting_task()
-
-        -- wait for the future's return value
-        repeat
-            hibernate()
-        until valid_
-    end
-    function self:wait_for(time)
-        if not time then time = 0 end
-
-        add_waiting_task()
-        sleep(time)
-        -- coroutine has slept for time second or being interrupted for finished task 
-    end
-    function self:set_callback(cb)
-        if not type(cb) == 'function' then
-            return false, callback_
-        end
-        local old = callback_
-        callback_ = cb
-        return true, old
-    end
-    function self:get_callback()
-        return callback_
-    end
-
-    function self:get()
-        if not valid_ then
-            self:wait()
-        end
-        return self:get_nowait()
-    end
-
-    function self:get_within(time)
-        if not valid_ then
-            self:wait_for(time)
-        end
-        return self:get_nowait()
-    end
-
-    function self:valid()
-        return valid_
-    end
-
-    self.target = function(param)
-        value_ = {fn(unpack(param))} -- target is asynced with main thread, but sync with its Task(fn) thread
-        valid_ = true
-        
-        wake_all_waiting_tasks()
-        if callback_ then
-            callback_(self:get_nowait())
-        end
-    end
+    self._fn = fn
     
 end)
+
+local function add_waiting_task(future)
+    table.insert(future._waiting_tasks, staticScheduler.tasks[coroutine.running()])
+end
+local function wake_all_waiting_tasks(future)
+    for _, t in ipairs(future._waiting_tasks) do
+        wake(t)
+    end
+    future._waiting_tasks = {}
+end
+
+-- this task will be packaged to scheduler.Task - a coroutine
+function Future:get_nowait()
+    -- return value_ ~= nil and unpack(value_)
+    if self._value ~= nil then
+        return unpack(self._value)
+    end
+    return nil
+end
+
+function Future:wait()
+    add_waiting_task(self)
+
+    -- wait for the future's return value
+    repeat
+        hibernate()
+    until self._valid
+end
+function Future:wait_for(time)
+    if not time then time = 0 end
+
+    add_waiting_task(self)
+    sleep(time)
+    -- coroutine has slept for time second or being interrupted for finished task 
+end
+function Future:set_callback(cb)
+    if not type(cb) == 'function' then
+        return false, self.callback_
+    end
+    local old = self.callback_
+    self.callback_ = cb
+    return true, old
+end
+function Future:get_callback()
+    return self.callback_
+end
+
+function Future:get()
+    if not self._valid then
+        self:wait()
+    end
+    return self:get_nowait()
+end
+
+function Future:get_within(time)
+    if not self._valid then
+        self:wait_for(time)
+    end
+    return self:get_nowait()
+end
+
+function Future:valid()
+    return self._valid
+end
+
+function Future._target(param)
+    local self = param[1]
+    self._value = {self._fn(unpack(param, 2))} -- target is asynced with main thread, but sync with its Task(fn) thread
+    self._valid = true
+    
+    wake_all_waiting_tasks(self)
+    if self._callback then
+        self._callback(self:get_nowait())
+    end
+end
+
+local promise_target = function(future)
+    repeat
+        hibernate()
+    until future._valid
+
+    if future._callback then
+        future._callback(future:get_nowait())
+    end
+end
+
+-- a promise class
+local Promise = Class(function(self)
+    self._future = Future()
+    self._future._target = promise_target
+    
+end)
+
+
+function Promise:set_value(...)
+    self._future._value = {...}
+    self._future._valid = true
+    wake_all_waiting_tasks(self._future)
+end
+
+function Promise:has_set()
+    return self._future:valid()
+end
+
+function Promise:get_future()
+    return self._future
+end
+M.Promise = Promise
 
 
 --[[
@@ -114,24 +148,22 @@ end)
         function logic...
     end, params...)
 
-
 ]]
 
-
--- async is non-static 
 function M.async(fn, ...)
     local future = Future(fn)
-    StartStaticThread(future.target, nil, {...})
+    StartStaticThread(future._target, nil, {future, ...})
     return future
 end
 function M.async_nonstatic(fn, ...)
     local future = Future(fn)
-    StartThread(future.target, nil, {...})
+    StartThread(future._target, nil, {future, ...})
     return future
 end
 
 local async = M.async
 local async_nonstatic = M.async_nonstatic
+
 
 function M.execute_in_time(time, fn, ...)
     -- local scheduler = staticScheduler
@@ -200,9 +232,6 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
     }
 
     self:AddClientRPC('RESULT_SERVER_RPC', function(id, ...)
-
-        
-
         --  client -serverRPC-> server (call) 
         --  server -clientRPC-> client (return value)
 
@@ -220,9 +249,6 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
     
     -- async return value handler
     self:AddServerRPC('RESULT_CLIENT_RPC', function(player, id, ...)
-
-        
-
         --  server -clientRPC-> clients(call) could be more than one target 
         --  clients -serverRPC-> server(return value)
 
@@ -238,11 +264,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
         end
     end, true)
     
-    
     self:AddShardRPC('RESULT_SHARD_RPC', function(sender_shard_id, id, ...)
-
-        
-
         -- shard1 -shardRPC-> shardn (call) could be more than one target
         -- shardnetworking -shardRPC-> shard1 (return value)
         if not self:AddContextResult(RPC_CATEGORY.SHARD, id, sender_shard_id, {...}) then
@@ -252,7 +274,6 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
         
         local context = self.contexts[RPC_CATEGORY.SHARD][id]
         context.expected_response_count = context.expected_response_count - 1
-
         if context.expected_response_count <= 0 then
             wake(context.task)
         end

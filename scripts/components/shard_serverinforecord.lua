@@ -487,9 +487,8 @@ function ShardServerInfoRecord:PushSnapshotInfoTo(userid)
 end
 
 function ShardServerInfoRecord:OnSave()
-
-    -- OnSave will be call everytime while world is saved
-    -- not just while server is shutting down
+-- OnSave will be called every time the world is saved
+-- not just when the server is shutting down
 
     TheWorld:DoTaskInTime(0, function()
         self:UpadateSaveInfo()

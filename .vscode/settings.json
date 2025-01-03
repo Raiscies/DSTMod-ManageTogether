@@ -159,7 +159,8 @@
         "select_first",
         "StartNextInstance",
         "RESET_ACTION",
-        "bool"
+        "bool",
+        "Promise"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
