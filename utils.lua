@@ -504,7 +504,8 @@ end
 function M.GetSnapshotPlayerData(userid, component_name)
     local file = TheNet:GetUserSessionFile(TheNet:GetSessionIdentifier(), userid)
     if not file then return end
-    log('loading user data: ' .. file)
+    log('loading user(' .. userid .. ') data: ' .. file)
+
 
     local data = nil
 
