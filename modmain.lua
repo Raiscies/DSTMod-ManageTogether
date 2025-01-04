@@ -371,7 +371,7 @@ end
 local function default_args_description(...) 
     return table.concat({...}, ', ')
 end
-local function default_user_targetted_args_description(userid, ...)
+local function default_user_targeted_args_description(userid, ...)
     local user_desc = string.format('%s(%s)', get_if_exists(shard_serverinforecord.player_record[userid], 'name'), userid)
     return select('#', ...) == 0 and 
         user_desc or 
@@ -397,7 +397,7 @@ function M.AddCommand(command_info, command_fn, regen_permission_mask)
     end
 
     if not command_info.args_description then
-        command_info.args_description = (command_info.user_targetted and default_user_targetted_args_description or default_args_description)
+        command_info.args_description = (command_info.user_targeted and default_user_targeted_args_description or default_args_description)
     end
 
     -- set command info
@@ -616,7 +616,7 @@ M.AddCommands(
         name = 'KICK',
         -- the 'permission' item is omitted, function will automatically get the permission limitation from mod config
         -- permission = M.PERMISSION.MODERATOR
-        user_targetted = true, 
+        user_targeted = true, 
         can_vote = true, 
         checker = {         IsPlayerOnline },
         fn = function(doer, target_userid)
@@ -629,7 +629,7 @@ M.AddCommands(
     },
     {
         name = 'KILL', 
-        user_targetted = true,
+        user_targeted = true,
         can_vote = true,
         checker = {        'any' }, -- userid will be check on ExecuteCommand, so we don't need to check again
         fn = function(doer, target_userid)
@@ -655,7 +655,7 @@ M.AddCommands(
     },
     {
         name = 'BAN',
-        user_targetted = true, 
+        user_targeted = true, 
         can_vote = true,  
         checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
@@ -668,7 +668,7 @@ M.AddCommands(
     },
     {
         name = 'KILLBAN', 
-        user_targetted = true, 
+        user_targeted = true, 
         can_vote = true, 
         checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
@@ -763,7 +763,7 @@ M.AddCommands(
     {
         name = 'ADD_MODERATOR', 
         can_vote = true, 
-        user_targetted = true, 
+        user_targeted = true, 
         checker = {         fun(LevelHigherThan)[M.PERMISSION.MODERATOR] * permission_level},
         fn = function(doer, target_userid)
             -- add a player as moderator
@@ -775,7 +775,7 @@ M.AddCommands(
     {
         name = 'REMOVE_MODERATOR', 
         can_vote = true,
-        user_targetted = true,
+        user_targeted = true,
         checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.MODERATOR]},
         fn = function(doer, target_userid)
             -- remove a moderator 
@@ -1083,10 +1083,10 @@ M.SHARD_COMMAND = {
         end
         
         -- this is broken while it's called on server side
-        -- GLOBAL.TheNet:StartVote(M.CmdEnumToVoteHash(cmd), M.COMMAND[cmd].user_targetted and arg or nil)
+        -- GLOBAL.TheNet:StartVote(M.CmdEnumToVoteHash(cmd), M.COMMAND[cmd].user_targeted and arg or nil)
         
         
-        -- first arg will be target_userid if cmd is user_targetted
+        -- first arg will be target_userid if cmd is user_targeted
         -- the real arg are stored to M.VOTE_ENVIRONMENT
         -- this is because the offical function ONLY accepts a target_userid or nil as a arg 
         -- and further more, vote command will be failed to execute if target is offline 
@@ -1297,7 +1297,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
-    elseif M.COMMAND[cmd].user_targetted then
+    elseif M.COMMAND[cmd].user_targeted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
@@ -1328,7 +1328,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.PERMISSION_DENIED
     elseif not M.COMMAND[cmd].can_vote then
         return M.ERROR_CODE.COMMAND_NOT_VOTABLE
-    elseif M.COMMAND[cmd].user_targetted then
+    elseif M.COMMAND[cmd].user_targeted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
@@ -1559,7 +1559,7 @@ local function set_permission(classified, level)
 end
 
 local function is_command_applicable_for_player(classified, cmd, target_userid)
-    if not M.COMMAND[cmd] or not M.COMMAND[cmd].user_targetted then
+    if not M.COMMAND[cmd] or not M.COMMAND[cmd].user_targeted then
         return M.EXECUTION_CATEGORY.NO
     end
 

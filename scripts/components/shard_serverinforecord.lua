@@ -91,7 +91,7 @@ local ShardServerInfoRecord = Class(
                 return
             end
             
-            M.log('loading ShardServerInfoRecord the first time')
+            log('loading ShardServerInfoRecord the first time')
             self:LoadSaveInfo()
             self:LoadModeratorFile()
             
@@ -781,7 +781,7 @@ function ShardServerInfoRecord:LoadModeratorFile()
     if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
         local moderator_userid_list = M.ReadModeratorDataFromPersistentFile()
         if not moderator_userid_list or #moderator_userid_list == 0 then
-            M.log('moderator file does not found or is empty, proberly this is really a new world :)')
+            log('moderator file does not found or is empty, proberly this is really a new world :)')
             return
         end
         
@@ -789,7 +789,7 @@ function ShardServerInfoRecord:LoadModeratorFile()
             self:ShardRecordPlayer(userid)
             self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
         end
-        M.log('successfully re-record moderator data from persistent file')
+        log('successfully re-record moderator data from persistent file')
     end
 end
 
