@@ -367,7 +367,7 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
             dbg('{env.starter_userid = }, {env.starter_permission = }, {env.args = }, M.GetPlayerByUserid(env.starter_userid) =', M.GetPlayerByUserid(env.starter_userid))
 
             async(execute_command_impl, M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)):set_callback(function(result)
-                log('executed vote command: {name = }, args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
+                log('executed vote command: name: ', name, ', args: ', M.tolinekvstring(env.args), ', result: ', M.ErrorCodeToName(result))
             end) 
             M.ResetVoteEnv()
         end,
