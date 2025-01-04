@@ -318,7 +318,7 @@ function ItemStatDialog:GetItemPrefabs()
     return self.the_item_prefabs
 end
 
-local function PopupDialog(title, text, buttons)
+local function PopupDialog(title, text, buttons, text_size)
     if not buttons then
         buttons = {}
     end
@@ -326,16 +326,19 @@ local function PopupDialog(title, text, buttons)
         -- a default button
         {text = STRINGS.UI.PLAYERSTATUSSCREEN.CANCEL, cb = function() TheFrontEnd:PopScreen() end}
     )
-    TheFrontEnd:PushScreen(
-        PopupDialogScreen(
-            -- name
-            title, 
-            -- text
-            text,
-            -- buttons
-            buttons
-        )
+    local popupdialog = PopupDialogScreen(
+        -- name
+        title, 
+        -- text
+        text,
+        -- buttons
+        buttons
     )
+    if text_size then
+        -- notice: default is 28
+        popupdialog.text:SetSize(text_size) 
+    end
+    TheFrontEnd:PushScreen(popupdialog)
 end
 
 local function PopupConfirmDialog(action_name, action_desc, callback_on_confirmed, ...)
@@ -583,7 +586,10 @@ local function DoInitServerRelatedCommnadButtons(screen)
                             ExecuteOrStartVote((not has_set_wall_permission) or vote_state, M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL, not wall_enabled)
                             TheFrontEnd:PopScreen()
                         end} or nil 
-                } 
+                }, 
+                -- text_size
+                -- let text be smaller if language is not Chinese(currently only English)
+                M.LANGUAGE ~= 'zh' and 20 or nil
             )
         end
     )
