@@ -76,11 +76,6 @@ function M.select_first(...)
     return first
 end
 
-function M.select_second(...)
-    local first, second = ...
-    return second
-end
-
 function M.moretostring(obj)
     if type(obj) == 'table' then
         if obj.is_a == nil then
@@ -143,10 +138,6 @@ end
 -- log print
 function M.log(...)
     print('[ManageTogether]', ...)
-end
-
-function M.flog(pattern, ...)
-    M.log(string.format(pattern, ...))
 end
 
 function M.GetPlayerByUserid(userid)
@@ -284,26 +275,6 @@ M.dbg = M.DEBUG and function(...)
     end
     print('[ManageTogetherDBG]', concat(buffer, ' '))
 end or function() end
-
-
-function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
-    if type(varname_or_table) == 'table' then
-        new_env = varname_or_table
-        setfenv(fn,  
-            setmetatable(varname_or_table, { __index = new_env or getfenv(fn) })
-        )
-    else
-        setfenv(fn,  
-            setmetatable({ [varname_or_table] = new_var }, 
-                { __index = new_env or getfenv(fn) }
-            )
-        )
-    end
-    return fn
-end
-function M.unhook_indep_var(fn, new_env)
-    setfenv(fn, new_env or GLOBAL)
-end
 
 function M.announce(s, ...)
     TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
