@@ -41,6 +41,7 @@ local ShardServerInfoRecord = Class(
 
 
 
+
         if TheWorld.ismastershard then
             -- is master shard
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
@@ -63,7 +64,7 @@ local ShardServerInfoRecord = Class(
 
             -- is secondary shard
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-                dbg('ms_playerjoined:', player.userid)
+                dbg('ms_playerjoined: {player.userid = }')
                 TheWorld:DoTaskInTime(0, function()
                     self:RecordPlayer(player.userid)
                 end)
@@ -670,7 +671,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
             local record = self.player_record[client.userid] 
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
-            dbg('client: ', client.name, ', level: ', level)
+            dbg('{client.name: }, {level: }')
             if M.LevelHigherThan(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end

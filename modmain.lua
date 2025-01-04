@@ -17,7 +17,7 @@ M.PERMISSION = table.invert({
     'MINIMUM'
 })
 
-assert(GetTableSize(M.PERMISSION) <= 255, 'permission level amount exceeded the limitation(255)')
+assert(GetTableSize(M.PERMISSION) <= 255, 'permission level count exceeded the limitation(255)')
 
 -- use this to order the permission level, cuz M.PERMISSION's map relation shouldn't be change
 -- currently the order is same as M.PERMISSION, but who knows in the future?
@@ -201,7 +201,7 @@ end
 -- simple get functions, only available at server side
 local function GetServerInfoComponent()
     if not M.the_component then
-        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord    
+        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord
     end
     return M.the_component
 end
@@ -256,7 +256,7 @@ end
 
 
 local function AnnounceItemStat(stat)
-    dbg('stat: ', stat)
+    dbg('{stat: }')
     for userid, v in pairs(stat) do
         local name = GetPlayerRecord(userid).name or '???'
 
@@ -364,10 +364,11 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
                 table.insert(env.args, caller)
             end
 
+            dbg('{env.starter_userid = }, {env.starter_permission = }, {env.args = }, M.GetPlayerByUserid(env.starter_userid) =', M.GetPlayerByUserid(env.starter_userid))
+
             async(execute_command_impl, M.GetPlayerByUserid(env.starter_userid), M.COMMAND_ENUM[name], true, unpack(env.args)):set_callback(function(result)
-                log('executed vote command: cmd =', name, 'args =', M.tolinekvstring(env.args), ', result =', M.ErrorCodeToName(result))
-            end)
-            
+                log('executed vote command: name: ', name, ', args: ', M.tolinekvstring(env.args), ', result: ', M.ErrorCodeToName(result))
+            end) 
             M.ResetVoteEnv()
         end,
     }
@@ -772,19 +773,9 @@ M.AddCommands(
                 delay_seconds = 5
             end
             if reason then
-                -- announce(reason)
                 announce_fmt(S.FMT_SERVER_WILL_SHUTDOWN, delay_seconds, reason)
             end
             execute_in_time(delay_seconds, c_shutdown)
-            -- if TheWorld then
-            --     TheWorld:DoTaskInTime(delay_seconds, function()
-            --         c_shutdown()
-            --     end)
-            -- else
-            --     log('error: TheWorld is nil, server will shutdown immediactly regardless of delay_seconds param')
-            --     c_shutdown()
-            -- end
-
         end
     },
     {
@@ -827,9 +818,21 @@ M.AddCommands(
         name = 'SET_AUTO_NEW_PLAYER_WALL',
         can_vote = true, 
         checker = {         'bool',  fun(CHECKERS.none) *OR* fun(key_exists)[M.PERMISSION_ORDER] }, 
+        args_description = function(enabled, min_online_player_level)
+            local desc = enabled and S.ENABLE_AUTO_NEW_PLAYER_WALL or S.DISABLE_AUTO_NEW_PLAYER_WALL
+            if min_online_player_level == nil then
+                return desc
+            else
+                return desc .. S.FMT_SET_AUTO_NEW_PLAYER_WALL:format( 
+                    S.AUTO_NEW_PLAYER_WALL_LEVEL[min_online_player_level] or S.AUTO_NEW_PLAYER_WALL_LEVEL.UNKNOWN
+                )
+            end
+        end,
         fn = function(doer, enabled, min_online_player_level)
 
-            -- only admin can set min_online_player_level
+            enabled = bool(enabled)
+            
+            -- currently only admin can set min_online_player_level
             -- if moderator passed a non-nil min_online_player_level, a whole command whil be failed to execute
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
@@ -1123,7 +1126,7 @@ M.SHARD_COMMAND = {
         if not TheShard:IsMaster() then
             -- this is not as excepted
             dbg('error: M.SHARD_COMMAND.START_VOTE() is called on secondary shard')
-            dbg('sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
+            dbg('{sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
             return
         end
         
@@ -1144,9 +1147,8 @@ M.SHARD_COMMAND = {
             starter_userid = starter_userid, 
             args = args, 
         })
+        dbg('intent to start a vote, {sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
 
-        dbg('intent to start a vote, sender_shard_id: ', sender_shard_id, ', cmd: ', M.CommandEnumToName(cmd), ', starter_userid: ', starter_userid, ', arg, ', ...)
-        
         local vote_started = false
         local taskself = staticScheduler:GetCurrentTask()
         local function on_vote_started()
@@ -1179,6 +1181,7 @@ M.SHARD_COMMAND = {
         end
 
         return vote_started
+        
     end
 }
 
@@ -1188,7 +1191,7 @@ local function RegisterRPCs()
 
     AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
         
-        local result = ExecuteCommand(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+        local result = ExecuteCommand(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
@@ -1197,7 +1200,7 @@ local function RegisterRPCs()
     end)
 
     AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
-        local result = StartCommandVote(player, cmd, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+        local result = StartCommandVote(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
             return nil
         end
@@ -1209,9 +1212,9 @@ local function RegisterRPCs()
     -- shard rpcs
 
     AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
-        dbg('received shard command: ', M.CommandEnumToName(cmd), ', arg = ', ...)
+        dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
         if M.SHARD_COMMAND[cmd] then
-            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_before(M.RPC_RESPONSE_TIMEOUT)
+            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
             -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
         else
             dbg('shard command not exists')
@@ -1233,18 +1236,18 @@ local function ForwardToMasterShard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
-            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', arg = ', ...)
+            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', {arg = }')
             return nil
         end
     else
-        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
 
         return async(function(...)
             local missing_response_count, result_table = SendRPCToShard(
@@ -1254,12 +1257,12 @@ local function ForwardToMasterShard(cmd, ...)
             ):get()
 
             if missing_response_count == 1 or not result_table then
-                dbg('error on SHARD_SEND_COMMAND: missing result, result table is ', result_table)
+                dbg('error on SHARD_SEND_COMMAND: missing result, {result_table: }')
                 return nil
             end
             local master_result = result_table[SHARDID.MASTER]
             if not master_result then
-                dbg('error no SHARD_SEND_COMMAND: missing master result: result table is ', result_table)
+                dbg('error no SHARD_SEND_COMMAND: missing master result: {result_table: }')
                 return nil
             end
             return unpack(master_result)
@@ -1268,7 +1271,7 @@ local function ForwardToMasterShard(cmd, ...)
 end 
 -- local, forward declared
 BroadcastShardCommand = function(cmd, ...)
-    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', arg = ', ...)
+    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
     return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
         nil, 
@@ -1524,7 +1527,7 @@ end
 local function QueryHistoryPlayers(classified, block_index)
     if classified.last_query_player_record_timestamp and 
         GetTime() - classified.last_query_player_record_timestamp <= 1 then 
-        dbg('Current Time: ', GetTime(), 'Last Query Time: ', classified.last_query_player_record_timestamp)
+        dbg('Current Time: ', GetTime(), ', {classified.last_query_player_record_timestamp = }')
         dbg('ignored a request for query history record, because one request has just sended')
         return
     end
@@ -1556,14 +1559,14 @@ local function RequestToExecuteCommand(classified, cmd, ...)
     future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
         if not retcode or missing_response_count == 1 then
-            dbg('SEND_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)    
+            dbg('SEND_COMMAND: failed to get result from server, {name = }, {retcode = }, {missing_response_count = }')    
             return
         end
 
         if CHECKERS.error_code(retcode) then
-            dbg('received result from server(send command), cmd =', name, ', result = ', M.ErrorCodeToName(retcode))
+            dbg('received result from server(send command), {name = }, result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send command): cmd =', name, ', server drunk, result =', retcode)
+            dbg('received result from server(send command): {name = }, server drunk, {retcode = }')
         end
         
     end)
@@ -1574,14 +1577,14 @@ local function RequestToExecuteVoteCommand(classified, cmd, ...)
     SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)        
         if not retcode or missing_response_count == 1 then
-            dbg('SEND_VOTE_COMMAND: failed to get result from server, command name =', name, ', return code =', retcode, ', missing_response_count =', missing_response_count)   
+            dbg('SEND_VOTE_COMMAND: failed to get result from server, command {name = }, {retcode = }, {missing_response_count = }')   
             return 
         end
         
         if CHECKERS.error_code(retcode) then
-            dbg('received from server(send vote command), cmd = ', name, ', result = ', M.ErrorCodeToName(retcode))
+            dbg('received from server(send vote command), {name = }, result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send vote command): cmd =', name, ', server drunk, result =', retcode)
+            dbg('received result from server(send vote command): {name = }, server drunk, {retcode =}')
         end
     end )
 end
@@ -1592,7 +1595,7 @@ end
 -- and it does not work for other players, 
 -- cause the player_classified entity not exists on the other clients
 local function SetPermission(classified, level)
-    dbg('setting player permission: ', classified, ', level =', level)
+    dbg('setting player permission: {classified = }, {level = }')
 
     -- permission level
     classified.net_permission_level:set(level)
@@ -1637,7 +1640,6 @@ local original_mod_out_of_date_callback = Networking_ModOutOfDateAnnouncement
 
 -- this should be call on both server & client 
 AddPrefabPostInit('player_classified', function(inst)
-    dbg('postinit player_classified')
     inst.net_permission_level = net_byte(inst.GUID, 'manage_together.permission_level', 'permission_level_changed')
     
     -- to tell the truth, I don't think the commands will more than 64 in the future...
@@ -1693,7 +1695,7 @@ AddPrefabPostInit('player_classified', function(inst)
 
     if TheWorld then
         inst:ListenForEvent('player_record_sync_completed', function(src, has_more)
-            dbg('listened player_record_sync_completed, has_more = ', has_more, 'this index = ', inst.next_query_player_record_block_index)
+            dbg('listened player_record_sync_completed, {has_more = }, this index = ', inst.next_query_player_record_block_index)
             if has_more then
                 local last = inst.next_query_player_record_block_index
                 inst.next_query_player_record_block_index = last and (last + 1) or 1

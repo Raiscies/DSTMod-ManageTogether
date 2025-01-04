@@ -28,6 +28,15 @@ STRINGS.UI.MANAGE_TOGETHER = {
     },
     ALLOW_NEW_PLAYER_JOIN = 'allow new players to join the server', 
     NOT_ALLOW_NEW_PLAYER_JOIN = 'forbidden new players to join the server',
+    DISABLE_AUTO_NEW_PLAYER_WALL = 'disable auto new player wall',
+    ENABLE_AUTO_NEW_PLAYER_WALL = 'enable auto new player wall',
+    FMT_SET_AUTO_NEW_PLAYER_WALL_LEVEL = ', when %s, server will allow new players to join',
+    AUTO_NEW_PLAYER_WALL_LEVEL = {
+        [1] = 'admin online',
+        [2] = 'admin or moderator online',
+        [3] = 'any player online',
+        UNKNOWN = '*unknown condition*'
+    },
 
     FMT_AUTO_NEW_PLAYER_WALL_ENABLED = '%s enabled auto new player wall, server will forbidden new players to join when online players do not satisfiy the condition',  
     FMT_AUTO_NEW_PLAYER_WALL_DISABLED = '%s disabled auto new player wall',
@@ -125,6 +134,10 @@ STRINGS.UI.MANAGE_TOGETHER = {
             FMT_ANNOUNCE = 'should we %s',
             TITLE = 'should we modify new player connection setting?'
         },
+        SET_AUTO_NEW_PLAYER_WALL = {
+            FMT_ANNOUNCE = 'should we %s',
+            TITLE = 'should we modify auto new player wall setting?'
+        },
         MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES = {
             FMT_ANNOUNCE = 'should we make a statistics for %s for these items: %s',
             TITLE = 'should we execute a inventory item statistics?'
@@ -192,6 +205,7 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
 
     SET_NEW_PLAYER_JOINABILITY_TITLE = 'modify new player joinability',
     -- TODO FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\nnew player ...',
+    FMT_SET_NEW_PLAYER_JOINABILITY_DESC = '%s, %s\nif auto new player wall is enabled, server will allow new players to join when 「%s」, otherwise server will forbidden new players to join',
     
     -- button hovertext
     SET_NEW_PLAYER_JOINABILITY = {
@@ -203,12 +217,11 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
         ALLOW_ALL_PLAYER = 'currently allowed new players to join', 
         ALLOW_OLD_PLAYER = 'currently forbiddened new players to join',
     
-    JOINABILITY_BUTTON = {
-        -- button action inverts the current state
-        ALLOW_ALL_PLAYER = 'forbidden new players to join', 
-        ALLOW_OLD_PLAYER = 'allow new players to join', 
-    },
-
+        JOINABILITY_BUTTON = {
+            -- button action inverts the current state
+            ALLOW_ALL_PLAYER = 'forbidden new players', 
+            ALLOW_OLD_PLAYER = 'allow new players', 
+        },
 
         -- auto new player wall
         WALL_ENABLED = 'auto new player wall is enabled',
@@ -216,14 +229,14 @@ STRINGS.UI.HISTORYPLAYERSCREEN = {
 
         WALL_BUTTON = {
             -- button action inverts the current state
-            WALL_ENABLED = 'disable auto new player wall',
-            WALL_DISABLED = 'enable auto new player wall',
+            WALL_ENABLED = 'disable wall',
+            WALL_DISABLED = 'enable wall',
         },
 
         WALL_LEVEL = {
-            ADMIN = 'when admin online',
-            MODERATOR = 'when admin/moderator online',
-            USER = 'when any player online',
+            ADMIN = 'admin online',
+            MODERATOR = 'admin/moderator online',
+            USER = 'any player online',
             UNKNOWN = '*unknown condition'
         }
     },

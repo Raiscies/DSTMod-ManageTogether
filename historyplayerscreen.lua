@@ -563,6 +563,8 @@ local function DoInitServerRelatedCommnadButtons(screen)
 
             local has_set_wall_permission, has_set_wall_vote_permission = ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL) 
 
+            -- dbg('on set_new_player_joinability clicked: {wall_enabled = }, {wall_min_level = }, {joinability_key = }, {wall_enabled_key = }, {text_min_level = }')
+
             PopupDialog(
                 -- title
                 (vote_state and S.START_A_VOTE or '') .. S.SET_NEW_PLAYER_JOINABILITY_TITLE, 
@@ -601,8 +603,6 @@ local function DoInitServerRelatedCommnadButtons(screen)
             S.MAKE_ITEM_STAT_DESC, 
             -- on_submitted
             function(item_prefabs, search_range)
-                 
-
                 ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, search_range, unpack(item_prefabs))
             end
         )
