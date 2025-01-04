@@ -1367,7 +1367,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
     end
 
 
-    dbg('received command request from player: ', executor.name, ', cmd = ', CommandEnumToName(cmd), ', is_vote = ', (is_vote or false), ', arg = ', ...)
+    dbg('received command request from player: {executor.name = }, cmd =', CommandEnumToName(cmd), ', {is_vote = }, {arg = }')
 
     local result = M.COMMAND[cmd].fn(executor, ...)
     -- nil(by default) means success

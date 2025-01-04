@@ -1063,18 +1063,18 @@ function HistoryPlayerScreen:DoInit()
     DoInitServerRelatedCommnadButtons(self)
 
     -- -- what does this function do?
-    -- local function doButtonFocusHookups(playerListing)
+    -- local function doButtonFocusHookups(player_listing)
     --     local buttons = {}
-    --     if playerListing.viewprofile:IsVisible() then table.insert(buttons, playerListing.viewprofile) end
-    --     if playerListing.kick:IsVisible() then table.insert(buttons, playerListing.kick) end
-    --     if playerListing.ban:IsVisible() then table.insert(buttons, playerListing.ban) end
-    --     -- if playerListing.useractions:IsVisible() then table.insert(buttons, playerListing.useractions) end
+    --     if player_listing.viewprofile:IsVisible() then table.insert(buttons, player_listing.viewprofile) end
+    --     if player_listing.kick:IsVisible() then table.insert(buttons, player_listing.kick) end
+    --     if player_listing.ban:IsVisible() then table.insert(buttons, player_listing.ban) end
+    --     -- if player_listing.useractions:IsVisible() then table.insert(buttons, player_listing.useractions) end
 
     --     local focusforwardset = false
     --     for i,button in ipairs(buttons) do
     --         if not focusforwardset then
     --             focusforwardset = true
-    --             playerListing.focus_forward = button
+    --             player_listing.focus_forward = button
     --         end
     --         if buttons[i-1] then
     --             button:SetFocusChangeDir(MOVE_LEFT, buttons[i-1])
@@ -1088,72 +1088,72 @@ function HistoryPlayerScreen:DoInit()
 
     
     local function listingConstructor(i, parent)
-        local playerListing =  parent:AddChild(Widget('playerListing'))
+        local player_listing =  parent:AddChild(Widget('player_listing'))
 
-        playerListing.highlight = playerListing:AddChild(Image('images/scoreboard.xml', 'row_goldoutline.tex'))
-        playerListing.highlight:SetPosition(22, 5)
-        playerListing.highlight:Hide()
+        player_listing.highlight = player_listing:AddChild(Image('images/scoreboard.xml', 'row_goldoutline.tex'))
+        player_listing.highlight:SetPosition(22, 5)
+        player_listing.highlight:Hide()
 
         if self.show_player_badge then
-            playerListing.profileFlair = playerListing:AddChild(TEMPLATES.RankBadge())
-            playerListing.profileFlair:SetPosition(-388,-14,0)
-            playerListing.profileFlair:SetScale(.6)
+            player_listing.profile_flair = player_listing:AddChild(TEMPLATES.RankBadge())
+            player_listing.profile_flair:SetPosition(-388,-14,0)
+            player_listing.profile_flair:SetScale(.6)
         end
 
-        playerListing.characterBadge = nil
-        playerListing.characterBadge = playerListing:AddChild(PlayerBadge('', DEFAULT_PLAYER_COLOUR, false, 0))
-        playerListing.characterBadge:SetScale(.8)
-        playerListing.characterBadge:SetPosition(-328,5,0)
-        playerListing.characterBadge:Hide()
+        player_listing.character_badge = nil
+        player_listing.character_badge = player_listing:AddChild(PlayerBadge('', DEFAULT_PLAYER_COLOUR, false, 0))
+        player_listing.character_badge:SetScale(.8)
+        player_listing.character_badge:SetPosition(-328,5,0)
+        player_listing.character_badge:Hide()
 
-        playerListing.number = playerListing:AddChild(Text(UIFONT, 35))
-        playerListing.number:SetPosition(-422,0,0)
-        playerListing.number:SetHAlign(ANCHOR_MIDDLE)
-        playerListing.number:SetColour(1,1,1,1)
-        playerListing.number:Hide()
+        player_listing.number = player_listing:AddChild(Text(UIFONT, 35))
+        player_listing.number:SetPosition(-422,0,0)
+        player_listing.number:SetHAlign(ANCHOR_MIDDLE)
+        player_listing.number:SetColour(1,1,1,1)
+        player_listing.number:Hide()
 
-        playerListing.adminBadge = playerListing:AddChild(ImageButton('images/avatars.xml', 'avatar_admin.tex', 'avatar_admin.tex', 'avatar_admin.tex', nil, nil, {.3,.3}, {0,0}))
-        playerListing.adminBadge:Disable()
-        playerListing.adminBadge:SetPosition(-355,-13,0)
-        playerListing.adminBadge.scale_on_focus = false
-        playerListing.adminBadge:Hide()
+        player_listing.admin_badge = player_listing:AddChild(ImageButton('images/avatars.xml', 'avatar_admin.tex', 'avatar_admin.tex', 'avatar_admin.tex', nil, nil, {.3,.3}, {0,0}))
+        player_listing.admin_badge:Disable()
+        player_listing.admin_badge:SetPosition(-355,-13,0)
+        player_listing.admin_badge.scale_on_focus = false
+        player_listing.admin_badge:Hide()
 
-        playerListing.name = playerListing:AddChild(TextButton())
-        playerListing.name:SetFont(UIFONT)
-        playerListing.name:SetTextSize(35)
-        playerListing.name._align = {
+        player_listing.name = player_listing:AddChild(TextButton())
+        player_listing.name:SetFont(UIFONT)
+        player_listing.name:SetTextSize(35)
+        player_listing.name._align = {
             maxwidth = 215,
             maxchars = 36,
             x = -286,
         }
 
-        playerListing.load_more_records = playerListing:AddChild(TextButton())
-        playerListing.load_more_records:SetFont(UIFONT)
-        playerListing.load_more_records:SetTextSize(35)
-        playerListing.load_more_records._align = {
+        player_listing.load_more_records = player_listing:AddChild(TextButton())
+        player_listing.load_more_records:SetFont(UIFONT)
+        player_listing.load_more_records:SetTextSize(35)
+        player_listing.load_more_records._align = {
             maxwidth = 215,
             maxchars = 36,
             x = -286,
         }
-        playerListing.load_more_records:SetText(S.LOAD_MORE_HISTORY_PLAYERS)
-        playerListing.load_more_records:SetOnClick(function()
+        player_listing.load_more_records:SetText(S.LOAD_MORE_HISTORY_PLAYERS)
+        player_listing.load_more_records:SetOnClick(function()
             -- query server to load more player records
             ThePlayer.player_classified:QueryHistoryPlayers()
         end)
-        playerListing.load_more_records:Hide()
+        player_listing.load_more_records:Hide()
 
 
-        playerListing.age = playerListing:AddChild(Text(UIFONT, 35, ''))
-        playerListing.age:SetPosition(-20,0,0)
-        playerListing.age:SetHAlign(ANCHOR_MIDDLE)
+        player_listing.age = player_listing:AddChild(Text(UIFONT, 35, ''))
+        player_listing.age:SetPosition(-20,0,0)
+        player_listing.age:SetHAlign(ANCHOR_MIDDLE)
 		if TheNet:GetServerGameMode() == 'lavaarena' then
-			playerListing.age:Hide()
+			player_listing.age:Hide()
 		end
          
-        playerListing.button_list = {}
+        player_listing.button_list = {}
         local function CreateButtonOfPlayer(name, image_button, hover_text, on_click, needs_confirm)
             hover_text = hover_text or S[string.upper(name)] or ''
-            local button = playerListing:AddChild(image_button)
+            local button = player_listing:AddChild(image_button)
             button.name = name
             if VotableImageButton.is_instance(button) then
                 table.insert(self.votable_buttons, button)
@@ -1171,17 +1171,17 @@ function HistoryPlayerScreen:DoInit()
                     { font = NEWFONT_OUTLINE, offset_x = 0, offset_y = 30, colour = {1,1,1,1}}
                 )
             end
-            playerListing[name] = button
+            player_listing[name] = button
             button:SetNormalScale(0.39)
             button:SetFocusScale(0.39*1.1)
             button:SetFocusSound('dontstarve/HUD/click_mouseover', nil, ClickMouseoverSoundReduction())
    
             if needs_confirm then
                 button:SetOnClick(function()
-                    local online = self.recorder.player_record[playerListing.userid].online
+                    local online = self.recorder.player_record[player_listing.userid].online
                     PopupConfirmDialog(
                         string.format(S.FMT_CONFIRM_DIALOG_TITLE, hover_text),
-                        string.format(S.FMT_CONFIRM_DIALOG_DESC, playerListing.displayName, hover_text, online and '' or S.COMFIRM_DIALOG_OFFLINE_PLAYER_DESC), 
+                        string.format(S.FMT_CONFIRM_DIALOG_DESC, player_listing.display_name, hover_text, online and '' or S.COMFIRM_DIALOG_OFFLINE_PLAYER_DESC), 
                         on_click, 
                         button.vote_state -- will be nil if button is a normal ImageButton, it is ok
                     )
@@ -1193,7 +1193,7 @@ function HistoryPlayerScreen:DoInit()
             end
             button:Hide()
 
-            table.insert(playerListing.button_list, name)
+            table.insert(player_listing.button_list, name)
         end
 
 
@@ -1203,9 +1203,9 @@ function HistoryPlayerScreen:DoInit()
             ImageButton('images/scoreboard.xml', 'addfriend.tex', 'addfriend.tex', 'addfriend.tex', 'addfriend.tex', nil, {1,1}, {0,0}), 
             nil,
             function()
-                if playerListing.displayName and playerListing.userid then
+                if player_listing.display_name and player_listing.userid then
                     TheFrontEnd:PopScreen()
-                    self.owner.HUD:TogglePlayerInfoPopup(playerListing.displayName, TheNet:GetClientTableForUser(playerListing.userid), true, true)
+                    self.owner.HUD:TogglePlayerInfoPopup(player_listing.display_name, TheNet:GetClientTableForUser(player_listing.userid), true, true)
                 end
             end
         )
@@ -1213,8 +1213,8 @@ function HistoryPlayerScreen:DoInit()
             ImageButton(M.ATLAS, 'view_steam_profile.tex', 'view_steam_profile.tex', 'view_steam_profile.tex', 'view_steam_profile.tex', nil, {1,1}, {0,0}), 
             nil,
             function()
-                if playerListing.netid then
-                    TheNet:ViewNetProfile(playerListing.netid)
+                if player_listing.netid then
+                    TheNet:ViewNetProfile(player_listing.netid)
                 end
             end
         )
@@ -1223,8 +1223,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton('images/scoreboard.xml', 'kickout.tex', 'kickout.tex', 'kickout_disabled.tex', 'kickout.tex', nil, {1,1}, {0,0}), 
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KICK, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KICK, player_listing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -1235,8 +1235,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton(M.ATLAS, 'kill.tex', 'kill.tex', 'kill.tex', 'kill.tex', nil, {1,1}, {0,0}),
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KILL, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KILL, player_listing.userid)
                     -- ^  v these two statement shell not swap places or it will cause lua syntex ambiguous 
                     TheFrontEnd:PopScreen()
                 end
@@ -1247,8 +1247,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton('images/scoreboard.xml', 'banhammer.tex', 'banhammer.tex', 'banhammer.tex', 'banhammer.tex', nil, {1,1}, {0,0}), 
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.BAN, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.BAN, player_listing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -1259,8 +1259,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton(M.ATLAS, 'killban.tex', 'killban.tex', 'killban.tex', 'killban.tex', nil, {1,1}, {0,0}),
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KILLBAN, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.KILLBAN, player_listing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -1271,8 +1271,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton(M.ATLAS, 'add_moderator.tex', 'add_moderator.tex', 'add_moderator.tex', 'add_moderator.tex', nil, {1,1}, {0,0}), 
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ADD_MODERATOR, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.ADD_MODERATOR, player_listing.userid)
                 
                     TheFrontEnd:PopScreen()
                 end
@@ -1283,8 +1283,8 @@ function HistoryPlayerScreen:DoInit()
             VotableImageButton(M.ATLAS, 'remove_moderator.tex', 'remove_moderator.tex', 'remove_moderator.tex', 'remove_moderator.tex', nil, {1,1}, {0,0}), 
             nil, 
             function(vote_state)
-                if playerListing.userid then
-                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.REMOVE_MODERATOR, playerListing.userid)
+                if player_listing.userid then
+                    ExecuteOrStartVote(vote_state, M.COMMAND_ENUM.REMOVE_MODERATOR, player_listing.userid)
                     
                     TheFrontEnd:PopScreen()
                 end
@@ -1292,60 +1292,60 @@ function HistoryPlayerScreen:DoInit()
             true
         )
 
-        playerListing.OnGainFocus = function()
-            playerListing.highlight:Show()
+        player_listing.OnGainFocus = function()
+            player_listing.highlight:Show()
         end
-        playerListing.OnLoseFocus = function()
-            playerListing.highlight:Hide()
+        player_listing.OnLoseFocus = function()
+            player_listing.highlight:Hide()
         end
 
-        return playerListing
+        return player_listing
     end
 
-    local function HideAllButtonsOfPlayer(playerListing)
-        if not playerListing.button_list then return end
-        for _, button in ipairs(playerListing.button_list) do
-            if playerListing[button] then
-                playerListing[button]:Hide()
+    local function HideAllButtonsOfPlayer(player_listing)
+        if not player_listing.button_list then return end
+        for _, button in ipairs(player_listing.button_list) do
+            if player_listing[button] then
+                player_listing[button]:Hide()
             end
         end
     end
 
-    local function UpdatePlayerListing(playerListing, userid, i)
+    local function Updateplayer_listing(player_listing, userid, i)
         if userid == nil then
-            playerListing:Hide()
+            player_listing:Hide()
             return
         elseif userid == LIST_IS_INCOMPLETE then
             
             -- show a tips button for load more players
-            playerListing.load_more_records:Show()
+            player_listing.load_more_records:Show()
             -- hide a dozen of elements 
-            playerListing.profileFlair:Hide()
-            playerListing.characterBadge:Hide()
-            playerListing.number:Hide()
-            playerListing.adminBadge:Hide()
-            playerListing.name:Hide()
-            playerListing.age:Hide()
-            HideAllButtonsOfPlayer(playerListing)
-            playerListing:Show()
+            player_listing.profile_flair:Hide()
+            player_listing.character_badge:Hide()
+            player_listing.number:Hide()
+            player_listing.admin_badge:Hide()
+            player_listing.name:Hide()
+            player_listing.age:Hide()
+            HideAllButtonsOfPlayer(player_listing)
+            player_listing:Show()
             return
         end
-        playerListing.load_more_records:Hide()
+        player_listing.load_more_records:Hide()
         
         self.recorder:RecordClientData(userid)
         local record = self.recorder.player_record[userid]
         
-        playerListing:Show()
-        playerListing.displayName = (record.name or '???') .. '('.. userid ..')'
+        player_listing:Show()
+        player_listing.display_name = (record.name or '???') .. '('.. userid ..')'
 
-        playerListing.userid = userid
-        playerListing.netid = record.netid
+        player_listing.userid = userid
+        player_listing.netid = record.netid
 
         local colour = record.client and record.client.colour or DEFAULT_PLAYER_COLOUR
         local userflags = record.client and record.client.userflags or 0
 
         -- if record.client then
-        playerListing.characterBadge:Set(
+        player_listing.character_badge:Set(
             GetBasePrefabFromSkin(record.skin) or '',       -- prefab name
             colour,                                         -- colour 
             false,                                          -- is_host
@@ -1355,53 +1355,53 @@ function HistoryPlayerScreen:DoInit()
 
         if self.show_player_badge then
             if record.client then
-                local _, _, _, profileflair, rank = GetSkinsDataFromClientTableData(record.client)
-                playerListing.profileFlair:SetRank(profileflair, rank)
-                playerListing.profileFlair:Show()
+                local _, _, _, profile_flair, rank = GetSkinsDataFromClientTableData(record.client)
+                player_listing.profile_flair:SetRank(profile_flair, rank)
+                player_listing.profile_flair:Show()
             else
-                playerListing.profileFlair:Hide()
+                player_listing.profile_flair:Hide()
             end
         end
 
-        playerListing.characterBadge:Show()
+        player_listing.character_badge:Show()
 
         if record.permission_level == M.PERMISSION.ADMIN then
-            playerListing.adminBadge:SetTextures(M.ATLAS, 'admin_badge.tex', 'admin_badge.tex', 'admin_badge.tex', nil, nil, {.3,.3}, {0,0})        
-            playerListing.adminBadge:SetHoverText(
+            player_listing.admin_badge:SetTextures(M.ATLAS, 'admin_badge.tex', 'admin_badge.tex', 'admin_badge.tex', nil, nil, {.3,.3}, {0,0})        
+            player_listing.admin_badge:SetHoverText(
                 S.ADMIN, { font = NEWFONT_OUTLINE, offset_x = 0, offset_y = 30, colour = {1,1,1,1}}
             )
-            playerListing.adminBadge:Show()
+            player_listing.admin_badge:Show()
         elseif record.permission_level == M.PERMISSION.MODERATOR then
-            playerListing.adminBadge:SetTextures('images/avatars.xml', 'avatar_admin.tex', 'avatar_admin.tex', 'avatar_admin.tex', nil, nil, {.3,.3}, {0,0})
-            playerListing.adminBadge:SetHoverText(
+            player_listing.admin_badge:SetTextures('images/avatars.xml', 'avatar_admin.tex', 'avatar_admin.tex', 'avatar_admin.tex', nil, nil, {.3,.3}, {0,0})
+            player_listing.admin_badge:SetHoverText(
                 S.MODERATOR, { font = NEWFONT_OUTLINE, offset_x = 0, offset_y = 30, colour = {1,1,1,1}}
             )
-            playerListing.adminBadge:Show()
+            player_listing.admin_badge:Show()
         else
             -- is user or lower level
-            playerListing.adminBadge:Hide()
+            player_listing.admin_badge:Hide()
         end
 
         -- host listing will not be shown
-        playerListing.number:SetString(i)
+        player_listing.number:SetString(i)
 
-        -- playerListing.name.text:SetTruncatedString(playerListing.displayName, playerListing.name._align.maxwidth, playerListing.name._align.maxchars, true)
-        playerListing.name:SetText(playerListing.displayName)
-        local w, h = playerListing.name.text:GetRegionSize()
-        playerListing.name:SetPosition(playerListing.name._align.x + w * .5, 0, 0)
-        playerListing.name:SetColour(unpack(record.colour or DEFAULT_PLAYER_COLOUR))
-        playerListing.name:SetOnClick(function()
+        -- player_listing.name.text:SetTruncatedString(player_listing.display_name, player_listing.name._align.maxwidth, player_listing.name._align.maxchars, true)
+        player_listing.name:SetText(player_listing.display_name)
+        local w, h = player_listing.name.text:GetRegionSize()
+        player_listing.name:SetPosition(player_listing.name._align.x + w * .5, 0, 0)
+        player_listing.name:SetColour(unpack(record.colour or DEFAULT_PLAYER_COLOUR))
+        player_listing.name:SetOnClick(function()
             self:DumpToWebPage(userid)
         end)
-        playerListing.name:Show()
+        player_listing.name:Show()
 
-        playerListing.age:SetString(
+        player_listing.age:SetString(
             record.age ~= nil and 
             record.age > 0 and
             (tostring(record.age) .. (record.age == 1 and STRINGS.UI.PLAYERSTATUSSCREEN.AGE_DAY or STRINGS.UI.PLAYERSTATUSSCREEN.AGE_DAYS)) 
             or ''
         )
-        playerListing.age:Show()
+        player_listing.age:Show()
     
         
         local button_start = 50
@@ -1415,26 +1415,26 @@ function HistoryPlayerScreen:DoInit()
                 local category = ThePlayer.player_classified:CommandApplyableForPlayerTarget(cmd, userid)
                 if category == M.EXECUTION_CATEGORY.YES then
                     if self.vote.vote_state then
-                        playerListing[name]:EnableVote()
+                        player_listing[name]:EnableVote()
                     else -- vote_state == false
-                        playerListing[name]:DisableVote()
+                        player_listing[name]:DisableVote()
                     end
                 elseif category == M.EXECUTION_CATEGORY.VOTE_ONLY then
                     -- always in vote state
-                    playerListing[name]:EnableVote()
+                    player_listing[name]:EnableVote()
                 else -- category == M.EXECUTION_CATEGORY.NO
                     -- always don't show the button
                     return
                 end
             end
-            playerListing[name]:Show()
-            playerListing[name]:SetPosition(button_x, 3, 0)
+            player_listing[name]:Show()
+            player_listing[name]:SetPosition(button_x, 3, 0)
             button_x = button_x + button_x_offset
         end
 
         -- button visibility tests
 
-        HideAllButtonsOfPlayer(playerListing)
+        HideAllButtonsOfPlayer(player_listing)
         if record.online then
             ShowButtonIfAvailable('viewprofile')
         elseif record.netid then
@@ -1465,7 +1465,7 @@ function HistoryPlayerScreen:DoInit()
             end
         end
 
-        -- doButtonFocusHookups(playerListing)
+        -- doButtonFocusHookups(player_listing)
     end
 
     if not self.scroll_list then
@@ -1478,10 +1478,10 @@ function HistoryPlayerScreen:DoInit()
         self.player_widgets = {}
         for i=1,6 do
             table.insert(self.player_widgets, listingConstructor(i, self.row_root))
-            UpdatePlayerListing(self.player_widgets[i], sorted_userkey_list[i] or nil, i)
+            Updateplayer_listing(self.player_widgets[i], sorted_userkey_list[i] or nil, i)
         end
 
-        self.scroll_list = self.list_root:AddChild(ScrollableList(sorted_userkey_list, 380, 370, 60, 5, UpdatePlayerListing, self.player_widgets, nil, nil, nil, -15))
+        self.scroll_list = self.list_root:AddChild(ScrollableList(sorted_userkey_list, 380, 370, 60, 5, Updateplayer_listing, self.player_widgets, nil, nil, nil, -15))
         self.scroll_list:LayOutStaticWidgets(-15)
         self.scroll_list:SetPosition(0,-10)
 
