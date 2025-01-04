@@ -103,6 +103,7 @@ local ShardServerInfoRecord = Class(
             self:InitModOutOfDateHandler()
         end
         
+        M.shard_serverinforecord = self
     end
 )
 

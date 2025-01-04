@@ -66,6 +66,16 @@ function M.chain_get(root, ...)
     return current
 end
 
+function M.get_if_exists(tab, key)
+    return tab and tab[key] or nil
+end
+function M.call_if_exists(obj, name, ...)
+    local fn = obj and obj[name]
+    if fn then
+        return fn(obj, ...)
+    end
+end
+
 -- select the n-th argument of a vararg
 function M.select_one(n, ...)
     return ({select(n, ...)})[1]

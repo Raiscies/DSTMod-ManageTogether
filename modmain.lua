@@ -135,6 +135,7 @@ local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
 
 
 
+
 M.ERROR_CODE = table.invert({
     'PERMISSION_DENIED',  -- = 1
     'BAD_COMMAND',        -- = 2
@@ -198,25 +199,6 @@ function M.ResetVoteEnv()
     M.VOTE_ENVIRONMENT.valid = false
 end
 
--- simple get functions, only available at server side
-local function GetServerInfoComponent()
-    if not M.the_component then
-        M.the_component = GLOBAL.TheWorld.shard.components.shard_serverinforecord
-    end
-    return M.the_component
-end
-local function GetPlayerRecords()
-    local comp = GetServerInfoComponent()
-    return comp and comp.player_record or {}
-end
-local function GetSnapshotInfo()
-    local comp = GetServerInfoComponent()
-    return comp and comp.snapshot_info or {}
-end
-local function GetPlayerRecord(userid)
-    return GetPlayerRecords()[userid]
-end
-
 local function SpawnMiniflareOnPlayerPosition(player)
     if not player then return end 
     local x, y, z = player.Transform:GetWorldPosition()
@@ -258,7 +240,7 @@ end
 local function AnnounceItemStat(stat)
     dbg('{stat: }')
     for userid, v in pairs(stat) do
-        local name = GetPlayerRecord(userid).name or '???'
+        local name = get_if_exists(shard_serverinforecord.player_record[userid], 'name') or '???'
 
         if IsTableEmpty(v.counts) then
             if not M.CLEANER_ITEM_STAT_ANNOUNCEMENT then     
@@ -346,8 +328,9 @@ local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_
         voteallownotvoted = true,
         voteoptions = nil, -- { "Yes", "No" }
 
-        votenamefmt = chain_get(S.VOTE, string.upper(name), 'FMT_NAME'),
-        votetitlefmt = chain_get(S.VOTE, string.upper(name), 'TITLE'),
+
+        votenamefmt = get_if_exists(S.VOTE[string.upper(name)], 'FMT_NAME'),
+        votetitlefmt = get_if_exists(S.VOTE[string.upper(name)], 'TITLE'),
         votepassedfmt = nil,
         
         votecanstartfn = VoteUtil.DefaultCanStartVote,
@@ -390,7 +373,7 @@ local function DefaultArgsDescription(...)
     return table.concat({...}, ', ')
 end
 local function DefaultUserTargettedArgsDescription(userid, ...)
-    local user_desc = string.format('%s(%s)', GetPlayerRecord(userid).name, userid)
+    local user_desc = string.format('%s(%s)', get_if_exists(shard_serverinforecord.player_record[userid], 'name'), userid)
     return select('#', ...) == 0 and 
         user_desc or 
         user_desc .. ', ' .. DefaultArgsDescription(...)
@@ -559,13 +542,13 @@ M.CHECKERS = {
     table = function(val) return type(val) == 'table' end,
     opttable = function(val) return val == nil or type(val) == 'table' end,
     
-    userid_recorded = function(val) return GetPlayerRecord(val) ~= nil end, 
+    userid_recorded = function(val) return shard_serverinforecord.player_record[val] ~= nil end, 
     -- unfortunately, lua's regex does not support repeat counting syntex like [%w%-_]{8}, 
     -- so we have to write it manually
     userid_like = function(val) return checkstring(val) and val:match('^KU_[%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_][%w%-_]$') ~= nil end, 
 
     snapshot_id_like    = function(val) return checkuint(val) and val > 0 end,
-    snapshot_id_existed = function(val) return checkuint(val) and GetServerInfoComponent():SnapshotIDExists(val) end,
+    snapshot_id_existed = function(val) return checkuint(val) and shard_serverinforecord:SnapshotIDExists(val) end,
     
     command_enum = function(val) return M.COMMAND[val] ~= nil end,
     error_code   = function(val)  
@@ -587,7 +570,7 @@ M.CHECKERS.none   = M.CHECKERS['nil']
 M.CHECKERS.same   = 'same' -- apply the last checkers to all of the varargs
 
 local function PermissionLevel(userid)
-    local record = GetPlayerRecord(userid)
+    local record = shard_serverinforecord.player_record[userid]
     return record and record.permission_level or M.PERMISSION.USER
 end
 
@@ -604,21 +587,21 @@ M.AddCommands(
         permission = M.PERMISSION.MODERATOR, 
         checker = {        'optnumber',          'optuint'}, 
         fn = function(doer, last_query_timestamp, block_index)
-            return GetServerInfoComponent():PushPlayerRecordTo(doer.userid, last_query_timestamp, block_index)
+            return shard_serverinforecord:PushPlayerRecordTo(doer.userid, last_query_timestamp, block_index)
         end 
     },
     {
         name = 'QUERY_SNAPSHOT_INFORMATIONS',
         permission = M.PERMISSION.MODERATOR, 
         fn = function(doer)
-            return GetServerInfoComponent():PushSnapshotInfoTo(doer.userid)
+            return shard_serverinforecord:PushSnapshotInfoTo(doer.userid)
         end
     },
     {
         name = 'REFRESH_RECORDS', 
         permission = M.PERMISSION.ADMIN, 
         fn = function(doer)
-            local comp = GetServerInfoComponent()
+            local comp = shard_serverinforecord
             if comp then
                 log('refreshing player records')
                 comp:RecordOnlinePlayers()
@@ -642,7 +625,7 @@ M.AddCommands(
             -- don't need to check target_userid, which has been checked on ExecuteCommand
 
             TheNet:Kick(target_userid)
-            announce_fmt(S.FMT_KICKED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
+            announce_fmt(S.FMT_KICKED_PLAYER, get_if_exists(shard_serverinforecord.player_record[target_userid], 'name') or S.UNKNOWN_PLAYER, target_userid)
         end
     },
     {
@@ -679,9 +662,9 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- ban a player
 
-            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
+            shard_serverinforecord:SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             TheNet:Ban(target_userid)
-            announce_fmt(S.FMT_BANNED_PLAYER, GetPlayerRecord(target_userid).name, target_userid)
+            announce_fmt(S.FMT_BANNED_PLAYER, get_if_exists(shard_serverinforecord.player_record[target_userid], 'name') or S.UNKNOWN_PLAYER, target_userid)
         end
     },
     {
@@ -692,7 +675,7 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill and ban a player
 
-            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER_BANNED)
+            shard_serverinforecord:SetPermission(target_userid, M.PERMISSION.USER_BANNED)
             local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
             if missing_count > 0 or result_table == nil then
@@ -725,10 +708,10 @@ M.AddCommands(
         can_vote = true, 
         checker = {                'snapshot_id_existed', 'optnumber'},
         args_description = function(target_snapshot_id, delay_seconds)
-            return GetServerInfoComponent():BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
+            return shard_serverinforecord:BuildSnapshotBriefStringByID(S.FMT_ROLLBACK_BRIEF, target_snapshot_id)
         end,
         fn = function(doer, target_snapshot_id, delay_seconds)
-            local comp = GetServerInfoComponent()
+            local comp = shard_serverinforecord
             if comp:GetIsRollingBack() then
                 announce(S.ERR_REPEATED_REQUEST)
                 return M.ERROR_CODE.REPEATED_REQUEST
@@ -786,7 +769,7 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- add a player as moderator
 
-            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.MODERATOR)
+            shard_serverinforecord:SetPermission(target_userid, M.PERMISSION.MODERATOR)
             
         end
     },
@@ -798,7 +781,7 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- remove a moderator 
 
-            GetServerInfoComponent():SetPermission(target_userid, M.PERMISSION.USER)
+            shard_serverinforecord:SetPermission(target_userid, M.PERMISSION.USER)
 
         end
     }, 
@@ -810,7 +793,7 @@ M.AddCommands(
         fn = function(doer, allowed)
             if allowed ~= nil and type(allowed) ~= 'boolean' then return M.ERROR_CODE.BAD_ARGUMENT end
             allowed = bool(allowed)
-            GetServerInfoComponent():SetAllowNewPlayersToConnect(allowed)
+            shard_serverinforecord:SetAllowNewPlayersToConnect(allowed)
             M.announce_fmt(S.FMT_SET_NEW_PLAYER_JOINABILITY[allowed and 'ALLOW' or 'NOT_ALLOW'], doer.name)
         end
     },
@@ -837,13 +820,13 @@ M.AddCommands(
 
             if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
                 if min_online_player_level == nil then
-                    GetServerInfoComponent():SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
+                    shard_serverinforecord:SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
                 else
                     dbg('a non-admin player is attempt to execute SET_AUTO_NEW_PLAYER_WALL command but min_online_player_level is not nil')
                     return M.ERROR_CODE.BAD_ARGUMENT
                 end
             else
-                GetServerInfoComponent():SetAutoNewPlayerWall(enabled, min_online_player_level)
+                shard_serverinforecord:SetAutoNewPlayerWall(enabled, min_online_player_level)
             end
         end
     }, 
@@ -864,7 +847,7 @@ M.AddCommands(
             end
             return 
                 -- target string
-                CHECKERS.uint(userid_or_flag) and ITEM_STAT_CATEGORY[userid_or_flag] or GetPlayerRecord(userid_or_flag).name, 
+                CHECKERS.uint(userid_or_flag) and ITEM_STAT_CATEGORY[userid_or_flag] or (get_if_exists(shard_serverinforecord.player_record[userid_or_flag], 'name') or S.UNKNOWN_PLAYER), 
                 table.concat(item_names, ', ')
         end,
         fn = function(doer, userid_or_flag, ...)
@@ -886,7 +869,7 @@ M.AddCommands(
             announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD, doer.name)
             if type(userid_or_flag) == 'string' then
                 announce_fmt(S.FMT_MAKE_ITEM_STAT_HEAD2, 
-                    string.format('%s(%s)', GetPlayerRecord(userid_or_flag).name, userid_or_flag), 
+                    string.format('%s(%s)', get_if_exists(shard_serverinforecord.player_record[userid_or_flag], 'name') or S.UNKNOWN_PLAYER, userid_or_flag), 
                     table.concat(item_names, ', ')
                 )
             else
@@ -954,7 +937,7 @@ M.AddCommands(
             if selection ~= 2 then
                 
                 -- suppress annoying announcement anyway 
-                GetServerInfoComponent().mod_out_of_date_handler:SetSuppressAnnouncement(true)
+                shard_serverinforecord.mod_out_of_date_handler:SetSuppressAnnouncement(true)
 
                 if selection == 1 then
                     -- do suppress announcement
@@ -1033,7 +1016,7 @@ M.SHARD_COMMAND = {
         -- 1: player is in this shard, but some error occured while killing it
         -- 2: successed to kill the target player
 
-        local target = GetPlayerRecord(target_userid)
+        local target = shard_serverinforecord.player_record[target_userid]
         
         if not target or not target.in_this_shard then return 0 end
 
@@ -1054,40 +1037,10 @@ M.SHARD_COMMAND = {
             return 2
         end
     end,
-
-    -- [M.COMMAND_ENUM.KILLBAN] = function(sender_shard_id, target_userid)
-
-    --     -- return value: 
-    --     -- 0: player is not in this shard
-    --     -- 1: player is in this shard, but some error occured while killing it
-    --     -- 2: successed to killban the target player
-
-    --     local target = GetPlayerRecord(target_userid)
-        
-    --     if not target or not target.in_this_shard then return 0 end
-
-    --     local announce_string = string.format(S.FMT_KILLBANNED_PLAYER, target.name or '???', target_userid)
-    --     if IsPlayerOnline(target_userid) then
-    --         for _,v in pairs(GLOBAL.AllPlayers) do
-    --             if v and v.userid == target_userid then
-    --                 KillPlayer(v, announce_string)
-    --                 TheWorld:DoTaskInTime(3, TheNet.Ban, TheNet, target_userid)
-    --                 return 2
-    --             end
-    --         end
-    --         return 1
-    --     else
-    --         TheNet:Ban(target_userid)
-    --         if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
-    --             dbg('error: failed to killban a offline player')
-    --             return 1
-    --         end
-    --     end
-    -- end,
     [M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES] = function(sender_shard_id, userid_or_flag, ...)
         local item_prefabs = {...}
         if CHECKERS.userid_recorded(userid_or_flag) then
-            if not GetPlayerRecord(userid_or_flag).in_this_shard then return true end
+            if not shard_serverinforecord.player_record[userid_or_flag].in_this_shard then return true end
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item_prefabs))
             return true
         end
@@ -1102,7 +1055,7 @@ M.SHARD_COMMAND = {
         elseif userid_or_flag == 1 then
             -- all of the offline player
             local userid_list = {}
-            for userid, record in pairs(GetPlayerRecords()) do
+            for userid, record in pairs(shard_serverinforecord.player_record) do
                 if record.in_this_shard and IsPlayerOnline(userid) then table.insert(userid_list, userid) end
             end
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
@@ -1110,7 +1063,7 @@ M.SHARD_COMMAND = {
         elseif userid_or_flag == 2 then
             -- all of the recorded player
             local userid_list  = {}
-            for userid, record in pairs(GetPlayerRecords()) do
+            for userid, record in pairs(shard_serverinforecord.player_record) do
                 if record.in_this_shard then table.insert(userid_list, userid) end
             end
             AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
@@ -1158,7 +1111,7 @@ M.SHARD_COMMAND = {
                     S.VOTE[M.CommandEnumToName(cmd)].FMT_ANNOUNCE, 
                     M.COMMAND[cmd].args_description(unpack(args))
                 )
-                M.announce_vote_fmt(S.VOTE.FMT_START, GetPlayerRecord(starter_userid).name or S.UNKNOWN_PLAYER, announce_string)
+                M.announce_vote_fmt(S.VOTE.FMT_START, get_if_exists(shard_serverinforecord[starter_userid], 'name') or S.UNKNOWN_PLAYER, announce_string)
                 -- listen only once
                 TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
                 
@@ -1357,7 +1310,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
         return M.ERROR_CODE.PERMISSION_DENIED
     elseif M.COMMAND[cmd].user_targetted then
         -- the first argument will be target_userid if command is player targeted
-        local target_record = GetPlayerRecord(select_one(1, ...))
+        local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
         elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
@@ -1388,7 +1341,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.COMMAND_NOT_VOTABLE
     elseif M.COMMAND[cmd].user_targetted then
         -- the first argument will be target_userid if command is player targeted
-        local target_record = GetPlayerRecord(select_one(1, ...))
+        local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
         elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
@@ -1400,7 +1353,8 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
-    local voter_state, is_get_failed = chain_get(TheWorld, 'net', 'components', 'worldvoter', {'IsVoteActive'})
+    local voter_state, is_get_failed = call_if_exists(TheWorld.net.components.worldvoter, 'IsVoteActive')
+    
     if is_get_failed then
         return M.ERROR_CODE.INTERNAL_ERROR
     elseif voter_state == true then
@@ -1448,7 +1402,7 @@ AddPrefabPostInit('shard_network', function(inst)
             
         if M.MOD_OUTOFDATE_HANDLER_ENABLED and TheShard:IsMaster() then
             
-            local handler = GetServerInfoComponent().mod_out_of_date_handler
+            local handler = shard_serverinforecord.mod_out_of_date_handler
             
             -- add callbacks
             handler:Add(function(mod)
@@ -1616,13 +1570,14 @@ local function SetPermission(classified, level)
 end
 
 local function CommandApplyableForPlayerTarget(classified, cmd, target_userid)
-    if not chain_get(M.COMMAND[cmd], 'user_targetted') then
+    if not M.COMMAND[cmd] or not M.COMMAND[cmd].user_targetted then
         return M.EXECUTION_CATEGORY.NO
     end
 
     local target_lvl
     if TheWorld then
-        target_lvl = chain_get(TheWorld.net.components.serverinforecord.player_record, target_userid, 'permission_level')
+        local record = serverinforecord.player_record[target_userid]
+        target_lvl = record and record.permission_level or nil
     end
     if not target_lvl then return M.EXECUTION_CATEGORY.NO end
     if classified:HasPermission(cmd) and M.LevelHigherThan(classified.permission_level, target_lvl) then

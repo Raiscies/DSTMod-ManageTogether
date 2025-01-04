@@ -456,11 +456,11 @@ local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_nam
                 nil, {.4, .4}, {0, 0}
             },
             hover_text = {
-                text = M.chain_get(S, name:upper(), turned_on_name:upper()) or '',
+                text = chain_get(S, name:upper(), turned_on_name:upper()) or '',
                 params = { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }
             },
             hover_text_at_vote = {
-                text = S.START_A_VOTE .. (M.chain_get(S, name:upper(), turned_on_name:upper()) or ''),
+                text = S.START_A_VOTE .. (chain_get(S, name:upper(), turned_on_name:upper()) or ''),
                 params = { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }    
             }
         }
@@ -474,11 +474,11 @@ local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_nam
                 nil, {.4, .4}, {0, 0}
             },
             hover_text = {
-                text = M.chain_get(S, name:upper(), turned_off_name:upper()) or '',
+                text = chain_get(S, name:upper(), turned_off_name:upper()) or '',
                 params = { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }
             },
             hover_text_at_vote = {
-                text = S.START_A_VOTE .. (M.chain_get(S, name:upper(), turned_off_name:upper()) or ''),
+                text = S.START_A_VOTE .. (chain_get(S, name:upper(), turned_off_name:upper()) or ''),
                 params = { font = GLOBAL.NEWFONT_OUTLINE, offset_x = 0, offset_y = 38, colour = GLOBAL.WHITE }    
             }
         }
@@ -644,7 +644,7 @@ local HistoryPlayerScreen = Class(Screen, function(self, owner)
     self.usercommandpickerscreen = nil
     self.show_player_badge = not TheFrontEnd:GetIsOfflineMode() and TheNet:IsOnlineMode()
 
-    self.recorder = TheWorld.net.components.serverinforecord
+    self.recorder = M.serverinforecord
 
     self.on_snapshot_info_dirty = function()
         if not self.needs_update_snapshot_info then

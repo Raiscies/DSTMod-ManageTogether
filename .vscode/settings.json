@@ -159,7 +159,11 @@
         "select_first",
         "StartNextInstance",
         "RESET_ACTION",
-        "bool"
+        "bool",
+        "get_if_exists",
+        "call_if_exists",
+        "shard_serverinforecord",
+        "serverinforecord"
     ],
     "Lua.diagnostics.disable": [
         "trailing-space",
@@ -169,5 +173,6 @@
         "lowercase-global",
         // "undefined-global",
         "undefined-field"
-    ]
+    ],
+    "Lua.completion.autoRequire": false
 }

@@ -37,6 +37,8 @@ local ServerInfoRecord = Class(function(self, inst)
     
     self:RegisterRPCs()
     self:InitNetVars()
+
+    M.serverinforecord = self
 end)
 
 function ServerInfoRecord:RegisterRPCs()
