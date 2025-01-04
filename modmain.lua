@@ -72,55 +72,54 @@ local function is_config_enabled(config)
     return conf == true or conf == M.EXECUTION_CATEGORY.YES 
 end
 
-local function InitConfigs()
-    
-    -- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
-    -- nil means disable elevation 
-    local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
-    local auto_new_player_wall_min_level = GetModConfigData('auto_new_player_wall_min_level')
-    M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
-    M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled('minimap_tips_for_killed_player')
-    M.DEBUG                                    = is_config_enabled('debug')
-    M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled('reserve_moderator_data_while_world_regen')
-    M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
-    M.MODERATOR_FILE_NAME = 'manage_together_moderators'
-    M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
-    M.CLEANER_ITEM_STAT_ANNOUNCEMENT = is_config_enabled('cleaner_item_stat_announcement')
-    M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('modoutofdate_handler_enabled')
-    M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION = is_config_enabled('modoutofdate_handler_add_shutdown_option')
-    M.MOD_OUTOFDATE_REVOTE_MINUTE = GetModConfigData('mod_out_of_date_revote_minute') or 5
-    M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION = GetModConfigData('mod_outofdate_vote_default_action') or nil
+-- initialize configurations
+-- USERs will elevate to MODERATOR if its living age is greater or equals to the bellow age
+-- nil means disable elevation 
+local user_elevate_in_age_config = GetModConfigData('user_elevate_in_age') or -1  
+local auto_new_player_wall_min_level = GetModConfigData('auto_new_player_wall_min_level')
+M.USER_PERMISSION_ELEVATE_IN_AGE = user_elevate_in_age_config ~= -1 and user_elevate_in_age_config or nil
+M.MINIMAP_TIPS_FOR_KILLED_PLAYER           = is_config_enabled('minimap_tips_for_killed_player')
+M.DEBUG                                    = is_config_enabled('debug')
+M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN = is_config_enabled('reserve_moderator_data_while_world_regen')
+M.SILENT_FOR_PERMISSION_DEINED = not M.DEBUG
+M.MODERATOR_FILE_NAME = 'manage_together_moderators'
+M.VOTE_MIN_PASSED_COUNT = GetModConfigData('vote_min_passed_count') or 3
+M.CLEANER_ITEM_STAT_ANNOUNCEMENT = is_config_enabled('cleaner_item_stat_announcement')
+M.MOD_OUTOFDATE_HANDLER_ENABLED = is_config_enabled('modoutofdate_handler_enabled')
+M.MOD_OUTOFDATE_HANDLER_ADD_SHUTDOWN_OPTION = is_config_enabled('modoutofdate_handler_add_shutdown_option')
+M.MOD_OUTOFDATE_REVOTE_MINUTE = GetModConfigData('mod_out_of_date_revote_minute') or 5
+M.MOD_OUTOFDATE_VOTE_DEFAULT_ACTION = GetModConfigData('mod_outofdate_vote_default_action') or nil
 
-    M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
-    if type(auto_new_player_wall_min_level) == 'string' then
-        -- config is permission level name
-        -- this setting(config) is unable to set on in-game screen yet,
-        -- but the command is implemented
-        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION[string.upper(auto_new_player_wall_min_level)] or M.PERMISSION.MODERATOR
-    else
-        M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
-    end
-
-    modimport('main_strings')
-    M.LANGUAGE = GetModConfigData('language')
-    local localization_lang = {
-        en = 'main_strings_en'   
-    }
-    if localization_lang[M.LANGUAGE] then
-        modimport(localization_lang[M.LANGUAGE])
-
-        -- set metatables, so we can display default language strings while localized strings are missing
-        setmetatable(GLOBAL.STRINGS.UI.MANAGE_TOGETHER, { __index = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT })
-        setmetatable(GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN, { __index = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT })
-    else
-        -- alias
-        GLOBAL.STRINGS.UI.MANAGE_TOGETHER = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT
-        GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
-    end
-
-    M.RPC_RESPONSE_TIMEOUT = 10
+M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED = is_config_enabled('auto_new_player_wall_enabled')
+if type(auto_new_player_wall_min_level) == 'string' then
+    -- config is permission level name
+    -- this setting(config) is unable to set on in-game screen yet,
+    -- but the command is implemented
+    M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION[string.upper(auto_new_player_wall_min_level)] or M.PERMISSION.MODERATOR
+else
+    M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
 end
-InitConfigs()
+
+modimport('main_strings')
+M.LANGUAGE = GetModConfigData('language')
+local localization_lang = {
+    en = 'main_strings_en'   
+}
+if localization_lang[M.LANGUAGE] then
+    modimport(localization_lang[M.LANGUAGE])
+
+    -- set metatables, so we can display default language strings while localized strings are missing
+    setmetatable(GLOBAL.STRINGS.UI.MANAGE_TOGETHER, { __index = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT })
+    setmetatable(GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN, { __index = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT })
+else
+    -- alias
+    GLOBAL.STRINGS.UI.MANAGE_TOGETHER = GLOBAL.STRINGS.UI.MANAGE_TOGETHER_DEFAULT
+    GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN_DEFAULT
+end
+
+M.RPC_RESPONSE_TIMEOUT = 10
+
+
 
 
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
@@ -199,7 +198,7 @@ function M.ResetVoteEnv()
     M.VOTE_ENVIRONMENT.valid = false
 end
 
-local function SpawnMiniflareOnPlayerPosition(player)
+local function spawn_mini_flare_on_player_position(player)
     if not player then return end 
     local x, y, z = player.Transform:GetWorldPosition()
     local minimap = SpawnPrefab("miniflare_minimap")
@@ -210,7 +209,7 @@ local function SpawnMiniflareOnPlayerPosition(player)
     return x, y, z
 end
 
-local function KillPlayer(player, announce_string)
+local function kill_player(player, announce_string)
     if player.components then
         -- drop everything first, in case some items would not drop
         if player.components.inventory then
@@ -226,7 +225,7 @@ local function KillPlayer(player, announce_string)
                 announce(announce_string)
             end
             if M.MINIMAP_TIPS_FOR_KILLED_PLAYER then
-                SpawnMiniflareOnPlayerPosition(player)
+                spawn_mini_flare_on_player_position(player)
             end
         end
         return 3 -- time of delay serializing, just for TemporarilyLoadOfflinePlayer()
@@ -237,7 +236,7 @@ local function KillPlayer(player, announce_string)
 end
 
 
-local function AnnounceItemStat(stat)
+local function announce_item_stat(stat)
     dbg('{stat: }')
     for userid, v in pairs(stat) do
         local name = get_if_exists(shard_serverinforecord.player_record[userid], 'name') or '???'
@@ -303,7 +302,7 @@ local ITEM_STAT_CATEGORY = {
 
 local execute_command_impl
 
-local function AddOfficalVoteCommand(name, voteresultfn, override_args, forward_original_params)
+local function add_offical_vote_command(name, voteresultfn, override_args, forward_original_params)
 
     -- to modify more usercommand arguments, set arguments in override_args table 
     
@@ -369,14 +368,14 @@ end
         true/false 
     )
 ]]
-local function DefaultArgsDescription(...) 
+local function default_args_description(...) 
     return table.concat({...}, ', ')
 end
-local function DefaultUserTargettedArgsDescription(userid, ...)
+local function default_user_targetted_args_description(userid, ...)
     local user_desc = string.format('%s(%s)', get_if_exists(shard_serverinforecord.player_record[userid], 'name'), userid)
     return select('#', ...) == 0 and 
         user_desc or 
-        user_desc .. ', ' .. DefaultArgsDescription(...)
+        user_desc .. ', ' .. default_args_description(...)
 end
 
 function M.AddCommand(command_info, command_fn, regen_permission_mask)
@@ -398,14 +397,14 @@ function M.AddCommand(command_info, command_fn, regen_permission_mask)
     end
 
     if not command_info.args_description then
-        command_info.args_description = (command_info.user_targetted and DefaultUserTargettedArgsDescription or DefaultArgsDescription)
+        command_info.args_description = (command_info.user_targetted and default_user_targetted_args_description or default_args_description)
     end
 
     -- set command info
     M.COMMAND[cmd_enum] = command_info
 
     if command_info.can_vote then
-        AddOfficalVoteCommand(command_info.name, vote_result_fn, command_info.vote_override_args, command_info.vote_forward_original_params)
+        add_offical_vote_command(command_info.name, vote_result_fn, command_info.vote_override_args, command_info.vote_forward_original_params)
     end
 
     if regen_permission_mask == true then
@@ -466,7 +465,7 @@ function M.GeneratePermissionBitMasks()
     end
 end
 
-local function VotePermissionElevate(origin_level)
+local function vote_permission_elevate(origin_level)
     -- player's permission level will elevate to its M.PERMISSION_VOTE_POSTFIX('_VOTE') level if exists
     -- this level is slightly higher then the origin level
     for name, level in pairs(M.PERMISSION) do
@@ -569,7 +568,7 @@ M.CHECKERS.userid = M.CHECKERS.userid_like
 M.CHECKERS.none   = M.CHECKERS['nil']
 M.CHECKERS.same   = 'same' -- apply the last checkers to all of the varargs
 
-local function PermissionLevel(userid)
+local function permission_level(userid)
     local record = shard_serverinforecord.player_record[userid]
     return record and record.permission_level or M.PERMISSION.USER
 end
@@ -578,7 +577,7 @@ function M.HasPermission(cmd, permission_mask)
     return bitand(permission_mask, cmd) ~= 0
 end
 
-local BroadcastShardCommand
+local broadcast_shard_command
 
 M.AddCommands(
     -- some technical commands
@@ -636,7 +635,7 @@ M.AddCommands(
         fn = function(doer, target_userid)
             -- kill a player, and let it drop everything
 
-            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = broadcast_shard_command(M.COMMAND_ENUM.KILL, target_userid):get()
             
             if missing_count > 0 or result_table == nil then
                 return M.ERROR_CODE.MISSING_RESPONSE
@@ -658,7 +657,7 @@ M.AddCommands(
         name = 'BAN',
         user_targetted = true, 
         can_vote = true,  
-        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
+        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- ban a player
 
@@ -671,12 +670,12 @@ M.AddCommands(
         name = 'KILLBAN', 
         user_targetted = true, 
         can_vote = true, 
-        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
+        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- kill and ban a player
 
             shard_serverinforecord:SetPermission(target_userid, M.PERMISSION.USER_BANNED)
-            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.KILL, target_userid):get()
+            local missing_count, result_table = broadcast_shard_command(M.COMMAND_ENUM.KILL, target_userid):get()
             execute_in_time_nonstatic(3, TheNet.Ban, TheNet, target_userid)
             if missing_count > 0 or result_table == nil then
                 return M.ERROR_CODE.MISSING_RESPONSE
@@ -765,7 +764,7 @@ M.AddCommands(
         name = 'ADD_MODERATOR', 
         can_vote = true, 
         user_targetted = true, 
-        checker = {         fun(LevelHigherThan)[M.PERMISSION.MODERATOR] * PermissionLevel},
+        checker = {         fun(LevelHigherThan)[M.PERMISSION.MODERATOR] * permission_level},
         fn = function(doer, target_userid)
             -- add a player as moderator
 
@@ -777,7 +776,7 @@ M.AddCommands(
         name = 'REMOVE_MODERATOR', 
         can_vote = true,
         user_targetted = true,
-        checker = {         fun(PermissionLevel) * fun(LevelSameAs)[M.PERMISSION.MODERATOR]},
+        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.MODERATOR]},
         fn = function(doer, target_userid)
             -- remove a moderator 
 
@@ -818,7 +817,7 @@ M.AddCommands(
             -- currently only admin can set min_online_player_level
             -- if moderator passed a non-nil min_online_player_level, a whole command whil be failed to execute
 
-            if PermissionLevel(doer.userid) ~= M.PERMISSION.ADMIN then
+            if permission_level(doer.userid) ~= M.PERMISSION.ADMIN then
                 if min_online_player_level == nil then
                     shard_serverinforecord:SetAutoNewPlayerWall(enabled, nil) -- pass nil to ignore it
                 else
@@ -879,7 +878,7 @@ M.AddCommands(
                 )
             end
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
-            local missing_count, result_table = BroadcastShardCommand(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
+            local missing_count, result_table = broadcast_shard_command(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
             
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
@@ -1024,13 +1023,13 @@ M.SHARD_COMMAND = {
         if IsPlayerOnline(target_userid) then
             for _,v in pairs(GLOBAL.AllPlayers) do
                 if v and v.userid == target_userid then
-                    KillPlayer(v, announce_string)
+                    kill_player(v, announce_string)
                     return 2
                 end
             end
             return 1
         else
-            if not M.TemporarilyLoadOfflinePlayer(target_userid, KillPlayer, announce_string) then
+            if not M.TemporarilyLoadOfflinePlayer(target_userid, kill_player, announce_string) then
                 dbg('error: failed to kill a offline player')
                 return 1
             end
@@ -1041,7 +1040,7 @@ M.SHARD_COMMAND = {
         local item_prefabs = {...}
         if CHECKERS.userid_recorded(userid_or_flag) then
             if not shard_serverinforecord.player_record[userid_or_flag].in_this_shard then return true end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_or_flag, item_prefabs))
+            announce_item_stat(M.MakePlayerInventoriesItemStat(userid_or_flag, item_prefabs))
             return true
         end
 
@@ -1050,7 +1049,7 @@ M.SHARD_COMMAND = {
         if userid_or_flag == 0 then
             -- all of the online players
             -- iterate AllPlayers list
-            AnnounceItemStat(M.MakeOnlinePlayerInventoriesItemStat(item_prefabs))
+            announce_item_stat(M.MakeOnlinePlayerInventoriesItemStat(item_prefabs))
         
         elseif userid_or_flag == 1 then
             -- all of the offline player
@@ -1058,7 +1057,7 @@ M.SHARD_COMMAND = {
             for userid, record in pairs(shard_serverinforecord.player_record) do
                 if record.in_this_shard and IsPlayerOnline(userid) then table.insert(userid_list, userid) end
             end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
+            announce_item_stat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
         
         elseif userid_or_flag == 2 then
             -- all of the recorded player
@@ -1066,7 +1065,7 @@ M.SHARD_COMMAND = {
             for userid, record in pairs(shard_serverinforecord.player_record) do
                 if record.in_this_shard then table.insert(userid_list, userid) end
             end
-            AnnounceItemStat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
+            announce_item_stat(M.MakePlayerInventoriesItemStat(userid_list, item_prefabs))
         
         end
 
@@ -1138,46 +1137,36 @@ M.SHARD_COMMAND = {
     end
 }
 
-local function RegisterRPCs()
+-- register RPCs
 
-    -- server rpcs
-
-    AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
-        
-        local result = ExecuteCommand(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
-        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-            return nil
-        end
-        
-        return result
-    end)
-
-    AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
-        local result = StartCommandVote(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
-        if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
-            return nil
-        end
-
-        return result
-    end)
-
+-- server rpcs
+AddServerRPC('SEND_COMMAND', function(player, cmd, ...)
     
-    -- shard rpcs
+    local result = ExecuteCommand(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
+    if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
+        return nil
+    end
+    
+    return result
+end)
+AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
+    local result = StartCommandVote(player, cmd, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
+    if (result == M.ERROR_CODE.PERMISSION_DENIED or result == M.ERROR_CODE.BAD_COMMAND) and M.SILENT_FOR_PERMISSION_DEINED then
+        return nil
+    end
 
-    AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
-        dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
-        if M.SHARD_COMMAND[cmd] then
-            return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
-            -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
-        else
-            dbg('shard command not exists')
-        end
-    end)
-
-
-end
-RegisterRPCs()
-
+    return result
+end)
+-- shard rpcs
+AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
+    dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
+    if M.SHARD_COMMAND[cmd] then
+        return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
+        -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
+    else
+        dbg('shard command not exists')
+    end
+end)
 
 
 if GLOBAL.TheNet:GetIsServer() then
@@ -1185,18 +1174,18 @@ if GLOBAL.TheNet:GetIsServer() then
 -- it is hard to fully clearify which parts are for server and the others are for clients or both
 -- so this is just a proximately seperation
 
-local function ForwardToMasterShard(cmd, ...)
+local function forward_to_master_shard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('ForwardToMasterShard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
+            dbg('forward_to_master_shard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
-            dbg('error at ForwardToMasterShard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', {arg = }')
+            dbg('error at forward_to_master_shard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', argcount = ', select('#', ...), ', {arg = }')
             return nil
         end
     else
@@ -1223,7 +1212,7 @@ local function ForwardToMasterShard(cmd, ...)
     end
 end 
 -- local, forward declared
-BroadcastShardCommand = function(cmd, ...)
+broadcast_shard_command = function(cmd, ...)
     dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
     return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
@@ -1297,9 +1286,9 @@ function M.CheckArgs(checkers, ...)
 end
 
 execute_command_impl = function(executor, cmd, is_vote, ...)
-    local permission_level = PermissionLevel(executor.userid)
+    local permission_level = permission_level(executor.userid)
     if is_vote then
-        permission_level = VotePermissionElevate(permission_level)
+        permission_level = vote_permission_elevate(permission_level)
     end
     
     -- check data validity: cmd, args
@@ -1332,7 +1321,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
 end    
 
 local start_command_vote_impl = function(executor, cmd, ...)
-    local permission_level = VotePermissionElevate(PermissionLevel(executor.userid))
+    local permission_level = vote_permission_elevate(permission_level(executor.userid))
     if not CHECKERS.command_enum(cmd) then
         return M.ERROR_CODE.BAD_COMMAND
     elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
@@ -1362,7 +1351,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
     end
 
     -- future returns whether vote is started
-    return ForwardToMasterShard('START_VOTE', cmd, executor.userid, ...):get() and M.ERROR_CODE.SUCCESS or M.ERROR_CODE.INTERNAL_ERROR
+    return forward_to_master_shard('START_VOTE', cmd, executor.userid, ...):get() and M.ERROR_CODE.SUCCESS or M.ERROR_CODE.INTERNAL_ERROR
 end
 
 function M.ExecuteCommand(executor, cmd, ...)
@@ -1470,15 +1459,15 @@ modimport('historyplayerscreen')
 -- Client codes end ------------------------------------------------------------
 end
 
-local function HasVotePermission(classified, cmd)
+local function has_vote_permission(classified, cmd)
     return M.HasPermission(cmd, classified.vote_permission_mask) or false
 end
 
-local function HasPermission(classified, cmd)
-    return (M.HasPermission(cmd, classified.permission_mask) or false), HasVotePermission(classified, cmd) 
+local function has_permission(classified, cmd)
+    return (M.HasPermission(cmd, classified.permission_mask) or false), has_vote_permission(classified, cmd) 
 end
 
-local function QueryHistoryPlayers(classified, block_index)
+local function query_history_players(classified, block_index)
     if classified.last_query_player_record_timestamp and 
         GetTime() - classified.last_query_player_record_timestamp <= 1 then 
         dbg('Current Time: ', GetTime(), ', {classified.last_query_player_record_timestamp = }')
@@ -1497,18 +1486,18 @@ local function QueryHistoryPlayers(classified, block_index)
 
 end
 
-local function QuerySnapshotInformations(classified)
+local function query_snapshot_informations(classified)
     -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_COMMAND), M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
     SendRPCToServer('SEND_COMMAND', M.COMMAND_ENUM.QUERY_SNAPSHOT_INFORMATIONS)
 end
 
 -- actually it just query history players and snapshot informations
-local function QueryServerData(classified)
-    QueryHistoryPlayers(classified)
-    QuerySnapshotInformations(classified)
+local function query_server_data(classified)
+    query_history_players(classified)
+    query_snapshot_informations(classified)
 end
 
-local function RequestToExecuteCommand(classified, cmd, ...)
+local function request_to_execute_command(classified, cmd, ...)
     local future, success = SendRPCToServer('SEND_COMMAND', cmd, ...)
     future:set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)
@@ -1526,7 +1515,7 @@ local function RequestToExecuteCommand(classified, cmd, ...)
     end)
 end
 
-local function RequestToExecuteVoteCommand(classified, cmd, ...)
+local function request_to_execute_vote_command(classified, cmd, ...)
     -- SendModRPCToServer(GetModRPC(M.RPC.NAMESPACE, M.RPC.SEND_VOTE_COMMAND), cmd, ...)
     SendRPCToServer('SEND_VOTE_COMMAND', cmd, ...):set_callback(function(missing_response_count, retcode)
         local name = M.CommandEnumToName(cmd)        
@@ -1548,14 +1537,14 @@ end
 -- cause the real permission check is on the server, 
 -- and it does not work for other players, 
 -- cause the player_classified entity not exists on the other clients
-local function SetPermission(classified, level)
+local function set_permission(classified, level)
     dbg('setting player permission: {classified = }, {level = }')
 
     -- permission level
     classified.net_permission_level:set(level)
 
     local mask = M.PERMISSION_MASK[level]
-    local vote_mask = FiltUnvotableCommands(M.PERMISSION_MASK[VotePermissionElevate(level)])
+    local vote_mask = FiltUnvotableCommands(M.PERMISSION_MASK[vote_permission_elevate(level)])
 
     -- permission mask
     local low32, high32 = M.splitbit64to32(mask)
@@ -1569,7 +1558,7 @@ local function SetPermission(classified, level)
 
 end
 
-local function CommandApplyableForPlayerTarget(classified, cmd, target_userid)
+local function is_command_applicable_for_player(classified, cmd, target_userid)
     if not M.COMMAND[cmd] or not M.COMMAND[cmd].user_targetted then
         return M.EXECUTION_CATEGORY.NO
     end
@@ -1582,7 +1571,7 @@ local function CommandApplyableForPlayerTarget(classified, cmd, target_userid)
     if not target_lvl then return M.EXECUTION_CATEGORY.NO end
     if classified:HasPermission(cmd) and M.LevelHigherThan(classified.permission_level, target_lvl) then
         return M.EXECUTION_CATEGORY.YES
-    elseif classified:HasVotePermission(cmd) and M.LevelHigherThan(VotePermissionElevate(classified.permission_level), target_lvl) then
+    elseif classified:HasVotePermission(cmd) and M.LevelHigherThan(vote_permission_elevate(classified.permission_level), target_lvl) then
         return M.EXECUTION_CATEGORY.VOTE_ONLY
     else
         return M.EXECUTION_CATEGORY.NO
@@ -1677,15 +1666,15 @@ AddPrefabPostInit('player_classified', function(inst)
         end
     end
 
-    inst.HasPermission = HasPermission
-    inst.HasVotePermission = HasVotePermission
-    inst.SetPermission = SetPermission
-    inst.QueryHistoryPlayers = QueryHistoryPlayers
-    inst.QuerySnapshotInformations = QuerySnapshotInformations
-    inst.QueryServerData = QueryServerData
-    inst.RequestToExecuteCommand = RequestToExecuteCommand
-    inst.RequestToExecuteVoteCommand = RequestToExecuteVoteCommand
-    inst.CommandApplyableForPlayerTarget = CommandApplyableForPlayerTarget
+    inst.HasPermission = has_permission
+    inst.HasVotePermission = has_vote_permission
+    inst.SetPermission = set_permission
+    inst.QueryHistoryPlayers = query_history_players
+    inst.QuerySnapshotInformations = query_snapshot_informations
+    inst.QueryServerData = query_server_data
+    inst.RequestToExecuteCommand = request_to_execute_command
+    inst.RequestToExecuteVoteCommand = request_to_execute_vote_command
+    inst.IsCommandApplicableForPlayer = is_command_applicable_for_player
     
     
 end)

@@ -407,7 +407,7 @@ function ShardServerInfoRecord:PushNetEvent(name)
     end
 end
 
-local function SendPlayerRecord(acceptor_userid, record_userid, record)
+local function send_player_record(acceptor_userid, record_userid, record)
     if IsPlayerOnline(record_userid) then
         SendRPCToClient(
             'ONLINE_PLAYER_RECORD_SYNC', acceptor_userid, 
@@ -432,7 +432,7 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
         for record_userid, record in pairs(self.player_record) do
             if record.update_timestamp >= last_query_timestamp then
                 -- record is newer
-                SendPlayerRecord(userid, record_userid, record)
+                send_player_record(userid, record_userid, record)
             end
         end
         SendRPCToClient(
@@ -459,7 +459,7 @@ function ShardServerInfoRecord:PushPlayerRecordTo(userid, last_query_timestamp, 
         elseif from <= i and i <= to then
             -- send this block's records
             -- this player still possibly a online player
-            SendPlayerRecord(userid, record_userid, record)
+            send_player_record(userid, record_userid, record)
         end
     end
 
