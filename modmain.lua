@@ -1305,23 +1305,23 @@ function M.CheckArgs(checkers, ...)
 end
 
 execute_command_impl = function(executor, cmd, is_vote, ...)
-    local permission_level = permission_level(executor.userid)
+    local level = permission_level(executor.userid)
     if is_vote then
-        permission_level = vote_permission_elevate(permission_level)
+        level = vote_permission_elevate(level)
     end
     
     -- check data validity: cmd, args
     if not CHECKERS.command_enum(cmd) then
         -- bad command type
         return M.ERROR_CODE.BAD_COMMAND
-    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
+    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
     elseif M.COMMAND[cmd].user_targeted then
         -- the first argument will be target_userid if command is player targeted
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
-        elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
+        elseif not M.LevelHigherThan(level, target_record.permission_level) then
             -- permission is not allowed if theirs level are the same
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
@@ -1340,10 +1340,10 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
 end    
 
 local start_command_vote_impl = function(executor, cmd, ...)
-    local permission_level = vote_permission_elevate(permission_level(executor.userid))
+    local level = vote_permission_elevate(permission_level(executor.userid))
     if not CHECKERS.command_enum(cmd) then
         return M.ERROR_CODE.BAD_COMMAND
-    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[permission_level]) then
+    elseif not M.HasPermission(cmd, M.PERMISSION_MASK[level]) then
         return M.ERROR_CODE.PERMISSION_DENIED
     end
 
@@ -1356,7 +1356,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
-        elseif not M.LevelHigherThan(permission_level, target_record.permission_level) then
+        elseif not M.LevelHigherThan(level, target_record.permission_level) then
             -- permission is not allowed if theirs level are the same
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
