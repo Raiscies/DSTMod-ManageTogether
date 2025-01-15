@@ -530,7 +530,7 @@ function M.IsVotePermissionLevel(lvl)
     else
         for permission_name, permission_lvl in pairs(M.PERMISSION) do
             if permission_lvl == lvl then
-                return string.match(name, M.PERMISSION_VOTE_POSTFIX, #name - #M.PERMISSION_VOTE_POSTFIX + 1) ~= nil
+                return string.match(permission_name, M.PERMISSION_VOTE_POSTFIX, #permission_name - #M.PERMISSION_VOTE_POSTFIX + 1) ~= nil
             end
         end
     end 
@@ -1089,7 +1089,7 @@ M.SHARD_COMMAND = {
         if not TheShard:IsMaster() then
             -- this is not as excepted
             dbg('error: M.SHARD_COMMAND.START_VOTE() is called on secondary shard')
-            dbg('{sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
+            dbg('{sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, args: ', ...)
             return nil, nil
         end
         
@@ -1106,7 +1106,7 @@ M.SHARD_COMMAND = {
             -- args = args, 
             promise = promise
         })
-        dbg('intent to start a vote, {sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {arg: }')
+        dbg('intent to start a vote, {sender_shard_id: }, cmd: ', M.CommandEnumToName(cmd), ', {starter_userid: }, {args: }')
 
         local vote_started = false
         local taskself = staticScheduler:GetCurrentTask()
@@ -1178,7 +1178,7 @@ AddServerRPC('SEND_VOTE_COMMAND', function(player, cmd, ...)
 end)
 -- shard rpcs
 AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
-    dbg('received shard command: ', M.CommandEnumToName(cmd), ', {arg = }')
+    dbg('received shard command: ', M.CommandEnumToName(cmd), ', args: ', ...)
     if M.SHARD_COMMAND[cmd] then
         return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
@@ -1197,18 +1197,18 @@ local function forward_to_master_shard(cmd, ...)
     
     if TheShard:IsMaster() then
         if M.SHARD_COMMAND[cmd] then
-            dbg('forward_to_master_shard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', {arg = }')
+            dbg('forward_to_master_shard: here is already Master shard, cmd: ',  M.CommandEnumToName(cmd), ', args: ', ...)
             
             -- this future holds simple results...
             return async(M.SHARD_COMMAND[cmd], SHARDID.MASTER, ...) --> future(or nil)
             -- M.SHARD_COMMAND[cmd](GLOBAL.SHARDID.MASTER, ...) 
             
         else   
-            dbg('error at forward_to_master_shard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', {arg = }')
+            dbg('error at forward_to_master_shard: SHARD_COMMAND[cmd] is not exists, cmd: ', M.CommandEnumToName(cmd) ', args: ', ...)
             return nil
         end
     else
-        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', {arg = }')
+        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', args: ', ...)
 
         return async(function(...)
             local missing_response_count, result_table = SendRPCToShard(
@@ -1232,7 +1232,7 @@ local function forward_to_master_shard(cmd, ...)
 end 
 -- local, forward declared
 broadcast_shard_command = function(cmd, ...)
-    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', argcount = ', select('#', ...), ', {arg = }')
+    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', args: ', ...)
     return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
         nil, 
@@ -1331,7 +1331,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
     end
 
 
-    dbg('received command request from player: {executor.name = }, cmd =', CommandEnumToName(cmd), ', {is_vote = }, {arg = }')
+    dbg('received command request from player: {executor.name = }, cmd =', CommandEnumToName(cmd), ', {is_vote = }, args: ', ...)
 
     local result = M.COMMAND[cmd].fn(executor, ...)
     -- nil(by default) means success
@@ -1371,7 +1371,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
         return M.ERROR_CODE.INTERNAL_ERROR
     end
 
-    if worldvoter:IsVoteActive() == true then
+    if voter_state == true then
         return M.ERROR_CODE.VOTE_CONFLICT
     end
 
