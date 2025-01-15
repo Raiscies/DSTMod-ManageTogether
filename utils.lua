@@ -66,6 +66,16 @@ function M.chain_get(root, ...)
     return current
 end
 
+function M.get_if_exists(tab, key)
+    return tab and tab[key] or nil
+end
+function M.call_if_exists(obj, name, ...)
+    local fn = obj and obj[name]
+    if fn then
+        return fn(obj, ...)
+    end
+end
+
 -- select the n-th argument of a vararg
 function M.select_one(n, ...)
     return ({select(n, ...)})[1]
@@ -74,11 +84,6 @@ end
 function M.select_first(...)
     local first = ...
     return first
-end
-
-function M.select_second(...)
-    local first, second = ...
-    return second
 end
 
 function M.moretostring(obj)
@@ -143,10 +148,6 @@ end
 -- log print
 function M.log(...)
     print('[ManageTogether]', ...)
-end
-
-function M.flog(pattern, ...)
-    M.log(string.format(pattern, ...))
 end
 
 function M.GetPlayerByUserid(userid)
@@ -284,26 +285,6 @@ M.dbg = M.DEBUG and function(...)
     end
     print('[ManageTogetherDBG]', concat(buffer, ' '))
 end or function() end
-
-
-function M.hook_indep_var(fn, varname_or_table, new_var, new_env)
-    if type(varname_or_table) == 'table' then
-        new_env = varname_or_table
-        setfenv(fn,  
-            setmetatable(varname_or_table, { __index = new_env or getfenv(fn) })
-        )
-    else
-        setfenv(fn,  
-            setmetatable({ [varname_or_table] = new_var }, 
-                { __index = new_env or getfenv(fn) }
-            )
-        )
-    end
-    return fn
-end
-function M.unhook_indep_var(fn, new_env)
-    setfenv(fn, new_env or GLOBAL)
-end
 
 function M.announce(s, ...)
     TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)
@@ -572,7 +553,8 @@ end
 function M.GetSnapshotPlayerData(userid, component_name)
     local file = TheNet:GetUserSessionFile(TheNet:GetSessionIdentifier(), userid)
     if not file then return end
-    log('loading user data: ' .. file)
+    log('loading user(' .. userid .. ') data: ' .. file)
+
 
     local data = nil
 
