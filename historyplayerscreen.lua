@@ -334,9 +334,9 @@ local function PopupDialog(title, text, buttons, text_size)
         -- buttons
         buttons
     )
-    if text_size then
+    if text_size and popupdialog.dialog.body then
         -- notice: default is 28
-        popupdialog.text:SetSize(text_size) 
+        popupdialog.dialog.body:SetSize(text_size)
     end
     TheFrontEnd:PushScreen(popupdialog)
 end
