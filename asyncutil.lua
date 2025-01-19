@@ -278,7 +278,6 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
         if context.expected_response_count <= 0 then
             wake(context.task)
         end
-        dbg('on RESULT_SHARD_RPC: {sender_shard_id = }, {id = } {context.expected_response_count = }, args: ', ...)
     end, true)
 end)
 

@@ -487,7 +487,7 @@ local function vote_permission_elevate(origin_level)
     end
     return origin_level
 end
-local function FiltUnvotableCommands(permission_mask)
+local function filt_unvotable_commands(permission_mask)
     return bitand(permission_mask, M.PERMISSION_MASK.VOTE)
 end
 
@@ -890,7 +890,6 @@ M.AddCommands(
             end
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = broadcast_shard_command(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            dbg('on finished make item stat: {missing_count = }, {result_table = }')
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
@@ -1128,8 +1127,6 @@ M.SHARD_COMMAND = {
         TheWorld:ListenForEvent('master_worldvoterupdate', on_vote_started)
 
         Shard_StartVote(M.CmdEnumToVoteHash(cmd), starter_userid, nil)
-        dbg('Shard_StartVote() is called')
-
 
         -- notice: if vote is started successfully, sleep will be awaken in advance
         Sleep(1)
@@ -1180,7 +1177,6 @@ end)
 AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
     dbg('received shard command: ', M.CommandEnumToName(cmd), ', args: ', ...)
     if M.SHARD_COMMAND[cmd] then
-        dbg('on SHARD_SEND_COMMAND: {sender_shard_id = }, cmd = , ', M.CommandEnumToName(cmd), ', args: ', ...)
         return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
     else
@@ -1209,7 +1205,7 @@ local function forward_to_master_shard(cmd, ...)
             return nil
         end
     else
-        dbg('Forward Shard Command To Master, cmd: ',  M.CommandEnumToName(cmd), ', args: ', ...)
+        dbg('forwarding shard command To Master, cmd: ',  M.CommandEnumToName(cmd), ', args: ', ...)
 
         return async(function(...)
             local missing_response_count, result_table = SendRPCToShard(
@@ -1233,7 +1229,7 @@ local function forward_to_master_shard(cmd, ...)
 end 
 -- local, forward declared
 broadcast_shard_command = function(cmd, ...)
-    dbg('Broadcast Shard Command: ',  M.CommandEnumToName(cmd), ', args: ', ...)
+    dbg('broadcasting shard command: ',  M.CommandEnumToName(cmd), ', args: ', ...)
     return select_first(SendRPCToShard( 
         'SHARD_SEND_COMMAND',  
         nil, 
@@ -1242,7 +1238,7 @@ broadcast_shard_command = function(cmd, ...)
 end
 
 
-function M.CheckArgs(checkers, ...)
+local function check_args(checkers, ...)
     local checkertype = type(checkers)
     if checkertype == 'table' then
         local args = {...}
@@ -1301,7 +1297,7 @@ function M.CheckArgs(checkers, ...)
     elseif checkers == nil then
         return select('#', ...) == 0 -- no args
     end
-    dbg('in M.CheckArgs: bad checker type')
+    dbg('in check_args: bad checker type')
     return false
 end
 
@@ -1327,7 +1323,7 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
-    elseif not CheckArgs(M.COMMAND[cmd].checker, ...) then
+    elseif not check_args(M.COMMAND[cmd].checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
 
@@ -1362,7 +1358,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
         end
-    elseif not CheckArgs(info.checker, ...) then
+    elseif not check_args(info.checker, ...) then
         return M.ERROR_CODE.BAD_ARGUMENT
     end
     
@@ -1380,8 +1376,6 @@ local start_command_vote_impl = function(executor, cmd, ...)
     
     local vote_started, vote_passed, vote_selection, vote_count = forward_to_master_shard('START_VOTE', cmd, executor.userid, ...):get()
     -- here is the shard that command vote starter is in
-
-    dbg('{vote_started = }, {vote_passed = }, {vote_selection = }, {vote_count = }')
 
     if not vote_started then
         return M.ERROR_CODE.INTERNAL_ERROR
@@ -1606,7 +1600,7 @@ local function set_permission(classified, level)
     classified.net_permission_level:set(level)
 
     local mask = M.PERMISSION_MASK[level]
-    local vote_mask = FiltUnvotableCommands(M.PERMISSION_MASK[vote_permission_elevate(level)])
+    local vote_mask = filt_unvotable_commands(M.PERMISSION_MASK[vote_permission_elevate(level)])
 
     -- permission mask
     local low32, high32 = M.splitbit64to32(mask)
@@ -1701,7 +1695,6 @@ AddPrefabPostInit('player_classified', function(inst)
 
     if TheWorld then
         inst:ListenForEvent('player_record_sync_completed', function(src, has_more)
-            dbg('listened player_record_sync_completed, {has_more = }, this index = ', inst.next_query_player_record_block_index)
             if has_more then
                 local last = inst.next_query_player_record_block_index
                 inst.next_query_player_record_block_index = last and (last + 1) or 1

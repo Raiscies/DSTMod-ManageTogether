@@ -565,9 +565,6 @@ local function do_init_server_related_command_buttons(screen)
             local text_min_level = desc_table.WALL_LEVEL[M.LevelEnumToName(wall_min_level)] or desc_table.WALL_LEVEL.UNKNOWN
 
             local has_set_wall_permission, has_set_wall_vote_permission = ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.SET_AUTO_NEW_PLAYER_WALL) 
-
-            -- dbg('on set_new_player_joinability clicked: {wall_enabled = }, {wall_min_level = }, {joinability_key = }, {wall_enabled_key = }, {text_min_level = }')
-
             popup_dialog(
                 -- title
                 (vote_state and S.START_A_VOTE or '') .. S.SET_NEW_PLAYER_JOINABILITY_TITLE, 
