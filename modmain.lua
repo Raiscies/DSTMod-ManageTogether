@@ -846,7 +846,7 @@ M.AddCommands(
         checker = {
             -- param userid_or_flag
             fun(CHECKERS.userid_recorded) *OR* fun(key_exists)[ITEM_STAT_CATEGORY],
-            -- param item_prefab
+            -- param item_prefabs
             'string', 
             'same'
         },
@@ -890,7 +890,7 @@ M.AddCommands(
             end
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             local missing_count, result_table = broadcast_shard_command(M.COMMAND_ENUM.MAKE_ITEM_STAT_IN_PLAYER_INVENTORIES, userid_or_flag, ...):get()
-            
+            dbg('on finished make item stat: {missing_count = }, {result_table = }')
             announce_no_head(S.MAKE_ITEM_STAT_DELIM)
             if missing_count ~= 0 then
                 announce(S.MAKE_ITEM_STAT_FINISHED_BUT_MISSING_RESPONSE)
@@ -1180,6 +1180,7 @@ end)
 AddShardRPC('SHARD_SEND_COMMAND', function(sender_shard_id, cmd, ...)
     dbg('received shard command: ', M.CommandEnumToName(cmd), ', args: ', ...)
     if M.SHARD_COMMAND[cmd] then
+        dbg('on SHARD_SEND_COMMAND: {sender_shard_id = }, cmd = , ', M.CommandEnumToName(cmd), ', args: ', ...)
         return async(M.SHARD_COMMAND[cmd], sender_shard_id, ...):get_within(M.RPC_RESPONSE_TIMEOUT)
         -- return M.SHARD_COMMAND[cmd](sender_shard_id, ...)
     else
@@ -1488,6 +1489,7 @@ local OldFinishVote = UserCommands.FinishVote
 -- is this really works?
 UserCommands.FinishVote = function(commandname, params, voteresults)
     local passed = OldFinishVote(commandname, params, voteresults)
+    dbg('on FinishVote: {commandname = }, {params = }, {voteresults = }, {passed = }')
     if not passed then
 
         -- vote not passed

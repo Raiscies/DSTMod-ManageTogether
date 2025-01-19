@@ -486,10 +486,10 @@ function ShardServerInfoRecord:OnSave()
 -- OnSave will be called every time the world is saved
 -- not just when the server is shutting down
 
-    -- do we really need a delay?
-    -- TheWorld:DoTaskInTime(0, function()
-    self:UpadateSaveInfo()
-    -- end)
+    -- we really need a delay
+    TheWorld:DoTaskInTime(0, function()
+        self:UpadateSaveInfo()
+    end)
 
     if M.RESERVE_MODERATOR_DATA_WHILE_WORLD_REGEN then
         M.WriteModeratorDataToPersistentFile(self:MakeModeratorUseridList())
@@ -797,7 +797,6 @@ end
 -- 1. after OnSave
 -- 2. after game started, OnSave may not be called before game started, 
 --    eg. rollback, or game first generated
-
 function ShardServerInfoRecord:UpadateSaveInfo()
     
     local index = ShardGameIndex
@@ -829,16 +828,12 @@ function ShardServerInfoRecord:UpadateSaveInfo()
     -- the data is just current day, season and phase
     
     -- do we really need a delay?
-    -- TheWorld:DoTaskInTime(0, function()
-    
     -- cycle means the currently finished day-night cycles, so we should plus 1 to get the current day
-    local first_slot = self.snapshot_info.slots[1]
-    first_slot.day = TheWorld.state.cycles + 1
-    first_slot.season = M.SEASONS[TheWorld.state.season]
-    first_slot.phase = TheWorld.state.phase
-    -- end)
+    new_slots[1].day = TheWorld.state.cycles + 1
+    new_slots[1].season = M.SEASONS[TheWorld.state.season]
+    new_slots[1].phase = TheWorld:HasTag('cave') and TheWorld.state.cavephase or TheWorld.state.phase
+    dbg('updated save info, {new_slots: }')
 
-    dbg('updated save info, newest slot: {first_slot}')
    
     self.snapshot_info.slots = new_slots
     if not self.snapshot_info.session_id then

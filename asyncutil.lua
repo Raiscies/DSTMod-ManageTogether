@@ -39,7 +39,7 @@ end
 
 -- this task will be packaged to scheduler.Task - a coroutine
 function Future:get_nowait()
-    -- return value_ ~= nil and unpack(value_)
+    -- return _value ~= nil and unpack(_value)
     if self._value ~= nil then
         return unpack(self._value)
     end
@@ -63,14 +63,14 @@ function Future:wait_for(time)
 end
 function Future:set_callback(cb)
     if not type(cb) == 'function' then
-        return false, self.callback_
+        return false, self._callback
     end
-    local old = self.callback_
-    self.callback_ = cb
+    local old = self._callback
+    self._callback = cb
     return true, old
 end
 function Future:get_callback()
-    return self.callback_
+    return self._callback
 end
 
 function Future:get()
@@ -271,7 +271,7 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
             dbg('failed to get return value from shard rpc, {id = }, context is not exists')
             return
         end
-        
+        dbg('on RESULT_SHARD_RPC: {sender_shard_id = }, {id = }, args: ', ...)
         local context = self.contexts[RPC_CATEGORY.SHARD][id]
         context.expected_response_count = context.expected_response_count - 1
         if context.expected_response_count <= 0 then
@@ -329,11 +329,7 @@ function AsyncRPCManager:AddServerRPC(name, fn, no_response)
             -- return results to client
             
             async(fn, player, ...):set_callback(function(...)
-                local result = {...}
-
-                
-
-                if #result ~= 0 then
+                if select('#', ...) ~= 0 then
                     -- return value is not empty
                     self:SendRPCToClient('RESULT_SERVER_RPC', player.userid, id, ...)
                 end
@@ -355,8 +351,7 @@ function AsyncRPCManager:AddClientRPC(name, fn, no_response)
             -- here is client side
             -- return results to server
             async(fn, ...):set_callback(function(...)
-                local result = {...}
-                if #result ~= 0 then
+                if select('#', ...) ~= 0 then
                     self:SendRPCToServer('RESULT_CLIENT_RPC', id, ...)
                 end
             end)
@@ -374,8 +369,8 @@ function AsyncRPCManager:AddShardRPC(name, fn, no_response)
     else
         AddShardModRPCHandler(self.namespace, name, function(sender_shard_id, id, ...)
             async(fn, sender_shard_id, ...):set_callback(function(...)
-                local result = {...}
-                if #result ~= 0 then
+                dbg('on sended shard rpc: return result to other shard: {sender_shard_id = }, {id = }, args: ', ...)
+                if select('#', ...) ~= 0 then
                     self:SendRPCToShard('RESULT_SHARD_RPC', sender_shard_id, id, ...) 
                 end
             end)
@@ -389,15 +384,11 @@ end
 
 local send_server_rpc_impl = function(rpc_manager, name, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.SERVER, staticScheduler.tasks[coroutine.running()], 1)
-    
-    
 
     SendModRPCToServer(GetModRPC(rpc_manager.namespace, name), id, ...)
     
     sleep(rpc_manager.timeout)
     local result_table, missing_response_count = rpc_manager:PopContextResult(RPC_CATEGORY.SERVER, id)
-
-    
 
     -- server rpc is always only one responsor, so just returns an unpacked result
     return missing_response_count, (result_table and unpack(result_table))
@@ -405,8 +396,6 @@ end
 
 local send_client_rpc_impl = function(rpc_manager, name, target, expected_response_count, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.CLIENT, staticScheduler.tasks[coroutine.running()], expected_response_count)
-
-    
 
     SendModRPCToClient(GetClientModRPC(rpc_manager.namespace, name), target, id, ...)
 
@@ -418,8 +407,6 @@ end
 
 local send_shard_rpc_impl = function(rpc_manager, name, target, expected_response_count, ...)
     local id = rpc_manager:CreateContext(RPC_CATEGORY.SHARD, staticScheduler.tasks[coroutine.running()], expected_response_count)
-
-    
 
     SendModRPCToShard(GetShardModRPC(rpc_manager.namespace, name), target, id, ...)
     

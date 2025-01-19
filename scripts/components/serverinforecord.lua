@@ -12,7 +12,6 @@ local SendRPCToClient = M.SendRPCToClient
 local SendRPCToShard = M.SendRPCToShard
 
 local ServerInfoRecord = Class(function(self, inst)
-    dbg('ServerInfoRecord: init: ', inst)
     self.inst = inst -- TheWorld.net, or say xx_network
     -- self.world = TheWorld
 
@@ -42,7 +41,7 @@ local ServerInfoRecord = Class(function(self, inst)
 end)
 
 function ServerInfoRecord:RegisterRPCs()
-    
+
 
     AddClientRPC('OFFLINE_PLAYER_RECORD_SYNC', function(userid, netid, name, age, skin, permission_level)
         self.player_record[userid] = {

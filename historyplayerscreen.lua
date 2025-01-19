@@ -318,7 +318,7 @@ function ItemStatDialog:GetItemPrefabs()
     return self.the_item_prefabs
 end
 
-local function PopupDialog(title, text, buttons, text_size)
+local function popup_dialog(title, text, buttons, text_size)
     if not buttons then
         buttons = {}
     end
