@@ -1224,7 +1224,7 @@ local function forward_to_master_shard(cmd, ...)
             end
             local master_result = result_table[SHARDID.MASTER]
             if not master_result then
-                dbg('error no SHARD_SEND_COMMAND: missing master result: {result_table: }')
+                dbg('error on SHARD_SEND_COMMAND: missing master result: {result_table: }, {master_result: }, result_table[tonumber(SHARDID.MASTER)]: ', result_table[tonumber(SHARDID.MASTER)])
                 return nil
             end
             return unpack(master_result)

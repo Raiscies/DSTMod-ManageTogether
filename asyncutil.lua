@@ -267,16 +267,18 @@ local AsyncRPCManager = Class(function(self, namespace, context_expire_timeout)
     self:AddShardRPC('RESULT_SHARD_RPC', function(sender_shard_id, id, ...)
         -- shard1 -shardRPC-> shardn (call) could be more than one target
         -- shardnetworking -shardRPC-> shard1 (return value)
-        if not self:AddContextResult(RPC_CATEGORY.SHARD, id, sender_shard_id, {...}) then
+
+        -- note: type(sender_shard_id) == 'number', however we use a string to specify the shard target we want to send
+        if not self:AddContextResult(RPC_CATEGORY.SHARD, id, tostring(sender_shard_id), {...}) then
             dbg('failed to get return value from shard rpc, {id = }, context is not exists')
             return
         end
-        dbg('on RESULT_SHARD_RPC: {sender_shard_id = }, {id = }, args: ', ...)
         local context = self.contexts[RPC_CATEGORY.SHARD][id]
         context.expected_response_count = context.expected_response_count - 1
         if context.expected_response_count <= 0 then
             wake(context.task)
         end
+        dbg('on RESULT_SHARD_RPC: {sender_shard_id = }, {id = } {context.expected_response_count = }, args: ', ...)
     end, true)
 end)
 
@@ -369,7 +371,7 @@ function AsyncRPCManager:AddShardRPC(name, fn, no_response)
     else
         AddShardModRPCHandler(self.namespace, name, function(sender_shard_id, id, ...)
             async(fn, sender_shard_id, ...):set_callback(function(...)
-                dbg('on sended shard rpc: return result to other shard: {sender_shard_id = }, {id = }, args: ', ...)
+                dbg('on sended shard rpc: return result to other shard: sender_shard_id = ', sender_shard_id, ', id = ', id, 'args: ', ...)
                 if select('#', ...) ~= 0 then
                     self:SendRPCToShard('RESULT_SHARD_RPC', sender_shard_id, id, ...) 
                 end
