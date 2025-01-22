@@ -758,7 +758,7 @@ M.AddCommands(
         name = 'SHUTDOWN', 
         can_vote = true, 
         permission = M.PERMISSION.ADMIN,
-        checker = {        'optnumber',      'optstring'},
+        checker = {        'optnumber',   'optstring'},
         fn = function(doer, delay_seconds, reason)
             if not delay_seconds then
                 delay_seconds = 0

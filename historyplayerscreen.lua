@@ -10,7 +10,7 @@ local S = GLOBAL.STRINGS.UI.HISTORYPLAYERSCREEN
 M.using_namespace(M, GLOBAL)
 
 string.trim = M.trim
-
+ 
 require 'util'
 local Screen = require 'widgets/screen'
 local Widget = require 'widgets/widget'
