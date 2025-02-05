@@ -718,7 +718,8 @@ function HistoryPlayerScreen:GenerateSortedKeyList()
             local a_age, b_age = player_record[a].age or 0, player_record[b].age or 0
             return a_age > b_age
         else
-            return M.LevelHigherThan(player_record[a].permission_level, player_record[b].permission_level)
+            -- return M.LevelHigherThan(player_record[a].permission_level, player_record[b].permission_level)
+            return M.Level.higher(player_record[a].permission_level, player_record[b].permission_level)
         end
     end
 

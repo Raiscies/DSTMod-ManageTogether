@@ -178,7 +178,7 @@ end
 
 FunctionMeta = {
     -- -- operator or
-    -- __add = op_or,
+    -- __add = op_or, 
     -- -- operator and
     -- __mul = op_and,
     -- -- operator not

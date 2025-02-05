@@ -32,23 +32,47 @@ M.PERMISSION_ORDER = {
     [M.PERMISSION.MINIMUM]            = 255
     -- the lowest level
 }
+local PERMISSION_ORDER = M.PERMISSION_ORDER
+
+M.Level = {
+    same_as = fun(function(a, b)
+        return a == b
+    end),
+    equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] == PERMISSION_ORDER[b]
+    end), 
+    higher = fun(function(a, b)
+        return PERMISSION_ORDER[a] < PERMISSION_ORDER[b]
+    end), 
+    lower = fun(function(a, b)
+        return PERMISSION_ORDER[a] > PERMISSION_ORDER[b]
+    end),
+    higher_or_equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] <= PERMISSION_ORDER[b]
+    end),
+    lower_or_equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] >= PERMISSION_ORDER[b]
+    end),
+};
+local Level = M.Level
+
 
 M.PERMISSION_VOTE_POSTFIX = '_VOTE'
-function M.LevelHigherThan(a_lvl, b_lvl)
-    -- a higher then b if:
-    -- order(a_lvl) < order(b_lvl)                   (this is reversed)
+-- function M.LevelHigherThan(a_lvl, b_lvl)
+--     -- a higher then b if:
+--     -- order(a_lvl) < order(b_lvl)                   (this is reversed)
 
-    return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
-end
-function M.LevelHigherThanOrEqual(a_lvl, b_lvl)
-    return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
-end
-function M.LevelEqual(a_lvl, b_lvl)
-    return M.PERMISSION_ORDER[a_lvl] == M.PERMISSION_ORDER[b_lvl]
-end
-function M.LevelSameAs(a_lvl, b_lvl)
-    return a_lvl == b_lvl
-end
+--     return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
+-- end
+-- function M.LevelHigherThanOrEqual(a_lvl, b_lvl)
+--     return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
+-- end
+-- function M.LevelEqual(a_lvl, b_lvl)
+--     return M.PERMISSION_ORDER[a_lvl] == M.PERMISSION_ORDER[b_lvl]
+-- end
+-- function M.LevelSameAs(a_lvl, b_lvl)
+--     return a_lvl == b_lvl
+-- end
 
 -- configs
 -- this should be sync with modinfo.lua
@@ -118,8 +142,6 @@ else
 end
 
 M.RPC_RESPONSE_TIMEOUT = 10
-
-
 
 
 local S = GLOBAL.STRINGS.UI.MANAGE_TOGETHER
@@ -459,8 +481,9 @@ function M.GeneratePermissionBitMasks()
     for cmd_name, cmd_enum in pairs(M.COMMAND_ENUM) do
 
         for perm_name, perm_lvl in pairs(M.PERMISSION) do
-            if M.LevelHigherThanOrEqual(perm_lvl, M.COMMAND[cmd_enum].permission) then
-                
+            -- if M.LevelHigherThanOrEqual(perm_lvl, M.COMMAND[cmd_enum].permission) then
+            if Level.higher_or_equal(perm_lvl, M.COMMAND[cmd_enum].permission) then
+
                 if not M.IsVotePermissionLevel(perm_name) or M.COMMAND[cmd_enum].can_vote then
                     -- 1. permission level is not a vote permission level
                     -- 2. permission level is a vote permission level and .can_vote is true
@@ -775,7 +798,7 @@ M.AddCommands(
         name = 'ADD_MODERATOR', 
         can_vote = true, 
         user_targeted = true, 
-        checker = {         fun(LevelHigherThan)[M.PERMISSION.MODERATOR] * permission_level},
+        checker = {         fun(permission_level) * Level.lower[M.PERMISSION.MODERATOR]},
         fn = function(doer, target_userid)
             -- add a player as moderator
 
@@ -787,7 +810,7 @@ M.AddCommands(
         name = 'REMOVE_MODERATOR', 
         can_vote = true,
         user_targeted = true,
-        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.MODERATOR]},
+        checker = {         fun(permission_level) * Level.same_as[M.PERMISSION.MODERATOR]},
         fn = function(doer, target_userid)
             -- remove a moderator 
 
@@ -1318,7 +1341,8 @@ execute_command_impl = function(executor, cmd, is_vote, ...)
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
-        elseif not M.LevelHigherThan(level, target_record.permission_level) then
+        -- elseif not M.LevelHigherThan(level, target_record.permission_level) then
+        elseif Level.lower_or_equal(level, target_record.permission_level) then   
             -- permission is not allowed if theirs level are the same
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
@@ -1353,7 +1377,7 @@ local start_command_vote_impl = function(executor, cmd, ...)
         local target_record = shard_serverinforecord.player_record[select_one(1, ...)]
         if not target_record then
             return M.ERROR_CODE.BAD_TARGET
-        elseif not M.LevelHigherThan(level, target_record.permission_level) then
+        elseif Level.lower_or_equal(level, target_record) then
             -- permission is not allowed if theirs level are the same
             -- which also makes sure a users can't target itself except they do it by starting a vote 
             return M.ERROR_CODE.PERMISSION_DENIED
@@ -1625,9 +1649,11 @@ local function is_command_applicable_for_player(classified, cmd, target_userid)
         target_lvl = record and record.permission_level or nil
     end
     if not target_lvl then return M.EXECUTION_CATEGORY.NO end
-    if classified:HasPermission(cmd) and M.LevelHigherThan(classified.permission_level, target_lvl) then
+    if classified:HasPermission(cmd) and Level.higher(classified.permission_level, target_lvl) then
+
         return M.EXECUTION_CATEGORY.YES
-    elseif classified:HasVotePermission(cmd) and M.LevelHigherThan(vote_permission_elevate(classified.permission_level), target_lvl) then
+    -- elseif classified:HasVotePermission(cmd) and M.LevelHigherThan(vote_permission_elevate(classified.permission_level), target_lvl) then
+    elseif classified:HasVotePermission(cmd) and Level.higher(vote_permission_elevate(classified.permission_level), target_lvl) then
         return M.EXECUTION_CATEGORY.VOTE_ONLY
     else
         return M.EXECUTION_CATEGORY.NO

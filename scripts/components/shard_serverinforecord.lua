@@ -340,7 +340,8 @@ function ShardServerInfoRecord:ShardTryElevateUserPermissionByAge(userid)
 
     if (record.age >= M.USER_PERMISSION_ELEVATE_IN_AGE and 
         not record.no_elevate_in_age and
-        M.LevelHigherThan(M.PERMISSION.MODERATOR, record.permission_level))
+        -- M.LevelHigherThan(M.PERMISSION.MODERATOR, record.permission_level))
+        M.Level.higher(M.PERMISSION.MODERATOR, record.permission_level))
     then
         self:ShardSetPermission(userid, M.PERMISSION.MODERATOR)
     end
@@ -673,7 +674,8 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
             dbg('{client.name: }, {level: }')
-            if M.LevelHigherThan(level, current_highest_online_player_level) then
+            -- if M.LevelHigherThan(level, current_highest_online_player_level) then
+            if M.Level.higher(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
             end
             
@@ -681,7 +683,8 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
         
         -- if current_min_online_player_level is not satisfied the self.netvar.auto_new_player_wall_min_level, 
         -- then auto new player wall state: not allow new players to join
-        new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
+        -- new_state = M.LevelHigherThanOrEqual(current_highest_online_player_level, required_min_level)
+        new_state = M.Level.higher_or_equal(current_highest_online_player_level, required_min_level)
     end
     -- judge the new_state ended
 
