@@ -239,7 +239,7 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
         if node then
             -- find from local field
             for i = 2, #path, 1 do 
-                if not node then
+                if not node or type(node) ~= 'table' then
                     -- invalid identifier chain
                     node = 'undefined_field'
                     break
@@ -250,7 +250,7 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
             -- find from the environment
             node = caller_fenv
             for _, iden in ipairs(path) do
-                if not node then
+                if not node or type(node) ~= 'table' then
                     node = 'undefined_field'
                     break
                 end
@@ -491,10 +491,7 @@ function M.GetItemDictionaries()
             end
         end
     end
-     
-     
-     
-
+    
     return {M.ITEM_PREFAB_DICTIONARY, M.ITEM_LOCAL_NAME_DICTIONARY}
 end
 

@@ -45,7 +45,7 @@ local ShardServerInfoRecord = Class(
         if TheWorld.ismastershard then
             -- is master shard
             self.inst:ListenForEvent('ms_playerjoined', function(src, player)
-                dbg('ms_playerjoined(master):', player.userid)
+                dbg('ms_playerjoined(master): {player.userid = }')
                 TheWorld:DoTaskInTime(0, function()
                     self:RecordPlayer(player.userid) 
                     self:UpdateNewPlayerWallState() 
@@ -75,7 +75,6 @@ local ShardServerInfoRecord = Class(
         -- ms_playerleft will be push only when player is left from master,
         -- but not left from secondary shard, so we should handle propaly
         self.inst:ListenForEvent('ms_playerleft', function(src, player)
-            dbg('ms_playerleft')
             self:PushNetEvent('playerleft_from_a_shard')
         end, TheWorld)
 
@@ -209,7 +208,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
                 end
             else
                 -- state is reset
-                dbg('received an event from shard ', tostring(src), ' that mod out of date state is reset')
+                dbg('received an event from shard , {src: } ,that mod out of date state is reset')
             end
         end)
 
@@ -588,7 +587,7 @@ function ShardServerInfoRecord:InitNetVars()
     self.inst:ListenForEvent('ms_auto_new_player_wall_dirty', function()
 
         local enabled, level = self:GetAutoNewPlayerWall()
-        dbg('ms_auto_new_player_wall_dirty: enabled =', enabled, ', level =', level)
+        dbg('ms_auto_new_player_wall_dirty: {enabled = }, {level = }')
         local data = {
             enabled = enabled,
             level = level
@@ -599,7 +598,7 @@ function ShardServerInfoRecord:InitNetVars()
 
     self.inst:ListenForEvent('ms_new_player_joinability_dirty', function()
         local allowed = bool(self.netvar.allow_new_players_to_connect:value())
-        dbg('ms_new_player_joinability_dirty: ', allowed)
+        dbg('ms_new_player_joinability_dirty: {allowed}')
 
         if TheWorld.ismastershard then
             TheNet:SetAllowNewPlayersToConnect(allowed)
@@ -660,7 +659,7 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
     end
     
     local required_min_level = self.netvar.auto_new_player_wall_min_level:value()
-    local old_state = self.netvar.allow_new_players_to_connect:value()
+    local old_state = bool(self.netvar.allow_new_players_to_connect:value())
     local new_state
 
     if required_min_level == M.PERMISSION.MINIMUM then
@@ -673,7 +672,6 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
             local record = self.player_record[client.userid] 
             -- in case record not exists
             local level = record and record.permission_level or M.PERMISSION.USER
-            dbg('{client.name: }, {level: }')
             -- if M.LevelHigherThan(level, current_highest_online_player_level) then
             if M.Level.higher(level, current_highest_online_player_level) then
                 current_highest_online_player_level = level
@@ -690,7 +688,8 @@ ShardServerInfoRecord.UpdateNewPlayerWallState = TheShard:IsMaster() and functio
 
     self:SetAllowNewPlayersToConnect(new_state, force_update)
 
-    dbg('finished to update new player wall state, old_state = ', old_state, ', new_state = ', new_state, ', required_min_level = ', required_min_level)
+    -- dbg('finished to update new player wall state, {old_state = }, {new_state = }, {required_min_level = }')
+    dbg('finished to update new player wall state, old_state = ', old_state,' new_state = ', new_state, 'required_min_level = ', required_min_level)
     TheWorld:PushEvent('master_newplayerwallupdate', {old_state = old_state, new_state = new_state, required_min_level = required_min_level})
 
 end or function()

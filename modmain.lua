@@ -34,28 +34,6 @@ M.PERMISSION_ORDER = {
 }
 local PERMISSION_ORDER = M.PERMISSION_ORDER
 
-M.Level = {
-    same_as = fun(function(a, b)
-        return a == b
-    end),
-    equal = fun(function(a, b)
-        return PERMISSION_ORDER[a] == PERMISSION_ORDER[b]
-    end), 
-    higher = fun(function(a, b)
-        return PERMISSION_ORDER[a] < PERMISSION_ORDER[b]
-    end), 
-    lower = fun(function(a, b)
-        return PERMISSION_ORDER[a] > PERMISSION_ORDER[b]
-    end),
-    higher_or_equal = fun(function(a, b)
-        return PERMISSION_ORDER[a] <= PERMISSION_ORDER[b]
-    end),
-    lower_or_equal = fun(function(a, b)
-        return PERMISSION_ORDER[a] >= PERMISSION_ORDER[b]
-    end),
-};
-local Level = M.Level
-
 
 M.PERMISSION_VOTE_POSTFIX = '_VOTE'
 -- function M.LevelHigherThan(a_lvl, b_lvl)
@@ -152,9 +130,29 @@ local Functional = require 'functional'
 
 M.using_namespace(M, GLOBAL, Functional)
 
+M.Level = {
+    same_as = fun(function(a, b)
+        return a == b
+    end),
+    equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] == PERMISSION_ORDER[b]
+    end), 
+    higher = fun(function(a, b)
+        return PERMISSION_ORDER[a] < PERMISSION_ORDER[b]
+    end), 
+    lower = fun(function(a, b)
+        return PERMISSION_ORDER[a] > PERMISSION_ORDER[b]
+    end),
+    higher_or_equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] <= PERMISSION_ORDER[b]
+    end),
+    lower_or_equal = fun(function(a, b)
+        return PERMISSION_ORDER[a] >= PERMISSION_ORDER[b]
+    end),
+};
+local Level = M.Level
+
 local lshift, rshift, bitor, bitand = bit.lshift, bit.rshift, bit.bor, bit.band
-
-
 
 
 M.ERROR_CODE = table.invert({
@@ -1607,7 +1605,7 @@ local function request_to_execute_vote_command(classified, cmd, ...)
         if CHECKERS.error_code(retcode) then
             dbg('received from server(send vote command), {name = }, result = ', M.ErrorCodeToName(retcode))
         else
-            dbg('received result from server(send vote command): {name = }, server drunk, {retcode =}')
+            dbg('received result from server(send vote command): {name = }, server drunk, {retcode = }')
         end
     end )
 end

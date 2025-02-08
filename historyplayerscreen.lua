@@ -1461,7 +1461,8 @@ function HistoryPlayerScreen:DoInit()
                 show_button_if_available('killban')
             
 
-                if not M.LevelHigherThan(record.permission_level, M.PERMISSION.USER) then
+                -- if not M.LevelHigherThan(record.permission_level, M.PERMISSION.USER) then
+                if not M.Level.higher(record.permission_level, M.PERMISSION.USER) then
                     show_button_if_available('add_moderator')
                 elseif record.permission_level == M.PERMISSION.MODERATOR then
                     show_button_if_available('remove_moderator')

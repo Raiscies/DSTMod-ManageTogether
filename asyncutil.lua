@@ -454,7 +454,7 @@ function AsyncRPCManager:SendRPCToClient(name, target, ...)
     elseif type(target) == 'table' then
         expected_response_count = #target
     else
-        dbg('bad RPC target: ', target)
+        dbg('bad RPC {target: }')
         return nil, false
     end
     dbg('try asyncly send client RPC, {name = }, {expected_response_count = }')

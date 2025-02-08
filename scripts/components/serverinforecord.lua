@@ -115,7 +115,7 @@ function ServerInfoRecord:InitNetVars()
         -- listen for events from shard_network - shard_serverinforecord forwarded by TheWorld, and then forward to every clients
         self.inst:ListenForEvent('ms_new_player_joinability_changed', function(inst, connectable)
             -- local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
-            dbg('event ms_new_player_joinability_changed: ', connectable)
+            dbg('event ms_new_player_joinability_changed: {connectable}')
             
             force_update('allow_new_players_to_connect', connectable)
             -- self.netvar.allow_new_players_to_connect:set(connectable)
@@ -125,7 +125,7 @@ function ServerInfoRecord:InitNetVars()
             -- local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
             local enabled, min_level = data.enabled, data.level
             
-            dbg('event ms_auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            dbg('event ms_auto_new_player_wall_changed: {enabled = }, {min_level = }')
             force_update('auto_new_player_wall_enabled', enabled)
             force_update('auto_new_player_wall_min_level', min_level)
         end, TheWorld)
@@ -135,12 +135,12 @@ function ServerInfoRecord:InitNetVars()
         -- on client side
         self.inst:ListenForEvent('new_player_joinability_changed', function()
             local connectable = self:GetAllowNewPlayersToConnect()
-            dbg('client event new_player_joinability_changed: ', connectable)
+            dbg('client event new_player_joinability_changed: {connectable}')
         end)
 
         self.inst:ListenForEvent('auto_new_player_wall_changed', function()
             local enabled, min_level = self:GetAutoNewPlayerWall()
-            dbg('client event auto_new_player_wall_changed: enabled =', enabled, ', min_level =', min_level)
+            dbg('client event auto_new_player_wall_changed: {enabled = }, {min_level = }')
         end)
     end
 end
