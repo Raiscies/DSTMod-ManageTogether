@@ -36,21 +36,6 @@ local PERMISSION_ORDER = M.PERMISSION_ORDER
 
 
 M.PERMISSION_VOTE_POSTFIX = '_VOTE'
--- function M.LevelHigherThan(a_lvl, b_lvl)
---     -- a higher then b if:
---     -- order(a_lvl) < order(b_lvl)                   (this is reversed)
-
---     return M.PERMISSION_ORDER[a_lvl] < M.PERMISSION_ORDER[b_lvl]
--- end
--- function M.LevelHigherThanOrEqual(a_lvl, b_lvl)
---     return M.PERMISSION_ORDER[a_lvl] <= M.PERMISSION_ORDER[b_lvl]
--- end
--- function M.LevelEqual(a_lvl, b_lvl)
---     return M.PERMISSION_ORDER[a_lvl] == M.PERMISSION_ORDER[b_lvl]
--- end
--- function M.LevelSameAs(a_lvl, b_lvl)
---     return a_lvl == b_lvl
--- end
 
 -- configs
 -- this should be sync with modinfo.lua
@@ -134,7 +119,7 @@ M.Level = {
     same_as = fun(function(a, b)
         return a == b
     end),
-    equal = fun(function(a, b)
+    equals = fun(function(a, b)
         return PERMISSION_ORDER[a] == PERMISSION_ORDER[b]
     end), 
     higher = fun(function(a, b)
@@ -689,7 +674,7 @@ M.AddCommands(
         name = 'BAN',
         user_targeted = true, 
         can_vote = true,  
-        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
+        checker = {         fun(permission_level) * Level.same_as[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- ban a player
 
@@ -702,7 +687,7 @@ M.AddCommands(
         name = 'KILLBAN', 
         user_targeted = true, 
         can_vote = true, 
-        checker = {         fun(permission_level) * fun(LevelSameAs)[M.PERMISSION.USER_BANNED] * NOT },
+        checker = {         fun(permission_level) * Level.same_as[M.PERMISSION.USER_BANNED] * NOT },
         fn = function(doer, target_userid)
             -- kill and ban a player
 
