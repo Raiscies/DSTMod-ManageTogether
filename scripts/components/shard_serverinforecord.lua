@@ -168,7 +168,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
             original_callback(mod)
             -- end
 
-            recorder.world:PushEvent('ms_modoutofdate', mod)
+            TheWorld:PushEvent('ms_modoutofdate', mod)
 
             dbg('Networking_ModOutOfDateAnnouncement is called')
         end
@@ -177,7 +177,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
         recorder.inst:ListenForEvent('ms_modoutofdate', function(src, modname)
             self:SetIsModOutofDate()
             dbg('ms_modoutofdate')
-        end, recorder.world)
+        end, TheWorld)
 
         -- netvar events
         recorder.inst:ListenForEvent('ms_modoutofdate_announcement_state_changed', function(src)
@@ -196,7 +196,7 @@ function ShardServerInfoRecord:InitModOutOfDateHandler()
                 -- mod is out of date
                 log(string.format('received an event from shard %s that mod is out of date', tostring(src)))
                 
-                if recorder.world.ismastersim then
+                if TheShard:IsMaster() then
                     
                     for _, v in ipairs(callbacks) do
                         if not (v.once and triggered_once) then
@@ -598,7 +598,7 @@ function ShardServerInfoRecord:InitNetVars()
 
     self.inst:ListenForEvent('ms_new_player_joinability_dirty', function()
         local allowed = bool(self.netvar.allow_new_players_to_connect:value())
-        dbg('ms_new_player_joinability_dirty: {allowed}')
+        dbg('ms_new_player_joinability_dirty:', allowed)
 
         if TheWorld.ismastershard then
             TheNet:SetAllowNewPlayersToConnect(allowed)

@@ -1122,7 +1122,7 @@ M.SHARD_COMMAND = {
                     S.VOTE[M.CommandEnumToName(cmd)].FMT_ANNOUNCE, 
                     M.COMMAND[cmd].args_description(unpack(args))
                 )
-                M.announce_vote_fmt(S.VOTE.FMT_START, get_if_exists(shard_serverinforecord[starter_userid], 'name') or S.UNKNOWN_PLAYER, announce_string)
+                M.announce_vote_fmt(S.VOTE.FMT_START, get_if_exists(shard_serverinforecord.player_record[starter_userid], 'name') or S.UNKNOWN_PLAYER, announce_string)
                 -- listen only once
                 TheWorld:RemoveEventCallback('master_worldvoterupdate', on_vote_started)
                 
