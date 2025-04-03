@@ -1566,7 +1566,7 @@ function PlayerStatusScreen:DoInit(clients)
     OldDoInit(self, clients)
     
     -- once the request is sent, 
-    -- rpc will wait for a respose from server and re-init the screen in the callback while the reponse is received
+    -- rpc will wait for a respose from server and re-init the screen in the callback while the response is received
     if ThePlayer.player_classified:HasPermission(M.COMMAND_ENUM.QUERY_HISTORY_PLAYERS) then
         do_init_screen_toggle_button(self, 1)
     else
