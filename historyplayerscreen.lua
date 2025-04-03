@@ -1352,7 +1352,7 @@ function HistoryPlayerScreen:DoInit()
 
         -- if record.client then
         player_listing.character_badge:Set(
-            get_base_prefab_from_skin(record.skin) or '',       -- prefab name
+            get_base_prefab_from_skin(record.skin) or '',   -- prefab name
             colour,                                         -- colour 
             false,                                          -- is_host
             userflags,                                      -- userflags 
@@ -1395,7 +1395,7 @@ function HistoryPlayerScreen:DoInit()
         player_listing.name:SetText(player_listing.display_name)
         local w, h = player_listing.name.text:GetRegionSize()
         player_listing.name:SetPosition(player_listing.name._align.x + w * .5, 0, 0)
-        player_listing.name:SetColour(unpack(record.colour or DEFAULT_PLAYER_COLOUR))
+        player_listing.name:SetColour(unpack(colour))
         player_listing.name:SetOnClick(function()
             self:DumpToWebPage(userid)
         end)
