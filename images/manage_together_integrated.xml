@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Atlas>
-    <Texture filename="manage_together_integrated.tex"/>
+    <Texture filename="..tex"/>
     <Elements>
         <Element name="add_moderator.tex" u1="0.227051" u2="0.32373" v1="0.449707" v2="0.546387"/>
         <Element name="admin_badge.tex" u1="0.906738" u2="0.996582" v1="0.79541" v2="0.88623"/>
@@ -29,13 +29,14 @@
         <Element name="regenerate_world_normal.tex" u1="0.000488281" u2="0.112793" v1="0.268066" v2="0.380371"/>
         <Element name="regenerate_world_select.tex" u1="0.000488281" u2="0.112793" v1="0.154785" v2="0.26709"/>
         <Element name="remove_moderator.tex" u1="0.227051" u2="0.32373" v1="0.156738" v2="0.253418"/>
+        <Element name="rollback_disabled.tex" u1="0.227051" u2="0.32373" v1="0.059082" v2="0.155762"/>
         <Element name="rollback_hover.tex" u1="0.000488281" u2="0.112793" v1="0.0415039" v2="0.153809"/>
         <Element name="rollback_normal.tex" u1="0.11377" u2="0.226074" v1="0.60791" v2="0.720215"/>
         <Element name="rollback_select.tex" u1="0.11377" u2="0.226074" v1="0.494629" v2="0.606934"/>
         <Element name="save_hover.tex" u1="0.11377" u2="0.226074" v1="0.381348" v2="0.493652"/>
         <Element name="save_normal.tex" u1="0.11377" u2="0.226074" v1="0.268066" v2="0.380371"/>
         <Element name="save_select.tex" u1="0.11377" u2="0.226074" v1="0.154785" v2="0.26709"/>
-        <Element name="view_steam_profile.tex" u1="0.227051" u2="0.32373" v1="0.059082" v2="0.155762"/>
+        <Element name="view_steam_profile.tex" u1="0.324707" u2="0.421387" v1="0.449707" v2="0.546387"/>
         <Element name="vote_hover.tex" u1="0.11377" u2="0.226074" v1="0.0415039" v2="0.153809"/>
         <Element name="vote_normal.tex" u1="0.227051" u2="0.339355" v1="0.660645" v2="0.772949"/>
         <Element name="vote_select.tex" u1="0.227051" u2="0.339355" v1="0.547363" v2="0.659668"/>

@@ -379,23 +379,19 @@ local function create_button_of_server(screen, name, img_src, close_on_clicked, 
         button = nil
     elseif button == nil and not TheInput:ControllerAttached() then
         if not img_src then
+            img_src = name
+        end
+        if type(img_src) ~= 'table' then
             img_src = {
-                M.ATLAS,
-                name .. '_normal.tex', 
-                name .. '_hover.tex', 
-                name .. '_select.tex', -- disabled.tex 
-                name .. '_select.tex'
-            }
-        elseif type(img_src) == 'string' then
-            img_src = {
-                M.ATLAS,
+            M.ATLAS,
                 img_src .. '_normal.tex', 
                 img_src .. '_hover.tex', 
                 img_src .. '_select.tex', -- disabled.tex 
                 img_src .. '_select.tex'
             }
         end
-        --                                                        atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
+            
+        --                                                atlas.xml, normal.tex, hover.tex, disabled.tex             , select.tex              ,
         button = screen.root:AddChild(VotableImageButton(img_src[1], img_src[2], img_src[3], img_src[4] or img_src[2], img_src[5] or img_src[2], nil, { .4, .4 }, { 0, 0 }))
         
         -- this flag affects:
@@ -441,7 +437,7 @@ local function create_button_of_server(screen, name, img_src, close_on_clicked, 
     end
 end
 
-local function CreateSwitchOfServer(screen, name, turned_on_name, turned_off_name, close_on_clicked, command_fn)
+local function create_switch_of_server(screen, name, turned_on_name, turned_off_name, close_on_clicked, command_fn)
 
     local button = screen[name]
     if button ~= nil and TheInput:ControllerAttached() then
@@ -523,7 +519,13 @@ local function do_init_server_related_command_buttons(screen)
         ThePlayer.player_classified:RequestToExecuteCommand(M.COMMAND_ENUM.SAVE)
     end)
 
-    create_button_of_server(screen, 'rollback', nil, false, function(vote_state)
+    create_button_of_server(screen, 
+        {
+            'rollback_normal.tex', 
+            'rollback_hover.tex',
+            'rollback_disabled.tex', 
+            'rollback_select.tex'
+        }, nil, false, function(vote_state)
         if screen.rollback_spinner:GetSelected().data == nil then
             popup_dialog(S.ERR_ROLLBACK_TITLE_BAD_INDEX, S.ERR_ROLLBACK_DESC_BAD_INDEX)
         else
@@ -554,7 +556,7 @@ local function do_init_server_related_command_buttons(screen)
         )
     end)
 
-    CreateSwitchOfServer(screen, 'set_new_player_joinability', 'allow_all_player', 'allow_old_player',
+    create_switch_of_server(screen, 'set_new_player_joinability', 'allow_all_player', 'allow_old_player',
         false, 
         function(current_state, vote_state)
             -- local current_state_text = screen.set_new_player_joinability.state_res[current_state].hover_text.text
@@ -901,39 +903,47 @@ end
 function HistoryPlayerScreen:OnUpdate(dt)
     if TheFrontEnd:GetFadeLevel() > 0 then
         self:Close()
-    else
-        -- no need to disable the newest slot 
-        if self.rollback_spinner then
-            local first_slot_is_new = M.IsNewestRollbackSlotValid()
+        return
+    end
 
-            if first_slot_is_new ~= self.rollback_spinner.first_slot_is_new then
-                -- needs rebuild rollback_spinner
-                self:DoInitRollbackSpinner()
-                self.rollback_spinner.first_slot_is_new = first_slot_is_new
-            else
-                if not self.rollback_spinner.has_moved_to_first_slot and not first_slot_is_new and self.rollback_spinner:GetSelectedIndex() == 1 then
-                    -- disable this option
-                    self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_SLOT_NEW_CREATED)
-                    self.rollback_spinner:SetTextColour(UICOLOURS.GOLD_SELECTED)
-                    -- self.rollback:Select()
-                    self.rollback_spinner.has_moved_to_first_slot = true
-                elseif self.rollback_spinner.has_moved_to_first_slot and (first_slot_is_new or self.rollback_spinner:GetSelectedIndex() ~= 1) then
-                    self.rollback_spinner:ClearHoverText()
-                    self.rollback_spinner:SetTextColour(UICOLOURS.GOLD)
-                    -- self.rollback:Unselect()
-                    self.rollback_spinner.has_moved_to_first_slot = false
-                end
+    if self.recorder:GetIsRollingBack() or self.rollback_spinner and self.rollback_spinner:GetSelected().data == nil then
+        self.rollback:Disable()
+    else
+        self.rollback:Enable()
+    end
+
+    -- no need to disable the newest slot
+    if self.rollback_spinner then
+        local first_slot_is_new = M.IsNewestRollbackSlotValid()
+
+        if first_slot_is_new ~= self.rollback_spinner.first_slot_is_new then
+            -- needs rebuild rollback_spinner
+            self:DoInitRollbackSpinner()
+            self.rollback_spinner.first_slot_is_new = first_slot_is_new
+        else
+            if not self.rollback_spinner.has_moved_to_first_slot and not first_slot_is_new and self.rollback_spinner:GetSelectedIndex() == 1 then
+                -- disable this option
+                self.rollback_spinner:SetHoverText(S.ROLLBACK_SPINNER_SLOT_NEW_CREATED)
+                self.rollback_spinner:SetTextColour(UICOLOURS.GOLD_SELECTED)
+                -- self.rollback:Select()
+                self.rollback_spinner.has_moved_to_first_slot = true
+            elseif self.rollback_spinner.has_moved_to_first_slot and (first_slot_is_new or self.rollback_spinner:GetSelectedIndex() ~= 1) then
+                self.rollback_spinner:ClearHoverText()
+                self.rollback_spinner:SetTextColour(UICOLOURS.GOLD)
+                -- self.rollback:Unselect()
+                self.rollback_spinner.has_moved_to_first_slot = false
             end
         end
-
-        if self.time_to_refresh > dt then
-            self.time_to_refresh = self.time_to_refresh - dt
-            -- something needs refresh immediactly 
-        else
-            self.time_to_refresh = REFRESH_INTERVAL
-            -- list refresh
-        end
     end
+
+    if self.time_to_refresh > dt then
+        self.time_to_refresh = self.time_to_refresh - dt
+        -- something needs refresh immediactly 
+    else
+        self.time_to_refresh = REFRESH_INTERVAL
+        -- list refresh
+    end
+
 end
 
 

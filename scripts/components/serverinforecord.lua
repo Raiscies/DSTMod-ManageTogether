@@ -97,6 +97,7 @@ end
 function ServerInfoRecord:InitNetVars()
     -- all of these netvars are in public area - all of the clients are available to access it
     self.netvar = {
+        is_rolling_back = net_bool(self.inst.GUID, 'manage_together.is_rolling_back', 'rollback_state_changed'),
         allow_new_players_to_connect = net_bool(self.inst.GUID, 'manage_together.allow_new_players_to_connect', 'new_player_joinability_changed'),
         auto_new_player_wall_enabled = net_bool(self.inst.GUID, 'manage_together.auto_new_player_wall_enabled', 'auto_new_player_wall_changed'),
         auto_new_player_wall_min_level = net_byte(self.inst.GUID, 'manage_together.auto_new_player_wall_min_level', 'auto_new_player_wall_changed')
@@ -111,18 +112,21 @@ function ServerInfoRecord:InitNetVars()
     end
 
     if TheWorld.ismastersim then
-
         -- listen for events from shard_network - shard_serverinforecord forwarded by TheWorld, and then forward to every clients
+
+        self.inst:ListenForEvent('ms_rollback_state_changed', function(inst, is_rolling_back)
+            dbg('event rollback_state_changed: {is_rolling_back}')
+            
+            force_update('is_rolling_back', is_rolling_back)
+        end, TheWorld)
+
         self.inst:ListenForEvent('ms_new_player_joinability_changed', function(inst, connectable)
-            -- local connectable = self.shard_recorder:GetAllowNewPlayersToConnect()
             dbg('event ms_new_player_joinability_changed: {connectable}')
             
             force_update('allow_new_players_to_connect', connectable)
-            -- self.netvar.allow_new_players_to_connect:set(connectable)
         end, TheWorld) 
         
         self.inst:ListenForEvent('ms_auto_new_player_wall_changed', function(inst, data)
-            -- local enabled, min_level = self.shard_recorder:GetAutoNewPlayerWall()
             local enabled, min_level = data.enabled, data.level
             
             dbg('event ms_auto_new_player_wall_changed: {enabled = }, {min_level = }')
@@ -131,18 +135,28 @@ function ServerInfoRecord:InitNetVars()
         end, TheWorld)
 
     else
-
         -- on client side
-        self.inst:ListenForEvent('new_player_joinability_changed', function()
-            local connectable = self:GetAllowNewPlayersToConnect()
-            dbg('client event new_player_joinability_changed: {connectable}')
-        end)
+        if M.DEBUG then
+            self.inst:ListenForEvent('rollback_state_changed', function()
+                local is_rolling_back = self.netvar.is_rolling_back:value()
+                dbg('client event rollback_state_changed: {is_rolling_back}')
+            end)
 
-        self.inst:ListenForEvent('auto_new_player_wall_changed', function()
-            local enabled, min_level = self:GetAutoNewPlayerWall()
-            dbg('client event auto_new_player_wall_changed: {enabled = }, {min_level = }')
-        end)
+            self.inst:ListenForEvent('new_player_joinability_changed', function()
+                local connectable = self:GetAllowNewPlayersToConnect()
+                dbg('client event new_player_joinability_changed: {connectable}')
+            end)
+
+            self.inst:ListenForEvent('auto_new_player_wall_changed', function()
+                local enabled, min_level = self:GetAutoNewPlayerWall()
+                dbg('client event auto_new_player_wall_changed: {enabled = }, {min_level = }')
+            end)
+        end
     end
+end
+
+function ServerInfoRecord:GetIsRollingBack()
+    return bool(self.netvar.is_rolling_back:value())
 end
 
 function ServerInfoRecord:GetAllowNewPlayersToConnect()
