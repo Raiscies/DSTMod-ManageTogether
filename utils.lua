@@ -199,8 +199,14 @@ local moretostring = M.moretostring
 
 ]]
 
+local getlocal = debug.getlocal
+
+local function get_nothrow(tab, key)
+    local success, result = pcall(function() return tab[key] end)
+    return success and result or nil
+end
+
 function M.dbg_format(s, local_variable_cache, fn_depth)
-    local getlocal = debug.getlocal
     local caller_fenv = getfenv(fn_depth or 2)
 
     -- local local_variable_cache = nil
@@ -241,7 +247,7 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
             for i = 2, #path, 1 do 
                 if not node or type(node) ~= 'table' then
                     -- invalid identifier chain
-                    node = 'undefined_field'
+                    node = '<undefined_field>'
                     break
                 end
                 node = node[path[i]]
@@ -251,14 +257,13 @@ function M.dbg_format(s, local_variable_cache, fn_depth)
             node = caller_fenv
             for _, iden in ipairs(path) do
                 if not node or type(node) ~= 'table' then
-                    node = 'undefined_field'
+                    node = '<undefined_field>'
                     break
                 end
-                node = node[iden]
+                node = get_nothrow(node, iden)
             end
         end
 
-        -- print('final node =', moretostring(node))
         if tailing == '' then
             return moretostring(node)
         else

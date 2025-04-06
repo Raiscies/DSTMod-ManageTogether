@@ -383,7 +383,7 @@ local function create_button_of_server(screen, name, img_src, close_on_clicked, 
         end
         if type(img_src) ~= 'table' then
             img_src = {
-            M.ATLAS,
+                M.ATLAS,
                 img_src .. '_normal.tex', 
                 img_src .. '_hover.tex', 
                 img_src .. '_select.tex', -- disabled.tex 
@@ -520,12 +520,14 @@ local function do_init_server_related_command_buttons(screen)
     end)
 
     create_button_of_server(screen, 
-        {
+        'rollback', 
+        {   
+            M.ATLAS,
             'rollback_normal.tex', 
             'rollback_hover.tex',
             'rollback_disabled.tex', 
             'rollback_select.tex'
-        }, nil, false, function(vote_state)
+        }, false, function(vote_state)
         if screen.rollback_spinner:GetSelected().data == nil then
             popup_dialog(S.ERR_ROLLBACK_TITLE_BAD_INDEX, S.ERR_ROLLBACK_DESC_BAD_INDEX)
         else

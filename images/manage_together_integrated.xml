@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Atlas>
-    <Texture filename="..tex"/>
+    <Texture filename="manage_together_integrated.tex"/>
     <Elements>
         <Element name="add_moderator.tex" u1="0.227051" u2="0.32373" v1="0.449707" v2="0.546387"/>
         <Element name="admin_badge.tex" u1="0.906738" u2="0.996582" v1="0.79541" v2="0.88623"/>
