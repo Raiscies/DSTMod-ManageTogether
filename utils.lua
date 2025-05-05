@@ -66,6 +66,7 @@ function M.chain_get(root, ...)
     return current
 end
 
+
 function M.get_if_exists(tab, key)
     return tab and tab[key] or nil
 end
@@ -74,6 +75,11 @@ function M.call_if_exists(obj, name, ...)
     if fn then
         return fn(obj, ...)
     end
+end
+
+function M.get_nothrow(tab, key)
+    local success, result = pcall(M.get_if_exists, tab, key)
+    return success and result or nil
 end
 
 -- select the n-th argument of a vararg
@@ -200,12 +206,7 @@ local moretostring = M.moretostring
 ]]
 
 local getlocal = debug.getlocal
-
-local function get_nothrow(tab, key)
-    local success, result = pcall(function() return tab[key] end)
-    return success and result or nil
-end
-
+local get_nothrow = M.get_nothrow
 function M.dbg_format(s, local_variable_cache, fn_depth)
     local caller_fenv = getfenv(fn_depth or 2)
 
