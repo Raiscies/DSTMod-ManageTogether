@@ -290,7 +290,10 @@ M.dbg = M.DEBUG and function(...)
         insert(buffer, formatted_val)
     end
     print('[ManageTogetherDBG]', concat(buffer, ' '))
-end or function() end
+    return ...
+end or function(...)
+    return ...
+end
 
 function M.announce(s, ...)
     TheNet:Announce(S.ANNOUNCE_PREFIX .. s, ...)

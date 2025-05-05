@@ -910,8 +910,10 @@ function HistoryPlayerScreen:OnUpdate(dt)
 
     if self.recorder:GetIsRollingBack() or self.rollback_spinner and self.rollback_spinner:GetSelected().data == nil then
         self.rollback:Disable()
+        dbg('is rolling back')
     else
         self.rollback:Enable()
+        dbg('not is rolling back')
     end
 
     -- no need to disable the newest slot

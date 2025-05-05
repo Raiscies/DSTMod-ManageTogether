@@ -1,7 +1,7 @@
 -- a component for world to record history players and other useful data
 
 
-local M = manage_together
+local M = _G.manage_together
 
 -- M.usingnamespace(M)
 
@@ -82,6 +82,15 @@ local ShardServerInfoRecord = Class(
             self:ShardRecordOnlinePlayers(M.USER_PERMISSION_ELEVATE_IN_AGE)
         end, TheWorld)
   
+        
+        -- these netvars will be set again if OnLoad is called
+        self.netvar.auto_new_player_wall_min_level:set(M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
+        self.netvar.auto_new_player_wall_enabled:set(false)
+
+        
+        if M.MOD_OUTOFDATE_HANDLER_ENABLED then
+            self:InitModOutOfDateHandler()
+        end
 
         -- OnLoad will not be called if mod is firstly loaded 
         -- in this case, we should handle it properly
@@ -94,13 +103,8 @@ local ShardServerInfoRecord = Class(
             self:LoadSaveInfo()
             self:LoadModeratorFile()
             
-            self.netvar.auto_new_player_wall_min_level:set(M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
-            self.netvar.auto_new_player_wall_enabled:set(false)
         end)
         
-        if M.MOD_OUTOFDATE_HANDLER_ENABLED then
-            self:InitModOutOfDateHandler()
-        end
         
         M.shard_serverinforecord = self
     end
@@ -534,7 +538,11 @@ function ShardServerInfoRecord:OnLoad(data)
             self:UpadateSaveInfo()
         else
             self:LoadSaveInfo()
-        end        
+        end
+
+        if data.auto_new_player_wall_min_level and data.auto_new_player_wall_min_level ~= 0 then
+
+        end
     else
         -- we dont have any info of snapshots, so we should load it from save file
         -- which is a time spanding operation
@@ -542,12 +550,14 @@ function ShardServerInfoRecord:OnLoad(data)
         
     end
 
-    self.netvar.auto_new_player_wall_min_level:set(
-        data and data.auto_new_player_wall_min_level or M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL
-    )
-    self.netvar.auto_new_player_wall_enabled:set(
-        data and data.auto_new_player_wall_enabled or M.DEFAULT_AUTO_NEW_PLAYER_WALL_ENABLED
-    )
+    local min_level = data and data.auto_new_player_wall_min_level
+    if min_level and min_level ~= 0 then
+        self.netvar.auto_new_player_wall_min_level:set(min_level)
+    end
+
+    if data and data.auto_new_player_wall_enabled ~= nil then
+        self.netvar.auto_new_player_wall_enabled:set(data.auto_new_player_wall_enabled)
+    end
 
 end
 

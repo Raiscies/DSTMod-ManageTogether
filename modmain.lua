@@ -83,8 +83,10 @@ if type(auto_new_player_wall_min_level) == 'string' then
     -- this setting(config) is unable to set on in-game screen yet,
     -- but the command is implemented
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION[string.upper(auto_new_player_wall_min_level)] or M.PERMISSION.MODERATOR
+    print('M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = ', M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
 else
     M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = M.PERMISSION.MODERATOR
+    print('M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL = ', M.DEFAULT_AUTO_NEW_PLAYER_WALL_MIN_LEVEL)
 end
 
 modimport('main_strings')
