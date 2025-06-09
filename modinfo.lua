@@ -274,7 +274,7 @@ end
 name = trans.name
 description = trans.description
 author = 'Raiscies'
-version = '0.4.0'
+version = '0.4.1'
 
 forumthread = ''
 
