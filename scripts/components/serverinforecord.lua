@@ -32,6 +32,8 @@ local ServerInfoRecord = Class(function(self, inst)
         self.snapshot_info = {}
 
         self.has_more_player_records = true
+
+        self.is_rolling_back = false
     end
     
     self:RegisterRPCs()
@@ -136,12 +138,12 @@ function ServerInfoRecord:InitNetVars()
 
     else
         -- on client side
+        self.inst:ListenForEvent('rollback_state_changed', function()
+            self.is_rolling_back = self.netvar.is_rolling_back:value()
+            dbg('client event rollback_state_changed: ', self.is_rolling_back)
+        end)
+        
         if M.DEBUG then
-            self.inst:ListenForEvent('rollback_state_changed', function()
-                local is_rolling_back = self.netvar.is_rolling_back:value()
-                dbg('client event rollback_state_changed: {is_rolling_back}')
-            end)
-
             self.inst:ListenForEvent('new_player_joinability_changed', function()
                 local connectable = self:GetAllowNewPlayersToConnect()
                 dbg('client event new_player_joinability_changed: {connectable}')
@@ -156,7 +158,7 @@ function ServerInfoRecord:InitNetVars()
 end
 
 function ServerInfoRecord:GetIsRollingBack()
-    return bool(self.netvar.is_rolling_back:value())
+    return self.is_rolling_back
 end
 
 function ServerInfoRecord:GetAllowNewPlayersToConnect()

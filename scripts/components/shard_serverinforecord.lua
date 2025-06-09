@@ -593,6 +593,13 @@ function ShardServerInfoRecord:InitNetVars()
         
         playerleft_from_a_shard = net_event(self.inst.GUID, 'ms_playerleft_from_a_shard')
     }
+    
+    self.inst:ListenForEvent('ms_rollback_state_changed', function()
+        local is_rolling_back = self:GetIsRollingBack()
+        dbg('ms_rollback_state_changed: ', is_rolling_back)
+        TheWorld:PushEvent('ms_rollback_state_changed', is_rolling_back)
+    end)
+    
 
     self.inst:ListenForEvent('ms_auto_new_player_wall_dirty', function()
 
@@ -617,6 +624,7 @@ function ShardServerInfoRecord:InitNetVars()
         TheWorld:PushEvent('ms_new_player_joinability_changed', allowed)
     end)
 
+
 end
 function ShardServerInfoRecord:SetIsRollingBack(b)
     if b == nil then
@@ -626,18 +634,13 @@ function ShardServerInfoRecord:SetIsRollingBack(b)
     if self:GetIsRollingBack() and b then
         return
     end
-    self:SetNetVar('is_rolling_back', b)   
+    dbg('set is rolling back: {b}')
+    self:SetNetVar('is_rolling_back', b, true)
     
-    if b == true then
-        M.execute_in_time(60, function()
-            -- reset the flag automatically
-            self:SetNetVar('is_rolling_back', false)
-        end)
-    end
 end
 
 function ShardServerInfoRecord:GetIsRollingBack()
-    return self.netvar.is_rolling_back:value()
+    return bool(self.netvar.is_rolling_back:value())
 end
 
 function ShardServerInfoRecord:SetAllowNewPlayersToConnect(allowed, force_update)

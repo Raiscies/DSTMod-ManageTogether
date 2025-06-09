@@ -560,7 +560,7 @@ function M.GetSnapshotPlayerData(userid, component_name)
     local file = TheNet:GetUserSessionFile(TheNet:GetSessionIdentifier(), userid)
     if not file then return end
     log('loading user(' .. userid .. ') data: ' .. file)
-
+ 
 
     local data = nil
 
@@ -653,7 +653,7 @@ function M.CountItemInOnlinePlayerInventory(player, target_items)
         local counts = {}
     
         for _, item in pairs(itemslots) do
-             
+            
             local matched = is_item_stat_target(item, target_items)
             local stackable = item.components and item.components.stackable
             if matched then
